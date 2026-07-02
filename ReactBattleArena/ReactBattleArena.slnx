@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="ReactBattleArena.Api/ReactBattleArena.Api.csproj" />
+  <Project Path="ReactBattleArena.Application/ReactBattleArena.Application.csproj" />
+  <Project Path="ReactBattleArena.Domain/ReactBattleArena.Domain.csproj" />
+  <Project Path="ReactBattleArena.Infrastructure/ReactBattleArena.Infrastructure.csproj" />
+</Solution>
