@@ -1,10 +1,12 @@
 using ReactBattleArena.Infrastructure;
+using ReactBattleArena.Application;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
 builder.Services.AddControllers();
+builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 //Microsoft.EntityFrameworkCore.Design
 //Migration komutları Api’yi startup proje olarak kullanır; bu paket gerekli.

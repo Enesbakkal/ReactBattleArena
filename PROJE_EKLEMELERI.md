@@ -2,50 +2,20 @@
 
 Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 
----
-
-## Bugün Yapılanlar (3 Temmuz 2026)
-
-### Adım 6 — FluentValidation
-- [x] `FluentValidation` paketi eklendi (Application)
-- [x] `FluentValidation.DependencyInjectionExtensions` paketi eklendi (Application)
-- [x] `CreateCharacterCommandValidator.cs` yazıldı
-  - Name, Universe, Biography, Rarity, istatistik kuralları
-
-### Adım 7 — Infrastructure & Veritabanı
-- [x] `Microsoft.EntityFrameworkCore.SqlServer` eklendi (Infrastructure)
-- [x] `Microsoft.EntityFrameworkCore.Design` eklendi (Infrastructure + Api)
-- [x] `Microsoft.EntityFrameworkCore.Tools` eklendi (Api)
-- [x] `ApplicationDbContext.cs` yazıldı
-- [x] `CharacterConfiguration.cs` yazıldı (Fluent API, tablo + index)
-- [x] `DependencyInjection.cs` yazıldı (`AddInfrastructure`)
-- [x] `Program.cs` güncellendi (`AddInfrastructure` kaydı)
-- [x] `appsettings.Development.json` connection string (SQL Server Authentication)
-- [x] `Add-Migration InitialCreate` başarılı
-- [x] `Update-Database` başarılı
-- [x] SQL Server'da `ReactBattleArena` veritabanı oluşturuldu
-- [x] `Characters` tablosu migration ile açıldı
-
-### Sıradaki Adım
-- [ ] **Adım 8** — MediatR + FluentValidation DI kaydı (`AddApplication`)
+> **Not:** Güncelleme yaparken bu bölümün üstüne yeni gün eklenir; **Tüm Tamamlananlar** listesi silinmez, sadece genişletilir.
 
 ---
 
-## Bugün Yapılanlar (2 Temmuz 2026)
+## Tüm Tamamlananlar (Adım 1 → 7)
 
-### Planlama
-- [x] Proje mantığı dokümanı (`PROJE_MANTIGI.md`)
-- [x] Proje eklemeleri takip dosyası (`PROJE_EKLEMELERI.md`)
-- [x] Geliştirme checkpoint dosyası (`CHECKPOINT.md`)
-- [x] Adım adım, class class geliştirme yaklaşımı belirlendi
-
-### Ortam & Kurulum
+### Planlama & Ortam
+- [x] `PROJE_MANTIGI.md`, `PROJE_EKLEMELERI.md`, `CHECKPOINT.md`
 - [x] .NET 10 SDK kurulumu
 - [x] Proje dizini: `D:\ReactBattleArena`
-- [x] Visual Studio üzerinden solution oluşturuldu
+- [x] Adım adım, class class geliştirme yaklaşımı
 
 ### Adım 1 — Solution Yapısı
-- [x] `ReactBattleArena.slnx` oluşturuldu
+- [x] `ReactBattleArena.slnx`
 - [x] `ReactBattleArena.Domain` (Class Library)
 - [x] `ReactBattleArena.Application` (Class Library)
 - [x] `ReactBattleArena.Infrastructure` (Class Library)
@@ -55,29 +25,57 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 - [x] Application → Domain
 - [x] Infrastructure → Application + Domain
 - [x] Api → Application + Infrastructure
-- [x] Referanslar kontrol edildi, katman sırası doğru
-
-### Güvenlik
-- [x] `Microsoft.OpenApi` güvenlik uyarısı giderildi (Api projesine 2.7.5+ sürüm eklendi)
 
 ### Adım 3 — Domain Katmanı
-- [x] `Characters` klasörü oluşturuldu
-- [x] `Character.cs` entity yazıldı
+- [x] `Characters/Character.cs`
+  - Private constructor, `Create()`, `Update()`
+  - Name, Universe, Biography, Rarity, BaseAttack, BaseDefense, BaseSpeed, ImageUrl, CreatedAtUtc
 
-### Adım 4 — Application Katmanı (Command)
-- [x] MediatR paketi eklendi (Application)
-- [x] `CreateCharacterCommand.cs` yazıldı
+### Adım 4 — Application (Command)
+- [x] MediatR paketi (Application)
+- [x] `CreateCharacterCommand.cs` (`IRequest<Guid>`)
 
-### Adım 5 — Application Katmanı (Handler + Arayüz)
-- [x] Microsoft.EntityFrameworkCore paketi eklendi (Application)
-- [x] `IApplicationDbContext.cs` yazıldı
-- [x] `CreateCharacterCommandHandler.cs` yazıldı
+### Adım 5 — Application (Handler + Arayüz)
+- [x] Microsoft.EntityFrameworkCore paketi (Application)
+- [x] `IApplicationDbContext.cs`
+- [x] `CreateCharacterCommandHandler.cs`
 
-### Git & GitHub
-- [x] `.gitignore` dosyası eklendi
-- [ ] İlk commit
-- [ ] GitHub repo oluşturma
-- [ ] İlk push
+### Adım 6 — FluentValidation
+- [x] FluentValidation paketleri (Application)
+- [x] `CreateCharacterCommandValidator.cs`
+
+### Adım 7 — Infrastructure & Veritabanı
+- [x] EF Core paketleri (Infrastructure + Api)
+- [x] `ApplicationDbContext.cs`
+- [x] `CharacterConfiguration.cs`
+- [x] `DependencyInjection.cs` (`AddInfrastructure`)
+- [x] `Program.cs` → `AddInfrastructure` kaydı
+- [x] `appsettings.Development.json` connection string
+- [x] Migration `InitialCreate` + `Update-Database`
+- [x] SQL Server: `ReactBattleArena` DB + `Characters` tablosu
+
+### Güvenlik & Git
+- [x] `Microsoft.OpenApi` güvenlik güncellemesi (Api)
+- [x] `.gitignore`
+- [ ] GitHub repo ve push (bekliyor)
+
+### Sıradaki
+- [ ] **Adım 8** — MediatR + FluentValidation DI kaydı (`AddApplication`)
+- [ ] **Adım 9** — `CharactersController`
+
+---
+
+## Günlük Kayıt
+
+### 2 Temmuz 2026
+- Adım 1–5 tamamlandı
+- Planlama dokümanları oluşturuldu
+- `.gitignore` eklendi
+
+### 3 Temmuz 2026
+- Adım 6–7 tamamlandı
+- FluentValidation validator yazıldı
+- EF Core, migration, veritabanı oluşturuldu
 
 ---
 
