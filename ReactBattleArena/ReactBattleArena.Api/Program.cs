@@ -1,3 +1,4 @@
+using Scalar.AspNetCore;
 using ReactBattleArena.Infrastructure;
 using ReactBattleArena.Application;
 
@@ -20,6 +21,7 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapScalarApiReference();
 }
 
 app.UseHttpsRedirection();

@@ -6,7 +6,7 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 
 ---
 
-## Tüm Tamamlananlar (Adım 1 → 7)
+## Tüm Tamamlananlar (Adım 1 → 9)
 
 ### Planlama & Ortam
 - [x] `PROJE_MANTIGI.md`, `PROJE_EKLEMELERI.md`, `CHECKPOINT.md`
@@ -54,14 +54,26 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 - [x] Migration `InitialCreate` + `Update-Database`
 - [x] SQL Server: `ReactBattleArena` DB + `Characters` tablosu
 
+### Adım 8 — Application DI (MediatR + FluentValidation)
+- [x] `Common/ValidationBehavior.cs`
+- [x] Application `DependencyInjection.cs` (`AddApplication`)
+- [x] `Program.cs` → `AddApplication` kaydı
+
+### Adım 9 — Characters API + Scalar
+- [x] `Contracts/CreateCharacterRequest.cs`
+- [x] `Controllers/CharactersController.cs` (POST create endpoint)
+- [x] WeatherForecast şablon dosyaları silindi
+- [x] `Scalar.AspNetCore` paketi eklendi (Api)
+- [x] `Program.cs` → `MapScalarApiReference()`
+- [x] `launchSettings.json` → `launchBrowser: true`, `launchUrl: scalar/v1`
+
 ### Güvenlik & Git
 - [x] `Microsoft.OpenApi` güvenlik güncellemesi (Api)
 - [x] `.gitignore`
-- [ ] GitHub repo ve push (bekliyor)
+- [x] GitHub push
 
 ### Sıradaki
-- [ ] **Adım 8** — MediatR + FluentValidation DI kaydı (`AddApplication`)
-- [ ] **Adım 9** — `CharactersController`
+- [ ] **Adım 10** — Validation 400 middleware (ValidationException → 400)
 
 ---
 
@@ -77,6 +89,17 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 - FluentValidation validator yazıldı
 - EF Core, migration, veritabanı oluşturuldu
 
+### 6 Temmuz 2026
+- Adım 8 tamamlandı
+- `ValidationBehavior`, `AddApplication`, `Program.cs` güncellendi
+- GitHub push
+
+### 7 Temmuz 2026
+- Adım 9 tamamlandı
+- `CreateCharacterRequest`, `CharactersController` (POST create)
+- Scalar UI eklendi (`/scalar`), tarayıcı otomatik açılması ayarlandı
+- Not: .NET 10 şablonunda Swagger UI gelmiyor; Scalar tercih edildi
+
 ---
 
 ## Hazırlık
@@ -84,7 +107,7 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 - [x] .NET 10 SDK kurulumu
 - [x] Proje dizini oluşturuldu (`D:\ReactBattleArena`)
 - [x] Proje planı dokümanları hazırlandı
-- [ ] GitHub repo ve ilk push
+- [x] GitHub repo ve push
 
 ---
 
@@ -95,8 +118,8 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 - [x] MediatR paketi (Application)
 - [x] FluentValidation paketi (Application)
 - [x] EF Core + SQL Server bağlantısı (Infrastructure)
-- [ ] MediatR DI kaydı (Api)
-- [ ] FluentValidation pipeline
+- [x] MediatR DI kaydı (`AddApplication`)
+- [x] FluentValidation pipeline (`ValidationBehavior`)
 - [ ] Docker Compose (opsiyonel)
 - [ ] React frontend projesi
 
@@ -111,9 +134,9 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 - [x] IApplicationDbContext arayüzü
 - [x] ApplicationDbContext + CharacterConfiguration
 - [x] InitialCreate migration + veritabanı
+- [x] Characters API controller (POST create)
 - [ ] Update / Delete command'ları
 - [ ] Get list / Get by id query'leri
-- [ ] Characters API controller
 - [ ] React: karakter listesi ve form
 
 ---
@@ -172,6 +195,8 @@ D:\ReactBattleArena\
     │   └── Characters\Character.cs
     ├── ReactBattleArena.Application\
     │   ├── Abstractions\IApplicationDbContext.cs
+    │   ├── Common\ValidationBehavior.cs
+    │   ├── DependencyInjection.cs
     │   └── Characters\Commands\
     │       ├── CreateCharacterCommand.cs
     │       ├── CreateCharacterCommandHandler.cs
@@ -185,5 +210,7 @@ D:\ReactBattleArena\
     │       └── 20260703153026_InitialCreate.cs
     └── ReactBattleArena.Api\
         ├── Program.cs
-        └── appsettings.Development.json
+        ├── appsettings.Development.json
+        ├── Contracts\CreateCharacterRequest.cs
+        └── Controllers\CharactersController.cs
 ```
