@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 7 Temmuz 2026 — Adım 9 tamamlandı.
+Son güncelleme: 8 Temmuz 2026 — Adım 10 tamamlandı, Adım 11 planlandı.
 
 ## Tamamlananlar
 
@@ -13,18 +13,26 @@ Son güncelleme: 7 Temmuz 2026 — Adım 9 tamamlandı.
 - [x] Adım 7 — Infrastructure + EF Core + Migration
 - [x] Adım 8 — `AddApplication` (MediatR + FluentValidation DI)
 - [x] Adım 9 — `CharactersController` (POST create) + Scalar UI
-  - `Contracts/CreateCharacterRequest`, `CharactersController`
-  - Scalar.AspNetCore eklendi (`/scalar`), `launchSettings.json` auto-open
-  - WeatherForecast şablon dosyaları silindi
+- [x] Adım 10 — Validation 400 middleware
+  - `FluentValidationExceptionMiddleware`, `ApplicationBuilderExtensions`
+  - `ValidationException` → 400 + `ValidationProblemDetails` (test edildi)
 
 ## Sıradaki
 
-- [ ] **Adım 10** — Validation 400 middleware (ValidationException → 400)
-- [ ] Adım 11 — Character query'leri (GetById, GetList) + controller GET
+- [ ] **Adım 11** — Character query'leri (GetById, GetList) + controller GET
 - [ ] Adım 12 — Update / Delete command'ları
 - [ ] Adım 13 — User modülü
 - [ ] Adım 14 — Authentication & Authorization
 
 ## Not
 
-Devam: Adım 10'dan (validation 400 middleware).
+Devam: Adım 11'den (GET query'leri).
+
+## Hafta sonu — kod akışı tekrarı
+
+- [ ] Tüm akışı baştan sona gözden geçir (Controller → MediatR → ValidationBehavior → Handler → DbContext)
+- [ ] Validator ↔ Middleware bağlantısını tekrar incele
+- [ ] Hatalı / hatasız istek senaryolarını Scalar'dan test et
+- [ ] Neden `record` kullandığımızı örneklerle tekrar et (Command/Query/DTO)
+- [ ] Büyük veri senaryosunda paging, `Count`, `Skip/Take` ve performans yaklaşımını değerlendir
+- [ ] `IRequest<PagedCharacterRowsResult>` ve dönüş DTO'sunun tasarımdaki rolünü netleştir

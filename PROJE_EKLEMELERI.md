@@ -67,13 +67,22 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 - [x] `Program.cs` → `MapScalarApiReference()`
 - [x] `launchSettings.json` → `launchBrowser: true`, `launchUrl: scalar/v1`
 
+### Adım 10 — Validation 400 Middleware
+- [x] `Middleware/FluentValidationExceptionMiddleware.cs`
+- [x] `Extensions/ApplicationBuilderExtensions.cs`
+- [x] `Program.cs` → `UseFluentValidationExceptionHandler()`
+- [x] Hatalı istek → 400 test edildi
+
 ### Güvenlik & Git
 - [x] `Microsoft.OpenApi` güvenlik güncellemesi (Api)
 - [x] `.gitignore`
 - [x] GitHub push
 
 ### Sıradaki
-- [ ] **Adım 10** — Validation 400 middleware (ValidationException → 400)
+- [ ] **Adım 11** — Character GET query'leri + controller GET
+
+### Hafta sonu notu
+- [ ] Tüm kod akışını baştan sona tekrar et (hatalı/hatasız senaryolar)
 
 ---
 
@@ -99,6 +108,15 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 - `CreateCharacterRequest`, `CharactersController` (POST create)
 - Scalar UI eklendi (`/scalar`), tarayıcı otomatik açılması ayarlandı
 - Not: .NET 10 şablonunda Swagger UI gelmiyor; Scalar tercih edildi
+
+### 8 Temmuz 2026
+- Adım 10 tamamlandı
+- Validation 400 middleware eklendi ve test edildi
+- Hafta sonu: kod akışı tekrarı planlandı
+- Hafta sonu için teknik sorular not edildi:
+  - Bu projede neden çok `record` kullandık?
+  - Milyon/milyar veri durumunda paging yaklaşımı doğru mu?
+  - `IRequest<PagedCharacterRowsResult>` ve ayrı sonuç `record`u ne kazandırıyor?
 
 ---
 

@@ -1,6 +1,7 @@
 using Scalar.AspNetCore;
 using ReactBattleArena.Infrastructure;
 using ReactBattleArena.Application;
+using ReactBattleArena.Api.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +25,7 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference();
 }
 
+app.UseFluentValidationExceptionHandler();
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
