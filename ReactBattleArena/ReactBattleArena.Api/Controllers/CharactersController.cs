@@ -44,7 +44,7 @@ public sealed class CharactersController : ControllerBase
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<Guid>> Create(
-        [FromBody] CreateCharacterRequest body,//Dışarıdan gelen JSON gövdesi
+        [FromBody] CreateCharacterRequest body,
         CancellationToken cancellationToken = default)
     {
         var id = await _mediator.Send(
@@ -59,6 +59,44 @@ public sealed class CharactersController : ControllerBase
                 body.ImageUrl),
             cancellationToken);
 
-        return Created($"/api/characters/{id}", id);//201 + yeni Id döner
+        return Created($"/api/characters/{id}", id);
+    }
+
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Update(
+    Guid id,
+    [FromBody] CreateCharacterRequest body,
+    CancellationToken cancellationToken = default)
+    {
+        var updated = await _mediator.Send(
+            new UpdateCharacterCommand(
+                id,
+                body.Name,
+                body.Universe,
+                body.Biography,
+                body.Rarity,
+                body.BaseAttack,
+                body.BaseDefense,
+                body.BaseSpeed,
+                body.ImageUrl),
+            cancellationToken);
+
+        return updated ? NoContent() : NotFound();
+    }
+
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        // Controller command'ı Send ile yollar → MediatR tipine bakar → IRequestHandler'ı DI'dan alır → Handle çalıştırır.
+        // Gelen tip: DeleteCharacterCommand → aranan: IRequestHandler<DeleteCharacterCommand, bool> → bulunan: DeleteCharacterCommandHandler
+        var deleted = await _mediator.Send(new DeleteCharacterCommand(id), cancellationToken);
+        return deleted ? NoContent() : NotFound();
     }
 }

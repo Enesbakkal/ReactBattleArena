@@ -1,11 +1,8 @@
 ﻿using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
-using ReactBattleArena.Application.Characters.Commands;
 using ReactBattleArena.Application.Common;
 using System.Reflection;
-using System.Runtime.ConstrainedExecution;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Model;
 
 namespace ReactBattleArena.Application;
 
@@ -13,15 +10,16 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
+        // Application assembly'sindeki tüm IRequestHandler<,> implementasyonlarını tarar ve DI'a ekler.
+        // DeleteCharacterCommandHandler da burada kayıt olur — elle AddScoped yazmana gerek yok.
+        // İlgili handler yoksa Send çağrısında "handler bulunamadı" hatası alırsın.
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
+
+        // FluentValidation → Validator'ları bulur (CreateCharacterCommandValidator vb.)
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+
+        // Pipeline → Her istekte validation çalışır (ValidationBehavior)
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
         return services;
     }
 }
-
-//Ne yapar?
-
-//MediatR → Handler’ları bulur(CreateCharacterCommandHandler)
-//FluentValidation → Validator’ları bulur(CreateCharacterCommandValidator)
-//Pipeline → Her istekte validation çalışır
