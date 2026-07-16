@@ -14,6 +14,8 @@ public sealed class User
 
     public string? DisplayName { get; private set; }
 
+    public string PasswordHash { get; private set; } = null!;
+
     // Arena / ödül için; Auth sonrası da kullanılacak
     public int Points { get; private set; }
 
@@ -23,6 +25,7 @@ public sealed class User
         string userName,
         string email,
         string? displayName,
+        string passwordHash,
         DateTime utcNow)
     {
         return new User
@@ -31,6 +34,7 @@ public sealed class User
             UserName = userName,
             Email = email,
             DisplayName = displayName,
+            PasswordHash = passwordHash,
             Points = 0,
             CreatedAtUtc = utcNow
         };
@@ -41,6 +45,11 @@ public sealed class User
         UserName = userName;
         Email = email;
         DisplayName = displayName;
+    }
+
+    public void SetPasswordHash(string passwordHash)
+    {
+        PasswordHash = passwordHash;
     }
 
     public void AddPoints(int amount)

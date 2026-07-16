@@ -18,6 +18,7 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.HasIndex(x => x.UserName).IsUnique();
         builder.HasIndex(x => x.Email).IsUnique();
+        builder.Property(x => x.PasswordHash).IsRequired().HasMaxLength(500);
         //UserName ve Email unique — aynı kullanıcı / mail iki kez eklenemez.
     }
 }

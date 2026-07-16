@@ -10,5 +10,6 @@ public sealed class CreateCharacterRequest
     public int BaseDefense { get; set; }
     public int BaseSpeed { get; set; }
     public string? ImageUrl { get; set; }
+    public string Password { get; set; } = string.Empty;
 }
 //Controller command'ı doğrudan almak yerine, dışarıya bir request DTO açıyoruz.

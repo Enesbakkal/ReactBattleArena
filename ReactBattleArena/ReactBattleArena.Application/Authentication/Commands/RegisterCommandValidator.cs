@@ -1,10 +1,11 @@
 ﻿using FluentValidation;
+using ReactBattleArena.Application.Authentication.Commands;
 
-namespace ReactBattleArena.Application.Users.Commands;
+namespace ReactBattleArena.Application.Authentication.Commands;
 
-public sealed class CreateUserCommandValidator : AbstractValidator<CreateUserCommand>
+public sealed class RegisterCommandValidator : AbstractValidator<RegisterCommand>
 {
-    public CreateUserCommandValidator()
+    public RegisterCommandValidator()
     {
         RuleFor(x => x.UserName).NotEmpty().MaximumLength(50);
         RuleFor(x => x.Email).NotEmpty().EmailAddress().MaximumLength(200);

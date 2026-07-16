@@ -6,7 +6,7 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 
 ---
 
-## Tüm Tamamlananlar (Adım 1 → 13.4 Application)
+## Tüm Tamamlananlar (Adım 1 → 14.2)
 
 ### Planlama & Ortam
 - [x] `PROJE_MANTIGI.md`, `PROJE_EKLEMELERI.md`, `CHECKPOINT.md`
@@ -73,18 +73,32 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 - [x] 13.4 `GetUserByIdQuery` + Handler
 - [x] 13.4 `UpdateUserCommand` + Validator + Handler
 - [x] 13.4 `DeleteUserCommand` + Handler
-- [x] 13.4 `Contracts/CreateUserRequest.cs`
-- [ ] 13.4 `UsersController` (eksik — `Controllers/Class.cs` boş şablon var)
+- [x] 13.4 `Contracts/CreateUserRequest.cs` (+ Password)
+- [x] 13.4 `UsersController` (Class.cs kaldırıldı)
+
+### Adım 14 — Authentication (devam)
+- [x] 14.1 `User.PasswordHash` + `SetPasswordHash`
+- [x] 14.1 Migration `AddUserPasswordHash`
+- [x] 14.1 `CreateUserCommand` + Validator + Handler (password / hasher)
+- [x] 14.2 `IPasswordHasher` (Application.Abstractions)
+- [x] 14.2 `BCryptPasswordHasher` (Infrastructure.Security)
+- [x] 14.2 DI: `AddSingleton<IPasswordHasher, BCryptPasswordHasher>`
+- [x] 14.2 Klasör `Authentication/Commands` (Authorization ile karışmasın diye Auth değil)
+- [x] 14.2 `RegisterCommand` + Validator + Handler
+- [x] 14.2 Duplicate UserName/Email → `ValidationFailure` (errors dolu 400)
+- [x] 14.2 `RegisterRequest` + `AuthController` (`POST /api/auth/register`)
+- [x] Register Scalar test: başarılı / kısa şifre / duplicate username
+- [ ] 14.3 Login + JWT
+- [ ] 14.4 `[Authorize]` korumalı endpoint’ler
 
 ### Güvenlik & Git
 - [x] `Microsoft.OpenApi` güvenlik güncellemesi
 - [x] `.gitignore`
 - [x] GitHub push (önceki commitler)
-- [ ] User + docs commit / push (bekliyor)
+- [ ] Bugünkü auth/user commit push (bekliyor)
 
 ### Sıradaki
-- [ ] **UsersController** yaz (Class.cs sil)
-- [ ] **Adım 14** — Authentication & Authorization
+- [ ] **Adım 14.3** — Login + JWT
 
 ### Hafta sonu notu
 - [x] Kod akışı, validator/middleware, record, paging, IRequest açıklamaları yazıldı
@@ -122,6 +136,14 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 - CHECKPOINT + PROJE_EKLEMELERI senkron güncelleme
 - Commit mesaj geçmişi eklendi
 
+### 16 Temmuz 2026
+- UsersController tamamlandı
+- PasswordHash + AddUserPasswordHash migration
+- IPasswordHasher + BCryptPasswordHasher
+- Register (Authentication klasörü) + AuthController
+- Duplicate username 400 mesajı ValidationFailure ile düzeltildi
+- Sırada: Login + JWT
+
 ---
 
 ## Hazırlık
@@ -157,15 +179,18 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 - [x] User CRUD (Application: command + query)
 - [x] FluentValidation kuralları
 - [x] Migration `AddUsers`
-- [ ] Users API controller
+- [x] Users API controller
+- [x] PasswordHash (+ CreateUser password)
 - [ ] React: kullanıcı yönetimi ekranları
 
 ---
 
 ## Faz 4 — Authentication & Authorization
 
-- [ ] Register / Login
-- [ ] JWT
+- [x] Register endpoint (`POST /api/auth/register`)
+- [x] Password hashing (`IPasswordHasher` / BCrypt)
+- [ ] Login endpoint
+- [ ] JWT token üretimi
 - [ ] Rol tabanlı yetkilendirme
 - [ ] React login/register + korumalı route’lar
 
@@ -192,8 +217,8 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 | API + Scalar | `api - CharactersController - ... Scalar UI ...` |
 | Validation 400 | `api - validation middleware - ... 400 ValidationProblemDetails ...` |
 | Character GET | `character - query ve controller - GetCharacters... GET endpointleri` |
-| Character PUT/DELETE | `character - update delete crud - ... POST create geri eklendi ...` |
-| **Şimdi (öneri)** | `user - domain crud persistence - User ... AddUsers ... CreateUserRequest ... CHECKPOINT senkron UsersController eksik` |
+| Character PUT/DELETE | `character - update delete crud - ...` |
+| **Bugün (16 Temmuz)** | `auth - register password - User PasswordHash ... RegisterCommand AuthController ...` |
 
 ---
 
@@ -201,42 +226,23 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 
 ```
 D:\ReactBattleArena\
-├── .gitignore
 ├── CHECKPOINT.md
-├── PROJE_MANTIGI.md
 ├── PROJE_EKLEMELERI.md
+├── PROJE_MANTIGI.md
 └── ReactBattleArena\
-    ├── ReactBattleArena.slnx
-    ├── ReactBattleArena.Domain\
+    ├── Domain\
     │   ├── Characters\Character.cs
-    │   └── Users\User.cs
-    ├── ReactBattleArena.Application\
-    │   ├── Abstractions\IApplicationDbContext.cs
-    │   ├── Common\ValidationBehavior.cs
-    │   ├── Common\DependencyInjection.cs
-    │   ├── Characters\
-    │   │   ├── Commands\ (Create/Update/Delete + validators/handlers)
-    │   │   └── Queries\ (GetCharacters, GetCharacterById)
-    │   └── Users\
-    │       ├── Commands\ (Create/Update/Delete + validators/handlers)
-    │       └── Queries\ (GetUsers, GetUserById)
-    ├── ReactBattleArena.Infrastructure\
-    │   ├── DependencyInjection.cs
-    │   ├── Persistence\
-    │   │   ├── ApplicationDbContext.cs
-    │   │   ├── CharacterConfiguration.cs
-    │   │   └── UserConfiguration.cs
-    │   └── Migrations\
-    │       ├── ..._InitialCreate.cs
-    │       └── ..._AddUsers.cs
-    └── ReactBattleArena.Api\
-        ├── Program.cs
-        ├── Middleware\FluentValidationExceptionMiddleware.cs
-        ├── Extensions\ApplicationBuilderExtensions.cs
-        ├── Contracts\
-        │   ├── CreateCharacterRequest.cs
-        │   └── CreateUserRequest.cs
-        └── Controllers\
-            ├── CharactersController.cs
-            └── Class.cs   ← boş; UsersController olacak
+    │   └── Users\User.cs (+ PasswordHash)
+    ├── Application\
+    │   ├── Abstractions\IApplicationDbContext.cs, IPasswordHasher.cs
+    │   ├── Authentication\Commands\ (Register*)
+    │   ├── Characters\ (Commands + Queries)
+    │   └── Users\ (Commands + Queries)
+    ├── Infrastructure\
+    │   ├── Security\BCryptPasswordHasher.cs
+    │   ├── Persistence\ (+ UserConfiguration PasswordHash)
+    │   └── Migrations\ (...AddUsers, ...AddUserPasswordHash)
+    └── Api\
+        ├── Contracts\ (CreateCharacter, CreateUser+Password, Register)
+        └── Controllers\ (Characters, Users, Auth)
 ```

@@ -1,8 +1,8 @@
 ﻿using MediatR;
 
-namespace ReactBattleArena.Application.Users.Commands;
+namespace ReactBattleArena.Application.Authentication.Commands;
 
-public sealed record CreateUserCommand(
+public sealed record RegisterCommand(
     string UserName,
     string Email,
     string? DisplayName,

@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using ReactBattleArena.Api.Contracts;
 using ReactBattleArena.Application.Users.Commands;
@@ -47,7 +47,7 @@ public sealed class UsersController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var id = await _mediator.Send(
-            new CreateUserCommand(body.UserName, body.Email, body.DisplayName),
+            new CreateUserCommand(body.UserName, body.Email, body.DisplayName, body.Password),
             cancellationToken);
 
         return Created($"/api/users/{id}", id);

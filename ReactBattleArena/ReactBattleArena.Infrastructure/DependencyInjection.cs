@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ReactBattleArena.Application.Abstractions;
 using ReactBattleArena.Infrastructure.Persistence;
+using ReactBattleArena.Infrastructure.Security;
 
 namespace ReactBattleArena.Infrastructure;
 
@@ -19,6 +20,8 @@ public static class DependencyInjection
 
         services.AddScoped<IApplicationDbContext>(sp =>
             sp.GetRequiredService<ApplicationDbContext>());
+
+        services.AddSingleton<IPasswordHasher, BCryptPasswordHasher>();
 
         return services;
     }
