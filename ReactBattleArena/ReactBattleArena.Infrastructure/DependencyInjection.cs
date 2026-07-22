@@ -22,6 +22,9 @@ public static class DependencyInjection
             sp.GetRequiredService<ApplicationDbContext>());
 
         services.AddSingleton<IPasswordHasher, BCryptPasswordHasher>();
+        
+        services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
+        services.AddSingleton<IJwtTokenService, JwtTokenService>();
 
         return services;
     }

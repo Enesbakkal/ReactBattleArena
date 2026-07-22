@@ -29,4 +29,19 @@ public sealed class AuthController : ControllerBase
 
         return Created($"/api/users/{id}", id);
     }
+
+    [HttpPost("login")]
+    [ProducesResponseType(typeof(LoginResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<LoginResult>> Login(
+    [FromBody] LoginRequest body,
+    CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(
+            new LoginCommand(body.UserNameOrEmail, body.Password),
+            cancellationToken);
+
+        return result is null ? Unauthorized() : Ok(result);
+    }
 }

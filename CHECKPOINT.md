@@ -1,50 +1,38 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 16 Temmuz 2026 — Adım 14.2 Register tamam, JWT sırada.
+Son güncelleme: 22 Temmuz 2026 — Adım 14.3 Login + JWT tamam.
 
 ## Tamamlananlar
 
 - [x] Adım 1–12 — Solution, Character full CRUD, MediatR, FluentValidation, Scalar, validation middleware
-- [x] Adım 13 — User modülü
-  - Domain `User`, Application CRUD, `AddUsers` migration
-  - `UsersController` + `CreateUserRequest`
-- [x] Adım 14.1 — `PasswordHash` (Domain + UserConfiguration + `AddUserPasswordHash` migration)
-- [x] Adım 14.2 — Authentication Register
-  - `IPasswordHasher` + `BCryptPasswordHasher`
-  - `RegisterCommand` / Validator / Handler (`Authentication` klasörü)
-  - `AuthController` → `POST /api/auth/register`
-  - `RegisterRequest`
-  - CreateUser handler `IPasswordHasher` kullanacak şekilde güncellendi
-  - Duplicate UserName/Email → `ValidationFailure` ile düzgün 400
+- [x] Adım 13 — User modülü (CRUD + UsersController)
+- [x] Adım 14.1 — `PasswordHash` + `AddUserPasswordHash` migration
+- [x] Adım 14.2 — Register (`IPasswordHasher`, `RegisterCommand`, `AuthController`)
+- [x] Adım 14.3 — Login + JWT
+  - `IJwtTokenService` + `JwtTokenService` + `JwtOptions`
+  - `LoginCommand` / Validator / Handler → `LoginResult` (token)
+  - `LoginRequest` + `AuthController` `POST /api/auth/login`
+  - `Program.cs`: JwtBearer + `UseAuthentication` / `UseAuthorization`
+  - Scalar login test: 200 + token (zoro)
 
 ## Sıradaki
 
-- [ ] **Adım 14.3** — Login + JWT
-- [ ] Adım 14.4 — `[Authorize]` korumalı endpoint’ler
+- [ ] **Adım 14.4** — `[Authorize]` korumalı endpoint’ler (Bearer token ile)
 - [ ] Authorization (roller / policy) — ileride
+- [ ] React frontend
 
 ## Not
 
-Register Scalar’da test edildi (başarılı kayıt, kısa şifre 400, duplicate userName 400).
-JWT henüz yok.
+Login başarılı test edildi. Sonraki adım: token’sız 401, token’lı 200.
 
-## Commit mesaj geçmişi (referans)
+## Commit mesaj geçmişi (özet)
 
 ```
-migration - InitialCreate - solution CQRS Character ...
-application - AddApplication - MediatR FluentValidation DI ...
-api - CharactersController - POST + Scalar ...
-api - validation middleware - 400 ValidationProblemDetails ...
-character - query ve controller - GET endpoints ...
-character - update delete crud - PUT DELETE POST restore ...
+... önceki character/user/register commitleri ...
 ```
 
 ### Bugünkü commit için mesaj
 
 ```
-auth - register password - User PasswordHash AddUserPasswordHash migration IPasswordHasher BCryptPasswordHasher RegisterCommand AuthController POST register UsersController CreateUser password hash duplicate username email ValidationFailure 400
+auth - login jwt - IJwtTokenService JwtTokenService JwtOptions LoginCommand AuthController POST login JwtBearer Program UseAuthentication LoginResult token test edildi
 ```
-
-## Hafta sonu — kod akışı tekrarı
-
-- [x] Akış, validator/middleware, record, paging, IRequest notları yazıldı

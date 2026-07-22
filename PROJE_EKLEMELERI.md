@@ -6,7 +6,7 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 
 ---
 
-## Tüm Tamamlananlar (Adım 1 → 14.2)
+## Tüm Tamamlananlar (Adım 1 → 14.3)
 
 ### Planlama & Ortam
 - [x] `PROJE_MANTIGI.md`, `PROJE_EKLEMELERI.md`, `CHECKPOINT.md`
@@ -88,17 +88,21 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 - [x] 14.2 Duplicate UserName/Email → `ValidationFailure` (errors dolu 400)
 - [x] 14.2 `RegisterRequest` + `AuthController` (`POST /api/auth/register`)
 - [x] Register Scalar test: başarılı / kısa şifre / duplicate username
-- [ ] 14.3 Login + JWT
+- [x] 14.3 `IJwtTokenService` + `JwtTokenService` + `JwtOptions`
+- [x] 14.3 `LoginCommand` + Validator + Handler (`LoginResult`)
+- [x] 14.3 `LoginRequest` + `AuthController` `POST /api/auth/login`
+- [x] 14.3 JwtBearer DI + `UseAuthentication` (Program.cs)
+- [x] 14.3 Login Scalar test: 200 + JWT token
 - [ ] 14.4 `[Authorize]` korumalı endpoint’ler
 
 ### Güvenlik & Git
 - [x] `Microsoft.OpenApi` güvenlik güncellemesi
 - [x] `.gitignore`
 - [x] GitHub push (önceki commitler)
-- [ ] Bugünkü auth/user commit push (bekliyor)
+- [ ] Bugünkü login/JWT commit push (bekliyor)
 
 ### Sıradaki
-- [ ] **Adım 14.3** — Login + JWT
+- [ ] **Adım 14.4** — `[Authorize]` + Bearer token testi
 
 ### Hafta sonu notu
 - [x] Kod akışı, validator/middleware, record, paging, IRequest açıklamaları yazıldı
@@ -142,7 +146,14 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 - IPasswordHasher + BCryptPasswordHasher
 - Register (Authentication klasörü) + AuthController
 - Duplicate username 400 mesajı ValidationFailure ile düzeltildi
-- Sırada: Login + JWT
+
+### 22 Temmuz 2026
+- Login + JWT tamamlandı
+- IJwtTokenService, JwtTokenService, JwtOptions
+- LoginCommand + AuthController POST login
+- JwtBearer + UseAuthentication
+- Scalar: login 200 + token test edildi
+- Sırada: [Authorize] korumalı endpoint’ler
 
 ---
 
@@ -189,8 +200,9 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 
 - [x] Register endpoint (`POST /api/auth/register`)
 - [x] Password hashing (`IPasswordHasher` / BCrypt)
-- [ ] Login endpoint
-- [ ] JWT token üretimi
+- [x] Login endpoint (`POST /api/auth/login`)
+- [x] JWT token üretimi + JwtBearer
+- [ ] `[Authorize]` korumalı endpoint’ler
 - [ ] Rol tabanlı yetkilendirme
 - [ ] React login/register + korumalı route’lar
 
@@ -218,7 +230,9 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 | Validation 400 | `api - validation middleware - ... 400 ValidationProblemDetails ...` |
 | Character GET | `character - query ve controller - GetCharacters... GET endpointleri` |
 | Character PUT/DELETE | `character - update delete crud - ...` |
-| **Bugün (16 Temmuz)** | `auth - register password - User PasswordHash ... RegisterCommand AuthController ...` |
+| **16 Temmuz** | `auth - register password - ...` |
+| **22 Temmuz** | `auth - login jwt - IJwtTokenService JwtTokenService LoginCommand AuthController POST login JwtBearer UseAuthentication` |
+
 
 ---
 
