@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using ReactBattleArena.Api.Contracts;
 using ReactBattleArena.Application.Users.Commands;
 using ReactBattleArena.Application.Users.Queries;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ReactBattleArena.Api.Controllers;
 
@@ -39,6 +40,7 @@ public sealed class UsersController : ControllerBase
         return result is null ? NotFound() : Ok(result);
     }
 
+    [Authorize]
     [HttpPost]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -53,6 +55,7 @@ public sealed class UsersController : ControllerBase
         return Created($"/api/users/{id}", id);
     }
 
+    [Authorize]
     [HttpPut("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -69,6 +72,7 @@ public sealed class UsersController : ControllerBase
         return updated ? NoContent() : NotFound();
     }
 
+    [Authorize]
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
