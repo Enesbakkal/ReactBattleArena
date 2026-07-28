@@ -5,6 +5,7 @@ using ReactBattleArena.Api.Extensions;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using ReactBattleArena.Api.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,8 +17,10 @@ builder.Services.AddInfrastructure(builder.Configuration);
 //Microsoft.EntityFrameworkCore.Design
 //Migration komutları Api’yi startup proje olarak kullanır; bu paket gerekli.
 
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
+});
 
 var jwtKey = builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException("Jwt:Key is missing.");
@@ -44,7 +47,10 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-    app.MapScalarApiReference();
+    app.MapScalarApiReference(options =>
+    {
+        options.AddPreferredSecuritySchemes("Bearer");
+    });
 }
 
 app.UseFluentValidationExceptionHandler();

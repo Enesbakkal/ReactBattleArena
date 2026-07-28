@@ -6,7 +6,7 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 
 ---
 
-## Tüm Tamamlananlar (Adım 1 → 14.3)
+## Tüm Tamamlananlar (Adım 1 → 15)
 
 ### Planlama & Ortam
 - [x] `PROJE_MANTIGI.md`, `PROJE_EKLEMELERI.md`, `CHECKPOINT.md`
@@ -93,16 +93,23 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 - [x] 14.3 `LoginRequest` + `AuthController` `POST /api/auth/login`
 - [x] 14.3 JwtBearer DI + `UseAuthentication` (Program.cs)
 - [x] 14.3 Login Scalar test: 200 + JWT token
-- [ ] 14.4 `[Authorize]` korumalı endpoint’ler
+- [x] 14.4 `[Authorize]` korumalı yazma endpoint’leri
+- [x] 14.4 Scalar Bearer OpenAPI (`BearerSecuritySchemeTransformer` + preferred scheme)
+- [x] 15 `Roles.Admin` / `Roles.Player` sabitleri
+- [x] 15 `User.Role` + migration `AddUserRole`
+- [x] 15 Register/CreateUser varsayılan Player
+- [x] 15 JWT role claim + Character CUD Admin-only
+- [x] 15 Test: Admin 201, Player 403
+- [x] CreateCharacterRequest Password kaldırıldı
 
 ### Güvenlik & Git
 - [x] `Microsoft.OpenApi` güvenlik güncellemesi
 - [x] `.gitignore`
 - [x] GitHub push (önceki commitler)
-- [ ] Bugünkü login/JWT commit push (bekliyor)
+- [ ] Bugünkü roles/Scalar commit push (bekliyor)
 
 ### Sıradaki
-- [ ] **Adım 14.4** — `[Authorize]` + Bearer token testi
+- [ ] React frontend **veya** rol tabloları **veya** Battle Arena
 
 ### Hafta sonu notu
 - [x] Kod akışı, validator/middleware, record, paging, IRequest açıklamaları yazıldı
@@ -153,7 +160,14 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 - LoginCommand + AuthController POST login
 - JwtBearer + UseAuthentication
 - Scalar: login 200 + token test edildi
-- Sırada: [Authorize] korumalı endpoint’ler
+
+### 28 Temmuz 2026
+- Scalar Bearer kilidi (OpenAPI transformer)
+- CreateCharacterRequest Password silindi
+- Adım 15: string Role (Admin/Player)
+- Character CUD Admin-only; Player 403 test edildi
+- IdentityModel sürüm hizası (IDX00001)
+- Sırada: React / rol tabloları / Arena (seçim)
 
 ---
 
@@ -202,8 +216,9 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 - [x] Password hashing (`IPasswordHasher` / BCrypt)
 - [x] Login endpoint (`POST /api/auth/login`)
 - [x] JWT token üretimi + JwtBearer
-- [ ] `[Authorize]` korumalı endpoint’ler
-- [ ] Rol tabanlı yetkilendirme
+- [x] `[Authorize]` korumalı endpoint’ler
+- [x] Rol tabanlı yetkilendirme (string Role: Admin/Player)
+- [ ] Rol tabloları (`Roles` / `UserRoles`) — ileride
 - [ ] React login/register + korumalı route’lar
 
 ---
@@ -231,7 +246,8 @@ Bu dosya projeye eklenen özellikleri ve tamamlanan adımları takip eder.
 | Character GET | `character - query ve controller - GetCharacters... GET endpointleri` |
 | Character PUT/DELETE | `character - update delete crud - ...` |
 | **16 Temmuz** | `auth - register password - ...` |
-| **22 Temmuz** | `auth - login jwt - IJwtTokenService JwtTokenService LoginCommand AuthController POST login JwtBearer UseAuthentication` |
+| **22 Temmuz** | `auth - login jwt - ...` |
+| **28 Temmuz** | `auth - roles admin player - User Role ... Player 403 ... Scalar Bearer ...` |
 
 
 ---

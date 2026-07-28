@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ReactBattleArena.Application.Abstractions;
 using ReactBattleArena.Domain.Users;
+using ReactBattleArena.Domain.Authorization;
 
 namespace ReactBattleArena.Application.Authentication.Commands;
 
@@ -43,6 +44,7 @@ public sealed class RegisterCommandHandler : IRequestHandler<RegisterCommand, Gu
             request.Email,
             request.DisplayName,
             passwordHash,
+            Roles.Player,
             DateTime.UtcNow);
 
         _db.Users.Add(entity);

@@ -4,6 +4,7 @@ using ReactBattleArena.Api.Contracts;
 using ReactBattleArena.Application.Characters.Commands;
 using ReactBattleArena.Application.Characters.Queries;
 using Microsoft.AspNetCore.Authorization;
+using ReactBattleArena.Domain.Authorization;
 
 namespace ReactBattleArena.Api.Controllers;
 
@@ -41,7 +42,7 @@ public sealed class CharactersController : ControllerBase
         return result is null ? NotFound() : Ok(result);
     }
 
-    [Authorize]
+    [Authorize(Roles = Roles.Admin)]
     [HttpPost]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -64,7 +65,7 @@ public sealed class CharactersController : ControllerBase
         return Created($"/api/characters/{id}", id);
     }
 
-    [Authorize]
+    [Authorize(Roles = Roles.Admin)]
     [HttpPut("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -90,7 +91,7 @@ public sealed class CharactersController : ControllerBase
         return updated ? NoContent() : NotFound();
     }
 
-    [Authorize]
+    [Authorize(Roles = Roles.Admin)]
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
