@@ -262,17 +262,19 @@ D:\ReactBattleArena\
 └── ReactBattleArena\
     ├── Domain\
     │   ├── Characters\Character.cs
-    │   └── Users\User.cs (+ PasswordHash)
+    │   ├── Authorization\Roles.cs
+    │   └── Users\User.cs (+ PasswordHash, Role)
     ├── Application\
-    │   ├── Abstractions\IApplicationDbContext.cs, IPasswordHasher.cs
-    │   ├── Authentication\Commands\ (Register*)
+    │   ├── Abstractions\...
+    │   ├── Authentication\Commands\ (Register*, Login*)
     │   ├── Characters\ (Commands + Queries)
     │   └── Users\ (Commands + Queries)
     ├── Infrastructure\
-    │   ├── Security\BCryptPasswordHasher.cs
-    │   ├── Persistence\ (+ UserConfiguration PasswordHash)
-    │   └── Migrations\ (...AddUsers, ...AddUserPasswordHash)
+    │   ├── Security\ (BCrypt, JwtTokenService)
+    │   ├── Persistence\
+    │   └── Migrations\
     └── Api\
-        ├── Contracts\ (CreateCharacter, CreateUser+Password, Register)
-        └── Controllers\ (Characters, Users, Auth)
+        ├── Contracts\
+        ├── Controllers\ (Characters, Users, Auth)
+        └── Program.cs (JWT + CORS 5173)
 ```

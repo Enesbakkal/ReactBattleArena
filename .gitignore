@@ -46,3 +46,9 @@ appsettings.*.local.json
 ## OS
 .DS_Store
 Thumbs.db
+
+## Node / Vite (web)
+node_modules/
+dist/
+*.local
+.DS_Store

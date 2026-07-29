@@ -1,0 +1,30 @@
+---
+description: ReactBattleArena öğrenme pedagojisi + proje bağlamı (her chat)
+alwaysApply: true
+---
+
+# ReactBattleArena — oturum kuralları
+
+## Araç ayrımı
+
+- Kullanıcı kodu **VS Code**’da yazar.
+- Cursor: soru, yönlendirme, kontrol, küçük düzeltme önerisi. Tüm frontend’i tek seferde implement etme.
+
+## Pedagoji
+
+- Kısa kavram → kullanıcı yazar → C# eşlemesi → çalıştır → sonraki parça.
+- Bir oturumda en fazla 1–2 yeni kavram.
+- Adım adım yaptır; kopyala-yapıştır yığını yok.
+
+## Proje
+
+- Konum: `D:\ReactBattleArena`
+- Backend hazır (JWT, Admin/Player, CORS 5173). Frontend `web/` sıfırdan kurulacak.
+- Ürün/mimari: `PROJE_MANTIGI.md`
+- İlerleme: `CHECKPOINT.md` (önce bunu oku)
+- Checklist: `PROJE_EKLEMELERI.md`
+- Öğrenim notları: `REACT-OGRENIM.md` — **eski fazlar ASLA silinmez**; her tamamlanan faz alta eklenir, hepsi kalır.
+
+## React faz sırası
+
+Faz 0 kavram → Faz 1 Vite → Faz 2 Login → Faz 3 Characters+Bearer → Faz 4 Register/Admin create → Faz 5 router+Logout

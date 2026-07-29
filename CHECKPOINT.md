@@ -1,36 +1,65 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 28 Temmuz 2026 — Adım 15 roller tamam (Admin/Player test edildi).
+Son güncelleme: 29 Temmuz 2026 — React öğrenme sıfırdan; Cursor = soru, VS Code = kod.
 
-## Tamamlananlar
+## Yeni chat’e geçerken oku
 
-- [x] Adım 1–14 — Solution, Character/User CRUD, Auth Register/Login JWT, `[Authorize]`, Scalar Bearer
-- [x] Adım 14.4 — Scalar OpenAPI Bearer kilidi (`BearerSecuritySchemeTransformer`)
-- [x] Adım 15 — Authorization (string Role)
-  - `Domain/Authorization/Roles.cs` (Admin, Player)
-  - `User.Role` + `Create(..., role)` + `SetRole`
-  - Register/CreateUser → `Roles.Player`
-  - Migration `AddUserRole` (default Player)
-  - JWT `ClaimTypes.Role`
-  - Character CUD → `[Authorize(Roles = Admin)]`
-  - User Delete → Admin
-  - Test: Admin create **201**, Player create **403**
-  - `CreateCharacterRequest` Password alanı silindi
-  - IdentityModel paket sürümleri hizalandı (IDX00001)
+1. Bu dosya (`CHECKPOINT.md`)
+2. `PROJE_MANTIGI.md` — ürün / mimari özet
+3. `PROJE_EKLEMELERI.md` — adım checklist
+4. İsteğe bağlı: `.cursor/rules/react-ogrenme.mdc`
 
-## Sıradaki (seçim)
+---
 
-- [ ] React frontend (login, token, karakter listesi)
-- [ ] Rol tabloları (`Roles` / `UserRoles`) — ileride
-- [ ] Battle Arena (takım, savaş, puan)
+## Proje mantığı (özet)
 
-## Not
+- Anime/film/comics karakter koleksiyonu + battle arena + puan → ödül
+- Backend: .NET 10, DDD, CQRS (MediatR), FluentValidation, EF Core, SQL Server, JWT (Admin/Player)
+- Katmanlar: Domain → Application → Infrastructure → Api
+- Frontend: React + TypeScript (Vite) — henüz yok; adım adım kurulacak
+- Klasör: `D:\ReactBattleArena` (solution + ileride `web/`)
+- Referans: `D:\BattleArenaAndFigures\BattleArena`
+- Api: `https://localhost:7275` · Vite gelecek: `http://localhost:5173` (CORS hazır)
 
-İlk Admin SSMS ile `Role = Admin` + yeniden login.
-Rol tablolarına geçiş mimariyi yıkmaz; Auth/User katmanını genişletir.
+Detay: `PROJE_MANTIGI.md`
 
-## Bugünkü commit mesajı
+---
+
+## Öğrenme kuralları (HER OTURUM)
+
+- **Cursor:** sadece soru / yönlendirme / kontrol. Agent tüm önyüzü tek seferde yazmasın.
+- **VS Code:** kullanıcı React/TS kodunu burada yazar ve çalıştırır.
+- Pedagoji (.NET’teki gibi): kısa kavram → kullanıcı yazar → C# eşlemesi → çalıştır → sonraki parça.
+- Bir oturumda en fazla **1–2 yeni kavram**.
+- Kopyala-yapıştır yığını yok; adım adım yaptır.
+- Takılınca C# karşılığından anlat.
+
+Plan özeti: React öğrenme fazları 0→5 (Login → Characters → Register/Admin → Router).
+
+---
+
+## Şu an neredeyiz?
+
+- [x] Backend Adım 1–15 (Character/User CRUD, Auth JWT, roller, CORS 5173)
+- [x] Hatalı “tüm React’i bir anda kurma” geri alındı (`web/` silindi)
+- [x] **Faz 0 — Kavramlar** tamamlandı (component, props, state, interface, JSX)
+  - Notlar: `REACT-OGRENIM.md`
+- [x] **Faz 1 — Vite `web` projesi** kuruldu (`D:\ReactBattleArena\web`, React 19 + Vite 8)
+  - ExecutionPolicy CurrentUser RemoteSigned
+  - `npm run dev` → http://localhost:5173/ React logosu görüldü
+  - Notlar: `REACT-OGRENIM.md` Faz 1
+- [ ] Faz 2 — Login
+- [ ] Faz 3 — API client + Characters
+- [ ] Faz 4 — Register + Admin character create
+- [ ] Faz 5 — react-router + Logout
+
+## Backend not
+
+İlk Admin: SSMS’te `Role = Admin` + yeniden login.
+
+## Yeni thread açılış cümlesi (kopyala)
 
 ```
-auth - roles admin player - User Role Roles constants Register CreateUser Player JWT role claim Character CUD Admin authorize Player 403 test Scalar Bearer OpenApi transformer CreateCharacterRequest password removed IdentityModel version align
+ReactBattleArena — CHECKPOINT.md, PROJE_MANTIGI.md ve REACT-OGRENIM.md oku.
+Cursor sadece yönlendirme; kod VS Code’da. Faz 2 Login’den devam.
 ```
