@@ -4,6 +4,8 @@ Her faz bitince buraya **eklenir**. Döndüğünde hızlıca hatırlamak için o
 
 **KURAL (asla bozma):** Eski fazlar silinmez, kısaltılmaz, üzerine yazılmaz. Faz 0, 1, 2… hepsi dosyada kalır; yeni faz sadece **alta eklenir**. 1500 faz olsa her birinin açıklaması burada olur.
 
+**Öğrenci:** Web developer (.NET API). WinForms yok. Eşlemeler: Razor/MVC View, HTML form, HttpClient/`fetch`.
+
 ---
 
 ## Faz 0 — Temel Kavramlar
@@ -117,3 +119,210 @@ Geçici alternatif: `npm.cmd` kullan (`npm.cmd run dev`).
 | `npm run dev` | `dotnet run` (Api) |
 | `localhost:5173` | `localhost:7275` (Api) |
 | `web/` klasörü | ayrı frontend process; solution’daki `.csproj` değil |
+
+---
+
+## Faz 2 — Login (controlled form) — devam ediyor
+
+Bu fazın **ilk parçası**: Login formu + controlled input. API (`fetch` + JWT) henüz yok; sonraki parça.
+
+### Kavram: controlled input
+
+Input’un `value`’su state’ten gelir; her tuşta `setState` → React yeniden çizer.
+
+Düz HTML’de değer tarayıcıda durur. React’te değeri **biz state’te tutarız** — Razor’da ViewModel property’sine bağlamak gibi.
+
+### Dosyalar
+
+| Dosya | Ne yaptık |
+|-------|-----------|
+| `web/src/LoginPage.tsx` | Yeni — form + iki state + submit’te console.log |
+| `web/src/App.tsx` | Vite şablonu silindi; sadece `<LoginPage />` |
+| `web/src/main.tsx` | Dokunulmadı |
+
+### Adım adım ne koyduk / neden
+
+1. **`LoginPage.tsx` oluştur** — login UI’si ayrı component olsun.
+2. **`import { useState } from 'react'`** — state kullanmak için (`using` gibi).
+3. **`function LoginPage() { ... }`** — bu sayfanın UI’sini üreten component.
+4. **İki `useState('')`:** `userNameOrEmail` / `password` (+ setter’lar). Backend `LoginRequest` alanlarıyla aynı isimler (camelCase). Başlangıç boş string.
+5. **`handleSubmit(e: React.FormEvent)`** — form submit olayı.
+   - `e.preventDefault()` → tarayıcı sayfayı yenilemesin (SPA).
+   - `console.log(...)` → şimdilik API yok; değerlerin geldiğini görmek.
+6. **`<form onSubmit={handleSubmit}>`** — submit → handler.
+7. **Kullanıcı/email `<input>`** — `value={userNameOrEmail}` + `onChange={(e) => setUserNameOrEmail(e.target.value)}`.
+8. **Şifre `<input type="password">`** — aynı mantık; karakterler gizli.
+9. **`<button type="submit">Giriş</button>`** — form’un `onSubmit`’ini tetikler.
+10. **`export default LoginPage`** — `App.tsx` import edebilsin.
+11. **`App.tsx`:** `import LoginPage from './LoginPage'` + `return <LoginPage />` — uygulama açılınca login görünsün.
+
+### `LoginPage.tsx` (bu parçanın sonucu)
+
+```tsx
+import { useState } from 'react'
+
+function LoginPage() {
+  const [userNameOrEmail, setUserNameOrEmail] = useState('')
+  const [password, setPassword] = useState('')
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    console.log(userNameOrEmail, password)
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div>
+        <label>
+          Kullanıcı adı veya e-posta
+          <input
+            type="text"
+            value={userNameOrEmail}
+            onChange={(e) => setUserNameOrEmail(e.target.value)}
+          />
+        </label>
+      </div>
+
+      <div>
+        <label>
+          Şifre
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </label>
+      </div>
+
+      <button type="submit">Giriş</button>
+    </form>
+  )
+}
+
+export default LoginPage
+```
+
+### `App.tsx` (bu parçanın sonucu)
+
+```tsx
+import LoginPage from './LoginPage'
+
+function App() {
+  return <LoginPage />
+}
+
+export default App
+```
+
+### Çalıştırma / kontrol
+
+```powershell
+cd D:\ReactBattleArena\web
+npm run dev
+```
+
+`http://localhost:5173` → yaz → Giriş → F12 Console’da iki değer görünmeli.
+
+### Web / .NET eşlemesi
+
+| React | Bildiğin dünya |
+|--------|----------------|
+| `LoginPage.tsx` | Küçük Razor Partial / View |
+| `useState` | ViewModel property |
+| `value` + `onChange` | Input’u modele bağlamak |
+| `e.preventDefault()` | Full page post yerine SPA (API sonra `fetch`) |
+| `App` → `<LoginPage />` | Layout içine partial koymak |
+| Backend alanlar | `LoginRequest`: `UserNameOrEmail`, `Password` → JSON camelCase |
+
+### Sonraki (Faz 2 devam)
+
+`POST https://localhost:7275/api/auth/login` + token (`LoginResult`).  
+→ **Yapıldı:** aşağıdaki “Faz 2 devam — fetch + JWT” bölümüne bak.
+
+---
+
+## Faz 2 devam — fetch + JWT (tamam)
+
+### Kavramlar
+
+1. **`fetch`** — tarayıcıdan HTTP (`HttpClient` gibi).
+2. **`localStorage`** — JWT’yi sakla; sonraki isteklerde Bearer için.
+
+### Ne değişti
+
+- `handleSubmit` → `async`; `POST https://localhost:7275/api/auth/login`
+- Body: `{ userNameOrEmail, password }` (`LoginRequest` camelCase)
+- Başarı: `localStorage.setItem('token', data.token)` + `onLogin()` (Faz 3’te eklendi)
+- Hata: `response.ok` değilse “Giriş başarısız”; `catch` → “API’ye ulaşılamadı”
+- Başarılı girişte ekranda mesaj yoktu (sadece token + sonra Characters’a geçiş) — normaldi
+
+### Kontrol
+
+- Yanlış şifre → “Giriş başarısız”
+- API kapalı → “API’ye ulaşılamadı…”
+- Doğru login → Application → Local Storage → `http://localhost:5173` → `token` dolu  
+  (Manifest değil; PWA manifest bu projede yok, gerekmez)
+
+### Eşleme
+
+| React | Bildiğin |
+|--------|----------|
+| `fetch` POST + JSON | `HttpClient` + `PostAsJsonAsync` |
+| `localStorage` token | Cookie / session yerine client’ta JWT |
+| `LoginResult` | `userId`, `userName`, `email`, `token` |
+
+---
+
+## Faz 3 — Characters + Bearer (tamam)
+
+### Kavramlar
+
+1. **`useEffect(..., [])`** — sayfa açılınca bir kez API çağır (mount).
+2. **Bearer** — `Authorization: Bearer <token>` (Scalar’daki gibi).
+
+### Dosyalar
+
+| Dosya | Ne yaptık |
+|-------|-----------|
+| `web/src/CharactersPage.tsx` | Liste: `GET /api/characters` + Bearer |
+| `web/src/LoginPage.tsx` | `onLogin` prop; başarıda `onLogin()` |
+| `web/src/App.tsx` | Token yoksa Login, varsa Characters |
+
+### `App` akışı
+
+```tsx
+const [isLoggedIn, setIsLoggedIn] = useState(
+  () => !!localStorage.getItem('token'),
+)
+// !isLoggedIn → <LoginPage onLogin={() => setIsLoggedIn(true)} />
+// isLoggedIn → <CharactersPage />
+```
+
+Sayfa yenilense bile token duruyorsa direkt karakter listesi açılır.
+
+### CharactersPage özeti
+
+- `interface CharacterRow` — `id`, `name`, `universe`, `rarity` (`CharacterRowDto` camelCase)
+- `useEffect` içinde `load()`: token oku → `fetch(.../api/characters?page=1&pageSize=20)` + Bearer
+- `setItems(data.items)` — `PagedCharacterRowsResult.Items`
+- `items.map` → `<li key={c.id}>`
+
+### Görülen sonuç (örnek)
+
+Karakterler listesi (Robin, Franky, Luffy…). İki aynı Luffy satırı DB’de iki kayıt olabilir — frontend hatası değil.
+
+### Not
+
+`GET /api/characters` backend’de anonim de çalışır; Bearer’ı **öğrenmek** için koyduk (sonraki Admin create’te zorunlu olacak).
+
+### Eşleme
+
+| React | Bildiğin |
+|--------|----------|
+| `useEffect` + fetch | Sayfa load’da API çağrısı |
+| `Authorization: Bearer` | Scalar Authorize / `HttpClient` DefaultRequestHeaders |
+| `items.map` | Razor `@foreach` |
+
+### Sonraki
+
+Faz 4 — Register + Admin character create.

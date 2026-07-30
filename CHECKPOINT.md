@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 29 Temmuz 2026 — React öğrenme sıfırdan; Cursor = soru, VS Code = kod.
+Son güncelleme: 30 Temmuz 2026 — Faz 2–3 tamam (Login JWT + Characters listesi). Sonraki: Faz 4.
 
 ## Yeni chat’e geçerken oku
 
@@ -16,23 +16,28 @@ Son güncelleme: 29 Temmuz 2026 — React öğrenme sıfırdan; Cursor = soru, V
 - Anime/film/comics karakter koleksiyonu + battle arena + puan → ödül
 - Backend: .NET 10, DDD, CQRS (MediatR), FluentValidation, EF Core, SQL Server, JWT (Admin/Player)
 - Katmanlar: Domain → Application → Infrastructure → Api
-- Frontend: React + TypeScript (Vite) — henüz yok; adım adım kurulacak
-- Klasör: `D:\ReactBattleArena` (solution + ileride `web/`)
+- Frontend: React + TypeScript (Vite) — `web/` adım adım
+- Klasör: `D:\ReactBattleArena`
 - Referans: `D:\BattleArenaAndFigures\BattleArena`
-- Api: `https://localhost:7275` · Vite gelecek: `http://localhost:5173` (CORS hazır)
+- Api: `https://localhost:7275` · Vite: `http://localhost:5173` (CORS hazır)
 
 Detay: `PROJE_MANTIGI.md`
 
 ---
 
+## Öğrenci profili
+
+- Web developer (.NET backend / API biliniyor). **WinForms yok** — eşleme: Razor/MVC View, HTML form, `fetch`/HttpClient.
+- React sıfırdan; Cursor tarif eder, kod VS Code’da yazılır.
+
 ## Öğrenme kuralları (HER OTURUM)
 
 - **Cursor:** sadece soru / yönlendirme / kontrol. Agent tüm önyüzü tek seferde yazmasın.
 - **VS Code:** kullanıcı React/TS kodunu burada yazar ve çalıştırır.
-- Pedagoji (.NET’teki gibi): kısa kavram → kullanıcı yazar → C# eşlemesi → çalıştır → sonraki parça.
+- Pedagoji (.NET’teki gibi): kısa kavram → kullanıcı yazar → C# / web eşlemesi → çalıştır → sonraki parça.
 - Bir oturumda en fazla **1–2 yeni kavram**.
 - Kopyala-yapıştır yığını yok; adım adım yaptır.
-- Takılınca C# karşılığından anlat.
+- Takılınca ASP.NET / HTML / HttpClient karşılığından anlat (WinForms değil).
 
 Plan özeti: React öğrenme fazları 0→5 (Login → Characters → Register/Admin → Router).
 
@@ -45,11 +50,14 @@ Plan özeti: React öğrenme fazları 0→5 (Login → Characters → Register/A
 - [x] **Faz 0 — Kavramlar** tamamlandı (component, props, state, interface, JSX)
   - Notlar: `REACT-OGRENIM.md`
 - [x] **Faz 1 — Vite `web` projesi** kuruldu (`D:\ReactBattleArena\web`, React 19 + Vite 8)
-  - ExecutionPolicy CurrentUser RemoteSigned
-  - `npm run dev` → http://localhost:5173/ React logosu görüldü
   - Notlar: `REACT-OGRENIM.md` Faz 1
-- [ ] Faz 2 — Login
-- [ ] Faz 3 — API client + Characters
+- [x] **Faz 2 — Login** tamam
+  - Controlled form + `fetch` POST `/api/auth/login` + `localStorage` token + `onLogin`
+  - Notlar: `REACT-OGRENIM.md` Faz 2 (+ devam)
+- [x] **Faz 3 — Characters + Bearer** tamam
+  - `CharactersPage` + `useEffect` + Bearer; `App` token’a göre Login/Characters
+  - Liste görüldü (Robin, Franky, Luffy…)
+  - Notlar: `REACT-OGRENIM.md` Faz 3
 - [ ] Faz 4 — Register + Admin character create
 - [ ] Faz 5 — react-router + Logout
 
@@ -61,5 +69,5 @@ Plan özeti: React öğrenme fazları 0→5 (Login → Characters → Register/A
 
 ```
 ReactBattleArena — CHECKPOINT.md, PROJE_MANTIGI.md ve REACT-OGRENIM.md oku.
-Cursor sadece yönlendirme; kod VS Code’da. Faz 2 Login’den devam.
+Cursor sadece yönlendirme; kod VS Code’da. Faz 4 Register + Admin character create’den devam.
 ```

@@ -12,7 +12,8 @@ alwaysApply: true
 
 ## Pedagoji
 
-- Kısa kavram → kullanıcı yazar → C# eşlemesi → çalıştır → sonraki parça.
+- Kısa kavram → kullanıcı yazar → ASP.NET/HTML/HttpClient eşlemesi → çalıştır → sonraki parça.
+- Öğrenci: web developer (.NET API); WinForms yok — WinForms örneği verme.
 - Bir oturumda en fazla 1–2 yeni kavram.
 - Adım adım yaptır; kopyala-yapıştır yığını yok.
 
