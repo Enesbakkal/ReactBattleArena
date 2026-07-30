@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 30 Temmuz 2026 — Faz 2–3 tamam (Login JWT + Characters listesi). Sonraki: Faz 4.
+Son güncelleme: 30 Temmuz 2026 — Faz 4 (1/2) Register tamam. Sonraki: Admin character create.
 
 ## Yeni chat’e geçerken oku
 
@@ -47,18 +47,18 @@ Plan özeti: React öğrenme fazları 0→5 (Login → Characters → Register/A
 
 - [x] Backend Adım 1–15 (Character/User CRUD, Auth JWT, roller, CORS 5173)
 - [x] Hatalı “tüm React’i bir anda kurma” geri alındı (`web/` silindi)
-- [x] **Faz 0 — Kavramlar** tamamlandı (component, props, state, interface, JSX)
+- [x] **Faz 0 — Kavramlar** tamamlandı
   - Notlar: `REACT-OGRENIM.md`
-- [x] **Faz 1 — Vite `web` projesi** kuruldu (`D:\ReactBattleArena\web`, React 19 + Vite 8)
+- [x] **Faz 1 — Vite `web` projesi** kuruldu
   - Notlar: `REACT-OGRENIM.md` Faz 1
-- [x] **Faz 2 — Login** tamam
-  - Controlled form + `fetch` POST `/api/auth/login` + `localStorage` token + `onLogin`
+- [x] **Faz 2 — Login** tamam (form + fetch JWT + localStorage + onLogin)
   - Notlar: `REACT-OGRENIM.md` Faz 2 (+ devam)
 - [x] **Faz 3 — Characters + Bearer** tamam
-  - `CharactersPage` + `useEffect` + Bearer; `App` token’a göre Login/Characters
-  - Liste görüldü (Robin, Franky, Luffy…)
   - Notlar: `REACT-OGRENIM.md` Faz 3
-- [ ] Faz 4 — Register + Admin character create
+- [ ] **Faz 4 — Register + Admin character create**
+  - [x] Register: `RegisterPage` + `authView` login↔register (`App`)
+  - [ ] Admin character create (`POST /api/characters` + Bearer; Player 403)
+  - Notlar: `REACT-OGRENIM.md` Faz 4 (1/2)
 - [ ] Faz 5 — react-router + Logout
 
 ## Backend not
@@ -69,5 +69,5 @@ Plan özeti: React öğrenme fazları 0→5 (Login → Characters → Register/A
 
 ```
 ReactBattleArena — CHECKPOINT.md, PROJE_MANTIGI.md ve REACT-OGRENIM.md oku.
-Cursor sadece yönlendirme; kod VS Code’da. Faz 4 Register + Admin character create’den devam.
+Cursor sadece yönlendirme; kod VS Code’da. Faz 4 (2/2) Admin character create’den devam.
 ```

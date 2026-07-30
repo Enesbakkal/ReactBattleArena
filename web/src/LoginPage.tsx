@@ -2,9 +2,10 @@ import { useState } from 'react'
 
 interface LoginPageProps {
   onLogin: () => void
+  onGoRegister: () => void
 }
 
-function LoginPage({ onLogin }: LoginPageProps) {
+function LoginPage({ onLogin, onGoRegister }: LoginPageProps) {
   const [userNameOrEmail, setUserNameOrEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -66,6 +67,9 @@ function LoginPage({ onLogin }: LoginPageProps) {
 
       <button type="submit">Giriş</button>
       {error && <p>{error}</p>}
+      <button type="button" onClick={onGoRegister}>
+        Kayıt ol
+      </button>
     </form>
   )
 }

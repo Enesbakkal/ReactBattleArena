@@ -325,4 +325,50 @@ Karakterler listesi (Robin, Franky, Luffy…). İki aynı Luffy satırı DB’de
 
 ### Sonraki
 
-Faz 4 — Register + Admin character create.
+Faz 4 — Register + Admin character create.  
+→ **Register yapıldı:** aşağıdaki “Faz 4 (1/2) — Register” bölümüne bak. Admin create sonraki oturum.
+
+---
+
+## Faz 4 (1/2) — Register (tamam)
+
+Admin character create **henüz yok** — sonraki oturum.
+
+### Kavram
+
+Login ile aynı form + `fetch` kalıbı. Router yok: `App` içinde `authView: 'login' | 'register'` ile ekran değişimi (Faz 5’te gerçek URL).
+
+### Dosyalar
+
+| Dosya | Ne yaptık |
+|-------|-----------|
+| `web/src/RegisterPage.tsx` | Yeni — `POST /api/auth/register` |
+| `web/src/LoginPage.tsx` | `onGoRegister` + “Kayıt ol” butonu |
+| `web/src/App.tsx` | `authView` ile Login ↔ Register |
+
+### RegisterRequest (JSON camelCase)
+
+`userName`, `email`, `displayName` (opsiyonel → boşsa `null`), `password`.
+
+- Başarı: 201 + Guid; token yok → login’e dön (`onRegistered`).
+- Hata: “Kayıt başarısız…” / API kapalı mesajı.
+- `type="button"` “Girişe dön” / “Kayıt ol” → form submit tetiklemez.
+
+### App akışı (özet)
+
+```tsx
+const [authView, setAuthView] = useState<'login' | 'register'>('login')
+// !isLoggedIn + register → <RegisterPage onRegistered/onBack → login />
+// !isLoggedIn + login → <LoginPage onGoRegister → register />
+```
+
+### Eşleme
+
+| React | Bildiğin |
+|--------|----------|
+| `POST /api/auth/register` | AuthController Register |
+| `authView` state | Geçici “hangi form” (router değil) |
+
+### Sonraki (Faz 4 — 2/2)
+
+Admin ile `POST /api/characters` + Bearer; Player’da 403.
