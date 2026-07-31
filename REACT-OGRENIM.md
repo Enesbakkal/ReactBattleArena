@@ -371,4 +371,51 @@ const [authView, setAuthView] = useState<'login' | 'register'>('login')
 
 ### Sonraki (Faz 4 — 2/2)
 
-Admin ile `POST /api/characters` + Bearer; Player’da 403.
+Admin ile `POST /api/characters` + Bearer; Player’da 403.  
+→ **Yapıldı:** aşağıdaki “Faz 4 (2/2) — Admin character create” bölümüne bak.
+
+---
+
+## Faz 4 (2/2) — Admin character create (tamam)
+
+### Kavramlar
+
+1. Korumalı `POST` + Bearer (`[Authorize(Roles = Admin)]`).
+2. `load`’u `useEffect` dışına çıkarmak → create sonrası listeyi yenilemek.
+
+### Ne değişti (`CharactersPage.tsx`)
+
+- Form state’leri: `name`, `universe`, `biography`, `rarity`, `baseAttack`, `baseDefense`, `baseSpeed`, `imageUrl` + `formError` / `formSuccess`
+- `async function load()` component gövdesinde; `useEffect(() => { load() }, [])`
+- `handleCreate`: `POST /api/characters` + JSON (`CreateCharacterRequest` camelCase)
+  - **403** → “Yetkin yok (Admin gerekli)”
+  - Başarı → form temizle + `await load()`
+- JSX: form liste üstünde; `type="number"` alanlarda `Number(e.target.value)`
+
+### Dosya iskeleti (hatırlatma)
+
+```
+state’ler → load() → useEffect → handleCreate → return (form + ul)
+```
+
+### Test
+
+- Admin login → Ekle → listede yeni satır
+- Player → 403 mesajı
+- Rol değişince: Local Storage `token` sil + yeniden login
+
+### Not (UI)
+
+Grid / ortak Grid component **şimdilik yok** — erken; Faz 5 sonrası kosmetik. Ortak component 2–3 tekrar görünce çıkarılır.
+
+### Eşleme
+
+| React | Bildiğin |
+|--------|----------|
+| `POST` + Bearer + 403 | Admin-only endpoint / Scalar Authorize |
+| `load` yeniden çağrı | Create sonrası liste refresh |
+
+### Sonraki
+
+Faz 5 — react-router + Logout.
+

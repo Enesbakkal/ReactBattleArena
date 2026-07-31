@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 30 Temmuz 2026 — Faz 4 (1/2) Register tamam. Sonraki: Admin character create.
+Son güncelleme: 31 Temmuz 2026 — Faz 4 tamam (Register + Admin character create). Sonraki: Faz 5.
 
 ## Yeni chat’e geçerken oku
 
@@ -51,15 +51,19 @@ Plan özeti: React öğrenme fazları 0→5 (Login → Characters → Register/A
   - Notlar: `REACT-OGRENIM.md`
 - [x] **Faz 1 — Vite `web` projesi** kuruldu
   - Notlar: `REACT-OGRENIM.md` Faz 1
-- [x] **Faz 2 — Login** tamam (form + fetch JWT + localStorage + onLogin)
+- [x] **Faz 2 — Login** tamam
   - Notlar: `REACT-OGRENIM.md` Faz 2 (+ devam)
 - [x] **Faz 3 — Characters + Bearer** tamam
   - Notlar: `REACT-OGRENIM.md` Faz 3
-- [ ] **Faz 4 — Register + Admin character create**
-  - [x] Register: `RegisterPage` + `authView` login↔register (`App`)
-  - [ ] Admin character create (`POST /api/characters` + Bearer; Player 403)
-  - Notlar: `REACT-OGRENIM.md` Faz 4 (1/2)
+- [x] **Faz 4 — Register + Admin character create** tamam
+  - [x] Register: `RegisterPage` + `authView`
+  - [x] Admin create: `CharactersPage` form + `POST /api/characters` + Bearer + 403; `load` dışarı
+  - Notlar: `REACT-OGRENIM.md` Faz 4 (1/2) + (2/2)
 - [ ] Faz 5 — react-router + Logout
+
+## Karar notları (UI)
+
+- Characters grid / ortak Grid component: **şimdilik ertele** (erken abstraction). Faz 5 sonrası kosmetik.
 
 ## Backend not
 
@@ -69,5 +73,5 @@ Plan özeti: React öğrenme fazları 0→5 (Login → Characters → Register/A
 
 ```
 ReactBattleArena — CHECKPOINT.md, PROJE_MANTIGI.md ve REACT-OGRENIM.md oku.
-Cursor sadece yönlendirme; kod VS Code’da. Faz 4 (2/2) Admin character create’den devam.
+Cursor sadece yönlendirme; kod VS Code’da. Faz 5 react-router + Logout’tan devam.
 ```
