@@ -417,5 +417,55 @@ Grid / ortak Grid component **şimdilik yok** — erken; Faz 5 sonrası kosmetik
 
 ### Sonraki
 
-Faz 5 — react-router + Logout.
+Faz 5 — react-router + Logout.  
+→ **Yapıldı:** aşağıdaki “Faz 5 — react-router + Logout” bölümüne bak.
+
+---
+
+## Faz 5 — react-router + Logout (tamam)
+
+### Kavramlar
+
+1. **react-router** — URL ile sayfa (`/login`, `/register`, `/characters`); `authView` state kalktı.
+2. **Logout** — `localStorage.removeItem('token')` + `navigate('/login')`.
+
+### Kurulum
+
+```powershell
+cd D:\ReactBattleArena\web
+npm install react-router-dom
+```
+
+`npm fund` / `npm audit` uyarıları şimdilik yok sayıldı.
+
+### Dosyalar
+
+| Dosya | Ne yaptık |
+|-------|-----------|
+| `main.tsx` | `BrowserRouter` ile `App` sarıldı |
+| `App.tsx` | `Routes` / `Route` / `Navigate`; `isLoggedIn` + `authView` silindi |
+| `LoginPage.tsx` | `useNavigate` → `/characters`; `Link` → `/register`; props yok |
+| `RegisterPage.tsx` | `navigate('/login')`; `Link` → `/login`; props yok |
+| `CharactersPage.tsx` | Token yoksa `<Navigate to="/login" />`; Çıkış butonu |
+
+### Route’lar
+
+| Path | Sayfa |
+|------|--------|
+| `/login` | LoginPage |
+| `/register` | RegisterPage |
+| `/characters` | CharactersPage |
+| `/` ve `*` | → `/characters` |
+
+### Eşleme
+
+| React | Bildiğin |
+|--------|----------|
+| `BrowserRouter` + `Routes` | ASP.NET endpoint routing (ama client-side) |
+| `Link` / `navigate` | `<a>` full reload yerine SPA geçiş |
+| Logout token sil | Session/cookie clear benzeri |
+
+### Planlanan React fazları (0→5)
+
+Hepsi tamam. Sonraki işler ürün/UI (grid, polish, vs.) — ayrı karar.
 

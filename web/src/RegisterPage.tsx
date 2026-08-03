@@ -1,11 +1,10 @@
 import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 
-interface RegisterPageProps {
-  onRegistered: () => void
-  onBack: () => void
-}
 
-function RegisterPage({ onRegistered, onBack }: RegisterPageProps) {
+
+function RegisterPage() {
+  const navigate = useNavigate()
   const [userName, setUserName] = useState('')
   const [email, setEmail] = useState('')
   const [displayName, setDisplayName] = useState('')
@@ -38,13 +37,13 @@ function RegisterPage({ onRegistered, onBack }: RegisterPageProps) {
       }
 
       setSuccess('Kayıt OK — şimdi giriş yap')
-      onRegistered()
+      navigate('/login')
     } catch {
       setError('API’ye ulaşılamadı (backend çalışıyor mu?)')
     }
   }
 
-  return (
+return (
     <div>
       <h1>Kayıt</h1>
       <form onSubmit={handleSubmit}>
@@ -92,9 +91,9 @@ function RegisterPage({ onRegistered, onBack }: RegisterPageProps) {
       </form>
       {error && <p>{error}</p>}
       {success && <p>{success}</p>}
-      <button type="button" onClick={onBack}>
-        Girişe dön
-      </button>
+      <p>
+        <Link to="/login">Girişe dön</Link>
+      </p>
     </div>
   )
 }

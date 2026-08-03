@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Navigate, useNavigate } from 'react-router-dom'
 
 interface CharacterRow {
   id: string
@@ -21,6 +22,18 @@ function CharactersPage() {
   const [imageUrl, setImageUrl] = useState('')
   const [formError, setFormError] = useState('')
   const [formSuccess, setFormSuccess] = useState('')
+
+  const navigate = useNavigate()
+  const token = localStorage.getItem('token')
+
+  if (!token){
+    return <Navigate to='/login' replace />
+  }
+
+  function handleLogout(){
+    localStorage.removeItem('token')
+    navigate('/login')
+  }
 
   async function load() {
     const token = localStorage.getItem('token')
@@ -109,6 +122,9 @@ function CharactersPage() {
   return (
     <div>
       <h1>Karakterler</h1>
+      <button type="button" onClick={handleLogout}>
+        Çıkış
+      </button>
 
       <form onSubmit={handleCreate}>
         <h2>Yeni karakter (Admin)</h2>

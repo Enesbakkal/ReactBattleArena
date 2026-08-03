@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 31 Temmuz 2026 — Faz 4 tamam (Register + Admin character create). Sonraki: Faz 5.
+Son güncelleme: 3 Ağustos 2026 — Faz 5 tamam (react-router + Logout). React öğrenme fazları 0→5 bitti.
 
 ## Yeni chat’e geçerken oku
 
@@ -16,7 +16,7 @@ Son güncelleme: 31 Temmuz 2026 — Faz 4 tamam (Register + Admin character crea
 - Anime/film/comics karakter koleksiyonu + battle arena + puan → ödül
 - Backend: .NET 10, DDD, CQRS (MediatR), FluentValidation, EF Core, SQL Server, JWT (Admin/Player)
 - Katmanlar: Domain → Application → Infrastructure → Api
-- Frontend: React + TypeScript (Vite) — `web/` adım adım
+- Frontend: React + TypeScript (Vite) — `web/`
 - Klasör: `D:\ReactBattleArena`
 - Referans: `D:\BattleArenaAndFigures\BattleArena`
 - Api: `https://localhost:7275` · Vite: `http://localhost:5173` (CORS hazır)
@@ -39,7 +39,7 @@ Detay: `PROJE_MANTIGI.md`
 - Kopyala-yapıştır yığını yok; adım adım yaptır.
 - Takılınca ASP.NET / HTML / HttpClient karşılığından anlat (WinForms değil).
 
-Plan özeti: React öğrenme fazları 0→5 (Login → Characters → Register/Admin → Router).
+Plan özeti: React öğrenme fazları 0→5 — **tamamlandı**.
 
 ---
 
@@ -47,23 +47,19 @@ Plan özeti: React öğrenme fazları 0→5 (Login → Characters → Register/A
 
 - [x] Backend Adım 1–15 (Character/User CRUD, Auth JWT, roller, CORS 5173)
 - [x] Hatalı “tüm React’i bir anda kurma” geri alındı (`web/` silindi)
-- [x] **Faz 0 — Kavramlar** tamamlandı
-  - Notlar: `REACT-OGRENIM.md`
-- [x] **Faz 1 — Vite `web` projesi** kuruldu
-  - Notlar: `REACT-OGRENIM.md` Faz 1
-- [x] **Faz 2 — Login** tamam
-  - Notlar: `REACT-OGRENIM.md` Faz 2 (+ devam)
-- [x] **Faz 3 — Characters + Bearer** tamam
-  - Notlar: `REACT-OGRENIM.md` Faz 3
-- [x] **Faz 4 — Register + Admin character create** tamam
-  - [x] Register: `RegisterPage` + `authView`
-  - [x] Admin create: `CharactersPage` form + `POST /api/characters` + Bearer + 403; `load` dışarı
-  - Notlar: `REACT-OGRENIM.md` Faz 4 (1/2) + (2/2)
-- [ ] Faz 5 — react-router + Logout
+- [x] **Faz 0 — Kavramlar** — `REACT-OGRENIM.md`
+- [x] **Faz 1 — Vite `web`** — `REACT-OGRENIM.md` Faz 1
+- [x] **Faz 2 — Login** — `REACT-OGRENIM.md` Faz 2 (+ devam)
+- [x] **Faz 3 — Characters + Bearer** — `REACT-OGRENIM.md` Faz 3
+- [x] **Faz 4 — Register + Admin create** — `REACT-OGRENIM.md` Faz 4 (1/2)+(2/2)
+- [x] **Faz 5 — react-router + Logout** tamam
+  - `react-router-dom`: BrowserRouter, Routes, Link, useNavigate, Navigate
+  - Logout: token sil + `/login`
+  - Notlar: `REACT-OGRENIM.md` Faz 5
 
 ## Karar notları (UI)
 
-- Characters grid / ortak Grid component: **şimdilik ertele** (erken abstraction). Faz 5 sonrası kosmetik.
+- Characters grid / ortak Grid component: **şimdilik ertele** (erken abstraction). İleride kosmetik.
 
 ## Backend not
 
@@ -73,5 +69,5 @@ Plan özeti: React öğrenme fazları 0→5 (Login → Characters → Register/A
 
 ```
 ReactBattleArena — CHECKPOINT.md, PROJE_MANTIGI.md ve REACT-OGRENIM.md oku.
-Cursor sadece yönlendirme; kod VS Code’da. Faz 5 react-router + Logout’tan devam.
+Cursor sadece yönlendirme; kod VS Code’da. React fazları 0–5 tamam; sonraki adımı birlikte seç.
 ```

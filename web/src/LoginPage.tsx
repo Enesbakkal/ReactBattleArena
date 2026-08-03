@@ -1,11 +1,9 @@
 import { useState } from 'react'
+import { Link, useNavigate} from 'react-router-dom'
 
-interface LoginPageProps {
-  onLogin: () => void
-  onGoRegister: () => void
-}
 
-function LoginPage({ onLogin, onGoRegister }: LoginPageProps) {
+function LoginPage() {
+  const navigate = useNavigate()
   const [userNameOrEmail, setUserNameOrEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -33,7 +31,9 @@ function LoginPage({ onLogin, onGoRegister }: LoginPageProps) {
 
       const data = await response.json()
       localStorage.setItem('token', data.token)
-      onLogin()
+      
+      navigate('/characters')
+      //onLogin()
       //Ne için: onLogin = “token kaydedildi, artık karakter sayfasını göster” sinyali. Props = dışarıdan gelen parametre (Faz 0).
 
     } catch {
@@ -53,7 +53,6 @@ function LoginPage({ onLogin, onGoRegister }: LoginPageProps) {
           />
         </label>
       </div>
-
       <div>
         <label>
           Şifre
@@ -64,14 +63,14 @@ function LoginPage({ onLogin, onGoRegister }: LoginPageProps) {
           />
         </label>
       </div>
-
       <button type="submit">Giriş</button>
       {error && <p>{error}</p>}
-      <button type="button" onClick={onGoRegister}>
-        Kayıt ol
-      </button>
+      <p>
+        <Link to="/register">Kayıt ol</Link>
+      </p>
     </form>
   )
+
 }
 
 export default LoginPage
