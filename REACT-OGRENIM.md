@@ -467,5 +467,94 @@ npm install react-router-dom
 
 ### Planlanan React fazları (0→5)
 
-Hepsi tamam. Sonraki işler ürün/UI (grid, polish, vs.) — ayrı karar.
+Hepsi tamam. Sonraki işler ürün/UI (grid, polish, vs.) — ayrı karar.  
+→ **Faz 6 (Characters kart + CSS grid)** yapıldı / yapılıyor — aşağıdaki bölüme bak.
+
+---
+
+## Grid mantığı (proje kararı) — özet
+
+### Ne yapmıyoruz
+
+- Tüm sayfaların kullandığı **tek mega Grid** component’i yok.
+- Erken “her listeyi bilen” abstraction yok (props cehennemi riski).
+
+### Ne yapıyoruz (SPA önerisi)
+
+1. **Layout paylaşılabilir** — ileride header/nav/çıkış (`App` layout). Bu kabuk.
+2. **Liste/grid sayfaya özel** — Characters kartları ≠ Users tablosu ≠ ödül listesi.
+3. **Tekrar edince çıkar** — 2–3 yerde aynı kart görünürse o zaman ortak `Card` / utility; şimdi değil.
+4. **Characters için:** CSS Grid (`characters-grid`) + küçük `CharacterCard` (props).
+
+### Yapı şeması (güncel — liste / ekle ayrıldı)
+
+```
+/characters  → CharactersPage
+  ├── header (başlık + “Karakter ekle” + çıkış)
+  └── characters-grid → CharacterCard[] (resim + ad + evren + rarity)
+
+/characters/new → CharacterCreatePage
+  ├── form (Admin create)
+  └── characters-grid → CharacterCard[] önizleme
+       (şimdilik mevcut liste; “sık kullanılan” backend sonra)
+```
+
+| Parça | Rol |
+|--------|-----|
+| `CharactersPage.css` `.characters-grid` | Yerleşim (kaç sütun, boşluk) |
+| `CharacterCard.tsx` | Tek karakterin görünümü (liste + create önizleme) |
+| `CharactersPage.tsx` | Sadece liste |
+| `CharacterCreatePage.tsx` | Form + altta aynı kart grid |
+
+### CSS Grid özü
+
+```css
+.characters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+}
+```
+
+Ekran genişleyince sütun artar; daralınca azalır. Ortak Grid kütüphanesi şart değil.
+
+---
+
+## Faz 6 — Characters kart + CSS grid (+ create ayrımı)
+
+### Kavramlar
+
+1. Props’lu `CharacterCard` component.
+2. Sayfaya özel CSS Grid (mega Grid değil).
+3. Liste ve ekleme **ayrı route** (CRUD best practice).
+
+### Dosyalar
+
+| Dosya | Ne |
+|-------|-----|
+| `web/src/CharacterCard.tsx` | Kart UI (imageUrl yoksa placeholder) |
+| `web/src/CharactersPage.css` | Sayfa + grid + kart + form stilleri |
+| `web/src/CharactersPage.tsx` | Sadece grid liste; Link → `/characters/new` |
+| `web/src/CharacterCreatePage.tsx` | Admin form + önizleme grid; başarı → `/characters` |
+| `web/src/App.tsx` | Route `/characters/new` |
+
+### CRUD planı (Characters — sırayla)
+
+| İş | Route |
+|----|--------|
+| Liste | `/characters` |
+| Create | `/characters/new` ← yapıldı |
+| Detay | `/characters/:id` (sonra) |
+| Edit | `/characters/:id/edit` (sonra) |
+| Delete | detay/kart + onay (sonra) |
+
+### API hataları (öğrenilen)
+
+- **400** validation: Name/Universe zorunlu; Rarity **1–5**; ImageUrl max **500** karakter; response `errors` göster.
+- **401** token yok/süresi dolmuş → yeniden login.
+- **403** Admin değil.
+
+### Not
+
+Create sayfasındaki “Mevcut karakterler” grid’i kasıtlı önizleme; kullanıcıya hoş geldi. İleride gerçek “sık kullanılan” metrikleriyle değişebilir.
 

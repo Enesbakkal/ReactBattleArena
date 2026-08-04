@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 3 Ağustos 2026 — Faz 5 tamam (react-router + Logout). React öğrenme fazları 0→5 bitti.
+Son güncelleme: 4 Ağustos 2026 — Faz 6: Characters kart grid + Create ayrı sayfa (`/characters/new`). Sonraki: detay → edit → delete.
 
 ## Yeni chat’e geçerken oku
 
@@ -39,35 +39,33 @@ Detay: `PROJE_MANTIGI.md`
 - Kopyala-yapıştır yığını yok; adım adım yaptır.
 - Takılınca ASP.NET / HTML / HttpClient karşılığından anlat (WinForms değil).
 
-Plan özeti: React öğrenme fazları 0→5 — **tamamlandı**.
+Plan: React fazları 0→5 tamam. Ürün UI/CRUD devam (Faz 6+).
 
 ---
 
 ## Şu an neredeyiz?
 
-- [x] Backend Adım 1–15 (Character/User CRUD, Auth JWT, roller, CORS 5173)
-- [x] Hatalı “tüm React’i bir anda kurma” geri alındı (`web/` silindi)
-- [x] **Faz 0 — Kavramlar** — `REACT-OGRENIM.md`
-- [x] **Faz 1 — Vite `web`** — `REACT-OGRENIM.md` Faz 1
-- [x] **Faz 2 — Login** — `REACT-OGRENIM.md` Faz 2 (+ devam)
-- [x] **Faz 3 — Characters + Bearer** — `REACT-OGRENIM.md` Faz 3
-- [x] **Faz 4 — Register + Admin create** — `REACT-OGRENIM.md` Faz 4 (1/2)+(2/2)
-- [x] **Faz 5 — react-router + Logout** tamam
-  - `react-router-dom`: BrowserRouter, Routes, Link, useNavigate, Navigate
-  - Logout: token sil + `/login`
-  - Notlar: `REACT-OGRENIM.md` Faz 5
+- [x] Backend Adım 1–15
+- [x] **Faz 0–5** React öğrenme (Login → Characters → Register/Admin create → Router/Logout)
+- [x] **Faz 6 — Characters kart + CSS grid + Create ayrımı**
+  - Mega Grid yok; `CharacterCard` + sayfa CSS grid
+  - `/characters` liste; `/characters/new` Admin form + önizleme grid
+  - Grid mantığı + CRUD planı: `REACT-OGRENIM.md`
+- [ ] Characters CRUD devam: detay `/characters/:id` → edit → delete
 
-## Karar notları (UI)
+## Karar notları (UI / Grid)
 
-- Characters grid / ortak Grid component: **şimdilik ertele** (erken abstraction). İleride kosmetik.
+- Mega Grid yok — sayfaya özel grid + `CharacterCard`.
+- Liste ve create ayrı route (CRUD best practice).
+- Create altındaki mevcut-karakter grid’i kasıtlı önizleme (sık kullanılanlar sonra).
 
 ## Backend not
 
-İlk Admin: SSMS’te `Role = Admin` + yeniden login.
+İlk Admin: SSMS’te `Role = Admin` + yeniden login. Create 401 → token yenile; 403 → Admin değil; Rarity 1–5; ImageUrl max 500.
 
 ## Yeni thread açılış cümlesi (kopyala)
 
 ```
 ReactBattleArena — CHECKPOINT.md, PROJE_MANTIGI.md ve REACT-OGRENIM.md oku.
-Cursor sadece yönlendirme; kod VS Code’da. React fazları 0–5 tamam; sonraki adımı birlikte seç.
+Cursor sadece yönlendirme; kod VS Code’da. Characters CRUD: detay sayfasından devam.
 ```
