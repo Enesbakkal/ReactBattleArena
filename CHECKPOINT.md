@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 4 Ağustos 2026 — Faz 6: Characters kart grid + Create ayrı sayfa (`/characters/new`). Sonraki: detay → edit → delete.
+Son güncelleme: 5 Ağustos 2026 — Karakter detay `/characters/:id` eklendi. Sonraki: edit → delete.
 
 ## Yeni chat’e geçerken oku
 
@@ -29,6 +29,7 @@ Detay: `PROJE_MANTIGI.md`
 
 - Web developer (.NET backend / API biliniyor). **WinForms yok** — eşleme: Razor/MVC View, HTML form, `fetch`/HttpClient.
 - React sıfırdan; Cursor tarif eder, kod VS Code’da yazılır.
+- Takılan **JSX/React syntax** oturumda kısa açıklanır (`REACT-OGRENIM.md` → JSX syntax).
 
 ## Öğrenme kuralları (HER OTURUM)
 
@@ -38,6 +39,7 @@ Detay: `PROJE_MANTIGI.md`
 - Bir oturumda en fazla **1–2 yeni kavram**.
 - Kopyala-yapıştır yığını yok; adım adım yaptır.
 - Takılınca ASP.NET / HTML / HttpClient karşılığından anlat (WinForms değil).
+- Syntax soruları normal; faz atlamadan açıkla.
 
 Plan: React fazları 0→5 tamam. Ürün UI/CRUD devam (Faz 6+).
 
@@ -46,18 +48,17 @@ Plan: React fazları 0→5 tamam. Ürün UI/CRUD devam (Faz 6+).
 ## Şu an neredeyiz?
 
 - [x] Backend Adım 1–15
-- [x] **Faz 0–5** React öğrenme (Login → Characters → Register/Admin create → Router/Logout)
-- [x] **Faz 6 — Characters kart + CSS grid + Create ayrımı**
-  - Mega Grid yok; `CharacterCard` + sayfa CSS grid
-  - `/characters` liste; `/characters/new` Admin form + önizleme grid
-  - Grid mantığı + CRUD planı: `REACT-OGRENIM.md`
-- [ ] Characters CRUD devam: detay `/characters/:id` → edit → delete
+- [x] **Faz 0–5** React öğrenme
+- [x] **Faz 6 — kart grid + Create ayrımı**
+- [x] **Karakter detay** `/characters/:id` (`useParams`, kart Link, DetailPage)
+  - Notlar: `REACT-OGRENIM.md` (detay + `&&` koşullu render)
+- [ ] Characters CRUD: edit `/characters/:id/edit` → delete
 
 ## Karar notları (UI / Grid)
 
 - Mega Grid yok — sayfaya özel grid + `CharacterCard`.
-- Liste ve create ayrı route (CRUD best practice).
-- Create altındaki mevcut-karakter grid’i kasıtlı önizleme (sık kullanılanlar sonra).
+- Liste / create / detay ayrı route.
+- Resim upload erken — Image URL string yeterli.
 
 ## Backend not
 
@@ -67,5 +68,5 @@ Plan: React fazları 0→5 tamam. Ürün UI/CRUD devam (Faz 6+).
 
 ```
 ReactBattleArena — CHECKPOINT.md, PROJE_MANTIGI.md ve REACT-OGRENIM.md oku.
-Cursor sadece yönlendirme; kod VS Code’da. Characters CRUD: detay sayfasından devam.
+Cursor sadece yönlendirme; kod VS Code’da. Characters CRUD: edit sayfasından devam.
 ```

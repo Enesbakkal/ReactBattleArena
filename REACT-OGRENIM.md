@@ -544,7 +544,7 @@ Ekran genişleyince sütun artar; daralınca azalır. Ortak Grid kütüphanesi �
 |----|--------|
 | Liste | `/characters` |
 | Create | `/characters/new` ← yapıldı |
-| Detay | `/characters/:id` (sonra) |
+| Detay | `/characters/:id` ✓ |
 | Edit | `/characters/:id/edit` (sonra) |
 | Delete | detay/kart + onay (sonra) |
 
@@ -557,4 +557,58 @@ Ekran genişleyince sütun artar; daralınca azalır. Ortak Grid kütüphanesi �
 ### Not
 
 Create sayfasındaki “Mevcut karakterler” grid’i kasıtlı önizleme; kullanıcıya hoş geldi. İleride gerçek “sık kullanılan” metrikleriyle değişebilir.
+
+`CharacterCreatePage` map’inde de `id={c.id}` olmalı (`CharacterCard` artık `id` istiyor).
+
+---
+
+## JSX syntax — koşullu render (`&&`)
+
+Öğrenci React’e yeni; takılan syntax’lar oturumda kısa açıklanır (faz atlamadan).
+
+JSX içinde `{}` = JavaScript ifadesi.
+
+`A && B`: **A truthy ise B’yi render et; değilse hiçbir şey.**
+
+```tsx
+{loading && <p>Yükleniyor…</p>}
+{error && <p>{error}</p>}
+{character && <article>…</article>}
+```
+
+| Kod | Anlamı |
+|-----|--------|
+| `loading && <p>…</p>` | `loading === true` → göster; `false` → boş |
+| `error && <p>{error}</p>` | `error` dolu string → göster; `''` → boş |
+| `{error}` | string’i ekrana yaz (Razor `@error`) |
+
+Razor eşlemesi:
+
+```cshtml
+@if (loading) { <p>Yükleniyor…</p> }
+@if (!string.IsNullOrEmpty(error)) { <p>@error</p> }
+```
+
+Sık bakılacaklar (ileride): `&&`, ternary `? :`, `map`, props, `useState` / `useEffect`, `useParams`.
+
+Dosya upload (resim) erken — şimdilik Image URL string yeterli.
+
+---
+
+## Faz 6 devam — Karakter detay (`/characters/:id`)
+
+### Kavramlar
+
+1. `useParams` — URL’den `id`
+2. `GET /api/characters/{id}` → `CharacterDetailDto`
+3. Kart → `Link` ile detaya git
+
+### Dosyalar
+
+| Dosya | Ne |
+|-------|-----|
+| `CharacterDetailPage.tsx` | Detay; `{loading && …}` / `{error && …}` / character |
+| `CharacterCard.tsx` | `id` prop + `Link to={/characters/${id}}` |
+| `App.tsx` | `Route path="/characters/:id"` (`/new` önce) |
+| Liste / create map | `id={c.id}` |
 

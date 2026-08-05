@@ -3,6 +3,7 @@ import LoginPage from './LoginPage'
 import RegisterPage from './RegisterPage'
 import CharactersPage from './CharactersPage'
 import CharacterCreatePage from './CharacterCreatePage'
+import CharacterDetailPage from './CharacterDetailPage'
 
 function App() {
   return (
@@ -11,6 +12,7 @@ function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/characters" element={<CharactersPage />} />
       <Route path="/characters/new" element={<CharacterCreatePage />} />
+      <Route path="/characters/:id" element={<CharacterDetailPage />} />
       <Route path="/" element={<Navigate to="/characters" replace />} />
       <Route path="*" element={<Navigate to="/characters" replace />} />
     </Routes>
