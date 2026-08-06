@@ -4,6 +4,7 @@ import RegisterPage from './RegisterPage'
 import CharactersPage from './CharactersPage'
 import CharacterCreatePage from './CharacterCreatePage'
 import CharacterDetailPage from './CharacterDetailPage'
+import CharacterEditPage from './CharacterEditPage'
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
       <Route path="/characters" element={<CharactersPage />} />
       <Route path="/characters/new" element={<CharacterCreatePage />} />
       <Route path="/characters/:id" element={<CharacterDetailPage />} />
+      <Route path="/characters/:id/edit" element={<CharacterEditPage />} />
       <Route path="/" element={<Navigate to="/characters" replace />} />
       <Route path="*" element={<Navigate to="/characters" replace />} />
     </Routes>

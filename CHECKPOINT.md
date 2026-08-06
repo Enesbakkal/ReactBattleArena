@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 5 Ağustos 2026 — Karakter detay `/characters/:id` eklendi. Sonraki: edit → delete.
+Son güncelleme: 6 Ağustos 2026 — Characters frontend CRUD tamam (liste/create/detay/edit/delete).
 
 ## Yeni chat’e geçerken oku
 
@@ -27,46 +27,42 @@ Detay: `PROJE_MANTIGI.md`
 
 ## Öğrenci profili
 
-- Web developer (.NET backend / API biliniyor). **WinForms yok** — eşleme: Razor/MVC View, HTML form, `fetch`/HttpClient.
-- React sıfırdan; Cursor tarif eder, kod VS Code’da yazılır.
-- Takılan **JSX/React syntax** oturumda kısa açıklanır (`REACT-OGRENIM.md` → JSX syntax).
+- Web developer (.NET API). WinForms yok — Razor/HTML/`fetch`.
+- React sıfırdan; takılan JSX/syntax oturumda açıklanır (`REACT-OGRENIM.md`).
 
 ## Öğrenme kuralları (HER OTURUM)
 
-- **Cursor:** sadece soru / yönlendirme / kontrol. Agent tüm önyüzü tek seferde yazmasın.
-- **VS Code:** kullanıcı React/TS kodunu burada yazar ve çalıştırır.
-- Pedagoji (.NET’teki gibi): kısa kavram → kullanıcı yazar → C# / web eşlemesi → çalıştır → sonraki parça.
-- Bir oturumda en fazla **1–2 yeni kavram**.
-- Kopyala-yapıştır yığını yok; adım adım yaptır.
-- Takılınca ASP.NET / HTML / HttpClient karşılığından anlat (WinForms değil).
-- Syntax soruları normal; faz atlamadan açıkla.
-
-Plan: React fazları 0→5 tamam. Ürün UI/CRUD devam (Faz 6+).
+- Cursor: yönlendirme; kod VS Code’da.
+- 1–2 kavram / oturum; adım adım; WinForms örneği yok.
 
 ---
 
 ## Şu an neredeyiz?
 
 - [x] Backend Adım 1–15
-- [x] **Faz 0–5** React öğrenme
-- [x] **Faz 6 — kart grid + Create ayrımı**
-- [x] **Karakter detay** `/characters/:id` (`useParams`, kart Link, DetailPage)
-  - Notlar: `REACT-OGRENIM.md` (detay + `&&` koşullu render)
-- [ ] Characters CRUD: edit `/characters/:id/edit` → delete
+- [x] React faz 0–5 (Login → Characters Bearer → Register → Router/Logout)
+- [x] Faz 6 kart grid + Create ayrı sayfa
+- [x] **Characters frontend CRUD tamam**
+  - Liste `/characters`
+  - Create `/characters/new`
+  - Detay `/characters/:id`
+  - Edit `/characters/:id/edit`
+  - Delete detayda (confirm + DELETE 204)
+  - Notlar: `REACT-OGRENIM.md` (useEffect, `&&`, useState iskelet, CRUD)
 
-## Karar notları (UI / Grid)
+## Karar notları
 
-- Mega Grid yok — sayfaya özel grid + `CharacterCard`.
-- Liste / create / detay ayrı route.
-- Resim upload erken — Image URL string yeterli.
+- Mega Grid yok; `CharacterCard` + sayfa CSS grid.
+- Resim upload erken — Image URL string.
+- Sonraki ürün adımı birlikte seçilir (aşağıya bak).
 
 ## Backend not
 
-İlk Admin: SSMS’te `Role = Admin` + yeniden login. Create 401 → token yenile; 403 → Admin değil; Rarity 1–5; ImageUrl max 500.
+Admin: SSMS `Role = Admin` + yeniden login. 401 token; 403 rol; PUT/DELETE 204 body yok.
 
 ## Yeni thread açılış cümlesi (kopyala)
 
 ```
 ReactBattleArena — CHECKPOINT.md, PROJE_MANTIGI.md ve REACT-OGRENIM.md oku.
-Cursor sadece yönlendirme; kod VS Code’da. Characters CRUD: edit sayfasından devam.
+Cursor sadece yönlendirme; kod VS Code’da. Characters CRUD bitti; sıradaki adımı seç / devam.
 ```

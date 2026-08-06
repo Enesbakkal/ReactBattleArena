@@ -612,3 +612,131 @@ Dosya upload (resim) erken — şimdilik Image URL string yeterli.
 | `App.tsx` | `Route path="/characters/:id"` (`/new` önce) |
 | Liste / create map | `id={c.id}` |
 
+---
+
+## useState başlangıç değerleri (Edit) — 10 / 1 “üzerine yazar mı?”
+
+**Hayır.** `useState(10)` sadece **ilk render** iskeleti. `GET` bitince `setBaseAttack(data.baseAttack)` gerçek değeri koyar (örn. 100). Kaydet’te o state gider.
+
+Form `{!loading && !loadError && (…)}` ile gizliyse kullanıcı 10’u görmez bile.
+
+Create’te aynı defaults kalıcıdır çünkü orada GET ile doldurma yok.
+
+---
+
+## useState / setLoading — biz mi React mi?
+
+```tsx
+const [loading, setLoading] = useState(true)
+```
+
+| Parça | Kim |
+|--------|-----|
+| `useState` | **React**’ten gelir (`import { useState } from 'react'`) |
+| `loading` | Bizim verdiğimiz **değişken adı** (istediğin isim: `isLoading` vb.) |
+| `setLoading` | React’in ürettiği **setter**; isim = `set` + state adı |
+| `true` | Bizim seçtiğimiz **başlangıç** |
+
+React “loading” diye sabit bir şey dayatmaz; pattern biz yazıyoruz.
+
+---
+
+## useEffect — tamamı (Edit / Detail kalıbı)
+
+```tsx
+useEffect(() => {
+  async function load() {
+    // GET … setName(data.name) …
+  }
+  load()
+}, [id, token])
+```
+
+### Ne işe yarar?
+
+Component **ekrana geldikten sonra** (veya bağımlılıklar değişince) yan etki çalıştırır: API çağrısı, abonelik vb.  
+Render’ın kendisi sadece UI üretmeli; “gidip server’dan veri çek” → `useEffect`.
+
+ASP.NET benzeri: sayfa açılınca `OnGetAsync` / controller’da load — ama React’te UI çizildikten sonra effect çalışır.
+
+### Parça parça
+
+1. **`useEffect(…)`** — React hook (React’ten).
+2. **`() => { … }`** — effect’e verdiğin fonksiyon (evet, arrow / “lambda” gibi). React bu fonksiyonu doğru zamanda çağırır.
+3. **`async function load() { … }`** — effect’in **içinde** tanımlı yardımcı. Recursive değil: kendini çağırmıyor; sadece bir kez `load()` ile çalıştırıyoruz.
+4. **`load()`** — az önce tanımladığın fonksiyonu çağır.
+5. **`[id, token]`** — **dependency array** (bağımlılık listesi):
+   - İlk mount’ta effect bir kez çalışır.
+   - `id` veya `token` **değişirse** effect **yeniden** çalışır (başka karaktere geçince yeni GET).
+   - `[]` boş olsaydı: sadece ilk açılışta bir kez.
+
+### Recursive mi?
+
+**Hayır.** `load` içinde `load()` yok. Sadece:
+
+```
+useEffect çalıştı → load fonksiyonunu tanımla → load() bir kez çağır → bitti
+```
+
+### `handleSubmit` useEffect içinde mi?
+
+**Hayır.** Submit kullanıcı butona basınca çalışır → `onSubmit={handleSubmit}` ile formda.  
+`useEffect` = sayfa açılınca / id değişince **otomatik load**.  
+İkisi ayrı kapılar.
+
+| Ne | Ne zaman |
+|----|----------|
+| `useEffect` → `load()` | Sayfa açıldı / `id` değişti |
+| `handleSubmit` | Form submit (Kaydet) |
+
+---
+
+## Hata düzeltmesi (not)
+
+`CharacterCard` `id` zorunlu → `CharacterCreatePage` map’ine `id={c.id}` eklendi (TS 2741).
+
+---
+
+## Characters CRUD — Edit (`/characters/:id/edit`)
+
+### Kavramlar
+
+1. `GET` ile formu doldur (`setName(data.name)` …).
+2. `PUT` kaydet → **204 No Content** → `response.json()` yok → detaya `navigate`.
+
+### Dosyalar
+
+| Dosya | Ne |
+|-------|-----|
+| `CharacterEditPage.tsx` | Load + form + PUT |
+| `App.tsx` | `Route /characters/:id/edit` |
+| `CharacterDetailPage` | Link “Düzenle” |
+
+`useState(10)` vb. sadece iskelet; GET sonrası gerçek değer. Form `{!loading && !loadError && …}` ile gizli.
+
+---
+
+## Characters CRUD — Delete (detay sayfası)
+
+### Kavramlar
+
+1. `DELETE /api/characters/{id}` + Bearer (Admin).
+2. `window.confirm` → iptalde çık.
+3. 204 → `navigate('/characters')`.
+
+### `CharacterDetailPage`
+
+- Tek header: Düzenle | Sil | Listeye dön
+- `handleDelete` fonksiyon **içinde** (gövde dışarı taşmamalı)
+- `deleteError` state; 401 / 403 / 404 ayrı mesaj
+
+### Characters frontend CRUD durumu
+
+| İş | Route / yer | Durum |
+|----|-------------|--------|
+| Liste | `/characters` | ✓ |
+| Create | `/characters/new` | ✓ |
+| Detay | `/characters/:id` | ✓ |
+| Edit | `/characters/:id/edit` | ✓ |
+| Delete | detayda Sil | ✓ |
+

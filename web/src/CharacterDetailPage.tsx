@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, Navigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import './CharactersPage.css'
 
 interface CharacterDetail {
@@ -17,20 +17,18 @@ interface CharacterDetail {
 
 function CharacterDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const token = localStorage.getItem('token')
 
   const [character, setCharacter] = useState<CharacterDetail | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
-
-  if (!token) {
-    return <Navigate to="/login" replace />
-  }
+  const [deleteError, setDeleteError] = useState('')
 
   useEffect(() => {
     async function load() {
-      if (!id) {
-        setError('Id yok')
+      if (!token || !id) {
+        setError('Id veya token yok')
         setLoading(false)
         return
       }
@@ -73,15 +71,71 @@ function CharacterDetailPage() {
     load()
   }, [id, token])
 
+  if (!token) {
+    return <Navigate to="/login" replace />
+  }
+
+  async function handleDelete() {
+    if (!id || !token) return
+
+    const ok = window.confirm('Bu karakteri silmek istediğine emin misin?')
+    if (!ok) return
+
+    setDeleteError('')
+
+    try {
+      const response = await fetch(
+        `https://localhost:7275/api/characters/${id}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      )
+
+      if (response.status === 401) {
+        setDeleteError('Oturum yok — tekrar giriş yap')
+        return
+      }
+
+      if (response.status === 403) {
+        setDeleteError('Yetkin yok (Admin gerekli)')
+        return
+      }
+
+      if (response.status === 404) {
+        setDeleteError('Karakter bulunamadı')
+        return
+      }
+
+      if (!response.ok) {
+        setDeleteError(`Silinemedi (${response.status})`)
+        return
+      }
+
+      navigate('/characters')
+    } catch {
+      setDeleteError('API’ye ulaşılamadı')
+    }
+  }
+
   return (
     <div className="characters-page">
       <div className="characters-page__header">
         <h1>Karakter detay</h1>
-        <Link to="/characters">Listeye dön</Link>
+        <div className="characters-page__actions">
+          <Link to={`/characters/${id}/edit`}>Düzenle</Link>
+          <button type="button" onClick={handleDelete}>
+            Sil
+          </button>
+          <Link to="/characters">Listeye dön</Link>
+        </div>
       </div>
 
       {loading && <p>Yükleniyor…</p>}
       {error && <p>{error}</p>}
+      {deleteError && <p>{deleteError}</p>}
 
       {character && (
         <article className="character-detail">

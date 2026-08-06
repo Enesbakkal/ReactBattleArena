@@ -199,6 +199,7 @@ function CharacterCreatePage() {
         {items.map((c) => (
           <CharacterCard
             key={c.id}
+            id={c.id}
             name={c.name}
             universe={c.universe}
             rarity={c.rarity}
