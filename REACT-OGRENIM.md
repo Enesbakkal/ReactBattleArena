@@ -740,3 +740,102 @@ useEffect çalıştı → load fonksiyonunu tanımla → load() bir kez çağır
 | Edit | `/characters/:id/edit` | ✓ |
 | Delete | detayda Sil | ✓ |
 
+---
+
+## App layout kararı (9 Ağustos 2026)
+
+- **Üst menü** (sol sidebar yok).
+- Düz linkler; **dropdown yok** (şimdilik).
+- Örnek: Brand · Karakterler · Çıkış — Ekle liste sayfasında.
+- Login/Register layout’suz.
+- Grid tam genişlik kalsın diye üst tercih edildi.
+
+---
+
+## Nested routes + `<Outlet />` (öğrenme — uzun not)
+
+### Sorun neydi? (9 Ağustos)
+
+`AppLayout.tsx` ve CSS yazılmıştı, `CharactersPage` sadeleştirilmişti; ama **`App.tsx` hâlâ eski düz route’lardı** — `AppLayout` import edilip parent route yapılmamıştı. Bu yüzden üst menü hiç görünmedi. Layout’un çalışması için child sayfaların **AppLayout’un altında** tanımlı olması gerekir.
+
+### Nested (iç içe) route ne demek?
+
+Eskiden her sayfa tek başına:
+
+```tsx
+<Route path="/characters" element={<CharactersPage />} />
+<Route path="/characters/:id" element={<CharacterDetailPage />} />
+```
+
+Burada her URL sadece **kendi sayfasını** çizer. Ortak üst menü yok.
+
+Yenisi: bir **ebeveyn (parent)** route var; onun `element`’i `AppLayout`. Altında **çocuk (child)** route’lar var:
+
+```tsx
+<Route element={<AppLayout />}>
+  <Route path="/characters" element={<CharactersPage />} />
+  <Route path="/characters/:id" element={<CharacterDetailPage />} />
+  {/* new, edit… */}
+</Route>
+```
+
+Kullanıcı `/characters` açınca React Router şunu yapar:
+
+1. Parent’ı çalıştır → `AppLayout` çizilir (üst menü + kabuk).
+2. Hangi child URL’ye uyuyorsa onu seç → örn. `CharactersPage`.
+3. Child’ı parent’ın **içindeki boşluğa** yerleştir.
+
+O boşluk = **`<Outlet />`**.
+
+### `<Outlet />` nedir? (Razor eşlemesi)
+
+`AppLayout` kabuktur:
+
+```tsx
+<header>…menü…</header>
+<main>
+  <Outlet />   {/* ← buraya o anki sayfa gelir */}
+</main>
+```
+
+| URL | Outlet’in içine giren |
+|-----|------------------------|
+| `/characters` | `CharactersPage` |
+| `/characters/new` | `CharacterCreatePage` |
+| `/characters/abc-guid` | `CharacterDetailPage` |
+| `/characters/abc-guid/edit` | `CharacterEditPage` |
+
+ASP.NET Razor’da `_Layout.cshtml` + `@RenderBody()` gibidir: layout sabit, ortadaki içerik sayfaya göre değişir.  
+`<Outlet />` = “buraya child route’un `element`’ini koy”.
+
+“O anki child route” = adres çubuğundaki URL’ye uyan **alt** `Route`’un sayfası.
+
+Login/Register parent’ın **dışında** kaldığı için onlarda üst menü yok.
+
+### Neden `element={<AppLayout />}` path’siz parent?
+
+```tsx
+<Route element={<AppLayout />}>
+```
+
+Bu parent’ın kendi path’i yok; sadece “şu çocukları sarmala” der. Çocuklar kendi path’lerini taşır (`/characters`, …).
+
+### Edit neden `:id`’den önce?
+
+```tsx
+<Route path="/characters/:id/edit" … />
+<Route path="/characters/:id" … />
+```
+
+İkisi farklı segment sayısı olduğu için çoğu durumda ikisi de çalışır; yine de **daha spesifik** olanı (`…/edit`) önce yazmak alışkanlık / güvenlik. (`new` zaten ayrı path.)
+
+### Login / token
+
+`AppLayout` içinde token yoksa `<Navigate to="/login" />`. Böylece korumalı sayfalar layout’a girmeden login’e düşer. Login sayfası layout child’ı değil.
+
+---
+
+## Teknik borç (sonra bak)
+
+Uygulama açılınca karakter listesinin **3–4 sn** gelmesi — henüz incelenmedi. Muhtemel: API soğuk start, HTTPS sertifika, StrictMode çift fetch, vs. Ayrı oturumda bakılacak.
+

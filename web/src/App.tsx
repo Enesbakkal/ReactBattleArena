@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
+import AppLayout from './AppLayout'
 import LoginPage from './LoginPage'
 import RegisterPage from './RegisterPage'
 import CharactersPage from './CharactersPage'
@@ -11,10 +12,14 @@ function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
-      <Route path="/characters" element={<CharactersPage />} />
-      <Route path="/characters/new" element={<CharacterCreatePage />} />
-      <Route path="/characters/:id" element={<CharacterDetailPage />} />
-      <Route path="/characters/:id/edit" element={<CharacterEditPage />} />
+
+      <Route element={<AppLayout />}>
+        <Route path="/characters" element={<CharactersPage />} />
+        <Route path="/characters/new" element={<CharacterCreatePage />} />
+        <Route path="/characters/:id/edit" element={<CharacterEditPage />} />
+        <Route path="/characters/:id" element={<CharacterDetailPage />} />
+      </Route>
+
       <Route path="/" element={<Navigate to="/characters" replace />} />
       <Route path="*" element={<Navigate to="/characters" replace />} />
     </Routes>

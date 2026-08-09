@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 6 Ağustos 2026 — Characters frontend CRUD tamam (liste/create/detay/edit/delete).
+Son güncelleme: 9 Ağustos 2026 — AppLayout tamam. Sonraki: UI güzelleştirme temeli (API/Arena’ya dokunmadan). Header: brand + Karakterler sol, Çıkış sağ.
 
 ## Yeni chat’e geçerken oku
 
@@ -43,18 +43,19 @@ Detay: `PROJE_MANTIGI.md`
 - [x] React faz 0–5 (Login → Characters Bearer → Register → Router/Logout)
 - [x] Faz 6 kart grid + Create ayrı sayfa
 - [x] **Characters frontend CRUD tamam**
-  - Liste `/characters`
-  - Create `/characters/new`
-  - Detay `/characters/:id`
-  - Edit `/characters/:id/edit`
-  - Delete detayda (confirm + DELETE 204)
-  - Notlar: `REACT-OGRENIM.md` (useEffect, `&&`, useState iskelet, CRUD)
+- [x] **AppLayout üst menü + Outlet** (nested routes)
+  - Not: uzun Outlet açıklaması `REACT-OGRENIM.md`
+  - Düzeltme: önce `App.tsx` layout’a bağlanmamıştı → menü görünmüyordu
+- [ ] **UI güzelleştirme temeli** (yarın) — CSS/layout; API ve Battle Arena mantığına dokunulmaz
+- [ ] Liste yükleme 3–4 sn gecikmesi (sonra incele)
+- [ ] Sonraki adaylar: API helper / Battle Arena backend
 
 ## Karar notları
 
 - Mega Grid yok; `CharacterCard` + sayfa CSS grid.
 - Resim upload erken — Image URL string.
-- Sonraki ürün adımı birlikte seçilir (aşağıya bak).
+- **App layout:** üst menü; Brand + Karakterler **solda**, Çıkış **sağda**; Ekle listede; Login/Register layout’suz.
+- Basit UI polish ≠ API / Arena yazımını değiştirmez.
 
 ## Backend not
 
@@ -64,5 +65,5 @@ Admin: SSMS `Role = Admin` + yeniden login. 401 token; 403 rol; PUT/DELETE 204 b
 
 ```
 ReactBattleArena — CHECKPOINT.md, PROJE_MANTIGI.md ve REACT-OGRENIM.md oku.
-Cursor sadece yönlendirme; kod VS Code’da. Characters CRUD bitti; sıradaki adımı seç / devam.
+Cursor sadece yönlendirme; kod VS Code’da. UI güzelleştirme temelinden devam (API/Arena’ya dokunma).
 ```

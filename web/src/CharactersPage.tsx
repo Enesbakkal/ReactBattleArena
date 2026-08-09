@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+// import { Link, Navigate, useNavigate } from 'react-router-dom' Navigate ve  useNAvigate AppLayoutdan yapılacağı için sildik
+import { Link } from 'react-router-dom'
 import CharacterCard from './CharacterCard'
 import './CharactersPage.css'
 
@@ -14,17 +15,18 @@ interface CharacterRow {
 function CharactersPage() {
   const [items, setItems] = useState<CharacterRow[]>([])
   const [error, setError] = useState('')
-  const navigate = useNavigate()
+  // const navigate = useNavigate()
   const token = localStorage.getItem('token')
 
-  if (!token) {
-    return <Navigate to="/login" replace />
-  }
+  // if (!token) {
+  //   return <Navigate to="/login" replace />
+  // }
 
-  function handleLogout() {
-    localStorage.removeItem('token')
-    navigate('/login')
-  }
+  // function handleLogout() {
+  //   localStorage.removeItem('token')
+  //   navigate('/login')
+  // yeni AppLayout eklediğimiz için buradan kaldırdık
+  // }
 
   async function load() {
     try {
@@ -59,9 +61,9 @@ function CharactersPage() {
         <h1>Karakterler</h1>
         <div className="characters-page__actions">
           <Link to="/characters/new">Karakter ekle</Link>
-          <button type="button" onClick={handleLogout}>
+          {/* <button type="button" onClick={handleLogout}>
             Çıkış
-          </button>
+          </button> */}
         </div>
       </div>
 
