@@ -1,0 +1,56 @@
+/*
+  Bu dosya IMPORT EDILMEZ — sadece kopyala-yapistir referansi.
+  B/C/D denemek: ilgili :root icindeki degiskenleri index.css :root ile degistir.
+  (Yorum icine baska yorum yazma — CSS'te star-slash erken kapanir.)
+*/
+
+/* ---- B Sisli mor-gri ----
+--bg: #e8e4ef;
+--surface: #f7f5fb;
+--muted: #ddd7e8;
+--border: #c8c0d6;
+--text: #4f485c;
+--text-h: #2c2638;
+--accent: #7d6499;
+--accent-hover: #684f84;
+--danger: #c62828;
+--radius: 10px;
+--shadow: 0 1px 2px rgba(44, 38, 56, 0.07), 0 6px 16px rgba(44, 38, 56, 0.07);
+--sans: "Segoe UI", system-ui, sans-serif;
+--heading: "Segoe UI", system-ui, sans-serif;
+color-scheme: light;
+*/
+
+/* ---- C Soft mauve ----
+--bg: #f6f0f4;
+--surface: #fffbfe;
+--muted: #efe6ec;
+--border: #e0d3db;
+--text: #5c5360;
+--text-h: #322a36;
+--accent: #a67c9a;
+--accent-hover: #8f6684;
+--danger: #c62828;
+--radius: 10px;
+--shadow: 0 1px 2px rgba(50, 42, 54, 0.06), 0 6px 16px rgba(50, 42, 54, 0.06);
+--sans: "Segoe UI", system-ui, sans-serif;
+--heading: "Segoe UI", system-ui, sans-serif;
+color-scheme: light;
+*/
+
+/* ---- D Plum dusk ----
+--bg: #2f2a38;
+--surface: #3a3446;
+--muted: #454055;
+--border: #564e66;
+--text: #d2cce0;
+--text-h: #f4f0fa;
+--accent: #b39bc9;
+--accent-hover: #c9b6db;
+--danger: #e57373;
+--radius: 10px;
+--shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 8px 20px rgba(0, 0, 0, 0.18);
+--sans: "Segoe UI", system-ui, sans-serif;
+--heading: "Segoe UI", system-ui, sans-serif;
+color-scheme: dark;
+*/

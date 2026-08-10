@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 9 Ağustos 2026 — AppLayout tamam. Sonraki: UI güzelleştirme temeli (API/Arena’ya dokunmadan). Header: brand + Karakterler sol, Çıkış sağ.
+Son güncelleme: 10 Ağustos 2026 — UI palet KİLİT: koyu mor (#1e1a24 / #2e2838 / #b39bc9).
 
 ## Yeni chat’e geçerken oku
 
@@ -46,15 +46,18 @@ Detay: `PROJE_MANTIGI.md`
 - [x] **AppLayout üst menü + Outlet** (nested routes)
   - Not: uzun Outlet açıklaması `REACT-OGRENIM.md`
   - Düzeltme: önce `App.tsx` layout’a bağlanmamıştı → menü görünmüyordu
-- [ ] **UI güzelleştirme temeli** (yarın) — CSS/layout; API ve Battle Arena mantığına dokunulmaz
+- [x] **UI renk temeli — KİLİT** koyu mor tema (teal iskelet, mor hue)
+  - `%60 #1e1a24` · `%30 #2e2838` · `%10 #b39bc9` · yazı açık
+  - Mantık: `REACT-OGRENIM.md` → “Renk mantığı (60-30-10)”
 - [ ] Liste yükleme 3–4 sn gecikmesi (sonra incele)
-- [ ] Sonraki adaylar: API helper / Battle Arena backend
+- [ ] Sonraki adaylar: API helper / Battle Arena backend / UI ince ayar
 
 ## Karar notları
 
 - Mega Grid yok; `CharacterCard` + sayfa CSS grid.
 - Resim upload erken — Image URL string.
-- **App layout:** üst menü; Brand + Karakterler **solda**, Çıkış **sağda**; Ekle listede; Login/Register layout’suz.
+- **App layout:** üst menü; Brand + Karakterler solda, Çıkış sağda.
+- **Renk KİLİT:** zemin `#1e1a24` · kart `#2e2838` · accent `#b39bc9`. Beyaz kartlı paletler (HH12 vb.) reddedildi.
 - Basit UI polish ≠ API / Arena yazımını değiştirmez.
 
 ## Backend not
@@ -65,5 +68,5 @@ Admin: SSMS `Role = Admin` + yeniden login. 401 token; 403 rol; PUT/DELETE 204 b
 
 ```
 ReactBattleArena — CHECKPOINT.md, PROJE_MANTIGI.md ve REACT-OGRENIM.md oku.
-Cursor sadece yönlendirme; kod VS Code’da. UI güzelleştirme temelinden devam (API/Arena’ya dokunma).
+Cursor sadece yönlendirme; kod VS Code’da. Palet şimdilik kilit; sıradaki adımı seç.
 ```

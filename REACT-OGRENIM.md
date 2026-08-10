@@ -839,3 +839,46 @@ Bu parent’ın kendi path’i yok; sadece “şu çocukları sarmala” der. Ç
 
 Uygulama açılınca karakter listesinin **3–4 sn** gelmesi — henüz incelenmedi. Muhtemel: API soğuk start, HTTPS sertifika, StrictMode çift fetch, vs. Ayrı oturumda bakılacak.
 
+---
+
+## Renk mantığı (60-30-10) — CSS detayı değil, rol mantığı
+
+Kod satırından ziyade: **hangi renk ne iş yapar?** Bir yerde değiştirince tüm UI aynı dili konuşsun diye rollere ayırdık.
+
+### 60-30-10 kuralı (web + anime/comics ortak fikir)
+
+| Oran | Rol | Ne yapar? |
+|------|-----|-----------|
+| **%60** | Dominant / zemin | Sayfanın büyük kısmı; ruhu belirler. Göz burada dinlenir. |
+| **%30** | Secondary / yüzey | Kart, header, form kutusu — zeminden ayrılır ama bağırmaz. |
+| **%10** | Accent / vurgu | Buton, önemli link — “buraya bak / tıkla”. Az kullanılır; çok olursa kaos. |
+
+Comics/anime’de de aynı hiyerarşi var (color script): çoğu sahne atmosfer, biraz kostüm/obje, az neon/kan/büyü odağı. Animede ayrı bir “resmi 60-30-10 kanunu” yok; stüdyolar aynı mantığı kullanır.
+
+### Bizim şu anki palet (10 Ağustos — **KİLİT**)
+
+Teal denemesi iyiydi; aynı iskelet **mor hue** ile kilitlendi (beyaz kartlı HH12 reddedildi).
+
+| Hex | Rol (60-30-10) | Ekranda nerede? |
+|-----|----------------|-----------------|
+| `#1e1a24` | **%60 zemin** | Sayfa arkası |
+| `#2e2838` | **%30 yüzey** | Header, karakter kartı, form, detay |
+| `#b39bc9` | **%10 vurgu** | “Karakter ekle”, Kaydet, linkler |
+| `#f3eef8` / `#d8d2e3` | Yazı | Başlık / metin |
+
+- **bg** → `#1e1a24`
+- **surface** → `#2e2838`
+- **accent** → `#b39bc9` (açık lavanta; koyu zeminde kontrast)
+- Eski teal (`#222831` / `#393E46` / `#00ADB5`) yedek referans; aktif değil.
+
+### Öğrendiğimiz hatalar (kısa)
+
+1. **Her yere beyaz kart** → %30 gibi durur ama paletten kopuk “sırıtır”. Surface, seçilen secondary/yüzey rengi olmalı.
+2. **Secondary ile accent birbirine çok yakın** (iki soluk mor) → %30/%10 ayrılmaz; vurgu kaybolur.
+3. **Üçü de kapkara** → okunmaz; ya açık yazı ya açık yüzey gerekir.
+4. Renk sitesi (Realtime / Dribbble) → hex’leri **rollere** map’le; rastgele boyama.
+
+### Sonra
+
+Paleti daha uygun zamanda yeniden seçebiliriz; mantık aynı kalır: önce 60/30/10 rolleri, sonra hex. Framework şart değil.
+

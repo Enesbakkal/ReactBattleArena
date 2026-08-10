@@ -25,8 +25,12 @@ function AppLayout() {
                 <Link to="/characters">Karakterler</Link>
                 </nav>
             </div>
-            <button type="button" onClick={handleLogout}>
-                Çıkış
+            <button
+              type="button"
+              className="app-header__logout"
+              onClick={handleLogout}
+            >
+              Çıkış
             </button>
         </header>
       <main className="app-main">
