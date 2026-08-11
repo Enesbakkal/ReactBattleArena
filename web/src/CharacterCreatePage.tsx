@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import CharacterCard from './CharacterCard'
 import './CharactersPage.css'
+import { apiFetch, getToken } from './api'
 
 interface CharacterRow {
   id: string
@@ -13,7 +14,7 @@ interface CharacterRow {
 
 function CharacterCreatePage() {
   const navigate = useNavigate()
-  const token = localStorage.getItem('token')
+  const token = getToken()
 
   const [name, setName] = useState('')
   const [universe, setUniverse] = useState('')
@@ -34,14 +35,17 @@ function CharacterCreatePage() {
 
   async function loadPreview() {
     try {
-      const response = await fetch(
-        'https://localhost:7275/api/characters?page=1&pageSize=8',
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      )
+      // const response = await fetch(
+      //   'https://localhost:7275/api/characters?page=1&pageSize=8',
+      //   {
+      //     headers: {
+      //       Authorization: `Bearer ${token}`,
+      //     },
+      //   },
+      // )   Burasına gerek kalmadı çünkü ortak auth yazdık
+
+      const response = await apiFetch('/api/characters?page=1&pageSize=8')
+
       if (!response.ok) return
       const data = await response.json()
       setItems(data.items)
@@ -60,13 +64,27 @@ function CharacterCreatePage() {
     setFormSuccess('')
 
     try {
-      const response = await fetch('https://localhost:7275/api/characters', {
+      // const response = await fetch('https://localhost:7275/api/characters', {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     Authorization: `Bearer ${token}`,
+      //   },
+      //   body: JSON.stringify({
+      //     name,
+      //     universe,
+      //     biography: biography || null,
+      //     rarity,
+      //     baseAttack,
+      //     baseDefense,
+      //     baseSpeed,
+      //     imageUrl: imageUrl || null,
+      //   }),
+      // })    buraya gerek kalmadı çünkü ortak auth yazdık
+
+      const response = await apiFetch('/api/characters', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+        body: {
           name,
           universe,
           biography: biography || null,
@@ -75,7 +93,7 @@ function CharacterCreatePage() {
           baseDefense,
           baseSpeed,
           imageUrl: imageUrl || null,
-        }),
+        },
       })
 
       if (response.status === 403) {

@@ -1,16 +1,23 @@
 import { Link, Navigate, Outlet, useNavigate } from 'react-router-dom'
 import './AppLayout.css'
+import { clearToken, getToken } from './api'
 
 function AppLayout() {
   const navigate = useNavigate()
-  const token = localStorage.getItem('token')
+  // const token = localStorage.getItem('token') ortak auth
+  const token = getToken()
 
   if (!token) {
     return <Navigate to="/login" replace />
   }
 
+  // function handleLogout() {
+  //   localStorage.removeItem('token')
+  //   navigate('/login')
+  // }  Ortak auth
+
   function handleLogout() {
-    localStorage.removeItem('token')
+    clearToken()
     navigate('/login')
   }
 

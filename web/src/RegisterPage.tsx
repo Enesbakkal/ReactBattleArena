@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { apiFetch } from './api'
 
 
 
@@ -18,18 +19,29 @@ function RegisterPage() {
     setSuccess('')
 
     try {
-      const response = await fetch('https://localhost:7275/api/auth/register', {
+      // const response = await fetch('https://localhost:7275/api/auth/register', {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //   },
+      //   body: JSON.stringify({
+      //     userName,
+      //     email,
+      //     displayName: displayName || null,
+      //     password,
+      //   }),
+      // })             Burası kalktı çünkü ortak auth yazdık
+
+      const response = await apiFetch('/api/auth/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+        auth: false,
+        body: {
           userName,
           email,
           displayName: displayName || null,
           password,
-        }),
-      })
+        }
+      })  
 
       if (!response.ok) {
         setError('Kayıt başarısız (kullanıcı/email dolu veya validation)')

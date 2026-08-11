@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate} from 'react-router-dom'
+import { apiFetch, setToken } from './api'
 
 
 function LoginPage() {
@@ -13,15 +14,36 @@ function LoginPage() {
     setError('')
 
     try {
-      const response = await fetch('https://localhost:7275/api/auth/login', {
+      // const response = await fetch('https://localhost:7275/api/auth/login', {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //   },
+      //   body: JSON.stringify({
+      //     userNameOrEmail,
+      //     password,
+      //   }),
+      // })
+
+      // if (!response.ok) {
+      //   setError('Giriş başarısız')
+      //   return
+      // }
+
+      // const data = await response.json()
+      // localStorage.setItem('token', data.token)
+      
+      // navigate('/characters')
+      // //onLogin()
+      // //Ne için: onLogin = “token kaydedildi, artık karakter sayfasını göster” sinyali. Props = dışarıdan gelen parametre (Faz 0).  BU kısma gerek kalmadı çünkü ortak auth yazdık
+
+      const response = await apiFetch('/api/auth/login',{
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+        auth: false,
+        body: {
           userNameOrEmail,
-          password,
-        }),
+          password
+        },
       })
 
       if (!response.ok) {
@@ -30,14 +52,12 @@ function LoginPage() {
       }
 
       const data = await response.json()
-      localStorage.setItem('token', data.token)
-      
+      setToken(data.token)
       navigate('/characters')
-      //onLogin()
-      //Ne için: onLogin = “token kaydedildi, artık karakter sayfasını göster” sinyali. Props = dışarıdan gelen parametre (Faz 0).
 
-    } catch {
-      setError('API’ye ulaşılamadı (backend çalışıyor mu?)')
+    } catch (err) {
+      console.error(err)
+      setError('API’ye ulaşılamadı (backend çalışıyor mu? F12 Console’a bak)')
     }
   }
 

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import './CharactersPage.css'
+import { apiFetch, getToken } from './api'
 
 function CharacterEditPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const token = localStorage.getItem('token')
+  // const token = localStorage.getItem('token')   buna gerek kalmadfı ortak auth yazdık
+  const token = getToken()
 
   const [name, setName] = useState('')
   const [universe, setUniverse] = useState('')
@@ -29,14 +31,16 @@ function CharacterEditPage() {
       }
 
       try {
-        const response = await fetch(
-          `https://localhost:7275/api/characters/${id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        )
+        // const response = await fetch(
+        //   `https://localhost:7275/api/characters/${id}`,
+        //   {
+        //     headers: {
+        //       Authorization: `Bearer ${token}`,
+        //     },
+        //   },
+        // )  Buna gerek kalmadı ortak auth yazdık
+
+        const response = await apiFetch(`/api/characters/${id}`)
 
         if (response.status === 404) {
           setLoadError('Karakter bulunamadı')
@@ -78,26 +82,40 @@ function CharacterEditPage() {
     setFormError('')
 
     try {
-      const response = await fetch(
-        `https://localhost:7275/api/characters/${id}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            name,
-            universe,
-            biography: biography || null,
-            rarity,
-            baseAttack,
-            baseDefense,
-            baseSpeed,
-            imageUrl: imageUrl || null,
-          }),
+      // const response = await fetch(
+      //   `https://localhost:7275/api/characters/${id}`,
+      //   {
+      //     method: 'PUT',
+      //     headers: {
+      //       'Content-Type': 'application/json',
+      //       Authorization: `Bearer ${token}`,
+      //     },
+      //     body: JSON.stringify({
+      //       name,
+      //       universe,
+      //       biography: biography || null,
+      //       rarity,
+      //       baseAttack,
+      //       baseDefense,
+      //       baseSpeed,
+      //       imageUrl: imageUrl || null,
+      //     }),
+      //   },
+      // )    Buna gerek kalmadı ortakauth yazdık
+
+      const response = await apiFetch(`/api/characters/${id}`, {
+        method: 'PUT',
+        body: {
+          name,
+          universe,
+          biography: biography || null,
+          rarity,
+          baseAttack,
+          baseDefense,
+          baseSpeed,
+          imageUrl: imageUrl || null,
         },
-      )
+      })
 
       if (response.status === 401) {
         setFormError('Oturum yok — tekrar giriş yap')

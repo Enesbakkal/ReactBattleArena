@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import './CharactersPage.css'
+import { apiFetch, getToken } from './api'
 
 interface CharacterDetail {
   id: string
@@ -18,7 +19,8 @@ interface CharacterDetail {
 function CharacterDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const token = localStorage.getItem('token')
+  // const token = localStorage.getItem('token') ortak auth 
+  const token = getToken()
 
   const [character, setCharacter] = useState<CharacterDetail | null>(null)
   const [error, setError] = useState('')
@@ -37,14 +39,16 @@ function CharacterDetailPage() {
       setError('')
 
       try {
-        const response = await fetch(
-          `https://localhost:7275/api/characters/${id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        )
+        // const response = await fetch(
+        //   `https://localhost:7275/api/characters/${id}`,
+        //   {
+        //     headers: {
+        //       Authorization: `Bearer ${token}`,
+        //     },
+        //   },
+        // ) Ortak auth
+
+        const response = await apiFetch(`/api/characters/${id}`)
 
         if (response.status === 404) {
           setError('Karakter bulunamadı')
@@ -84,15 +88,19 @@ function CharacterDetailPage() {
     setDeleteError('')
 
     try {
-      const response = await fetch(
-        `https://localhost:7275/api/characters/${id}`,
-        {
-          method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      )
+      // const response = await fetch(
+      //   `https://localhost:7275/api/characters/${id}`,
+      //   {
+      //     method: 'DELETE',
+      //     headers: {
+      //       Authorization: `Bearer ${token}`,
+      //     },
+      //   },
+      // )
+
+      const response = await apiFetch(`/api/characters/${id}`, {
+        method: 'DELETE',
+      })
 
       if (response.status === 401) {
         setDeleteError('Oturum yok — tekrar giriş yap')

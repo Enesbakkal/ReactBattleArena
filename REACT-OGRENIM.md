@@ -882,3 +882,136 @@ Teal denemesi iyiydi; aynı iskelet **mor hue** ile kilitlendi (beyaz kartlı HH
 
 Paleti daha uygun zamanda yeniden seçebiliriz; mantık aynı kalır: önce 60/30/10 rolleri, sonra hex. Framework şart değil.
 
+---
+
+## Oturum tercihi / pedagoji notu (11 Ağustos)
+
+**Açıklama stili:** Bundan sonra Cursor açıklamaları biraz **daha uzun** olacak — tek cümlelik “şunu yap” yetmez; kavramın nedeni, C#/Razor/`HttpClient` eşlemesi ve sık hata da yazılacak. Notlara da aynı ruh.
+
+**Sıradaki iş — ne seçmeli? (karar yardımı)**
+
+İki aday:
+
+1. **UI güzelleştirme devam** — login/register aynı dil, boş state, spacing… Görünür kazanım; API’ye dokunmaz. Ama Characters + layout + renk zaten oturdu; fazla CSS turu getirisi azalır.
+2. **API / auth helper** — her sayfada tekrarlayan `fetch` + `Bearer` + `localhost:7275` tek yere (`api.ts` veya `authHeaders()`). Öğretici: DRY, tek yerden URL/token, 401’de ortak davranış. Sonraki Create/Edit/Delete/Arena çağrıları temizlenir. Liste 3–4 sn konusu da sonra bu katmanda incelenir.
+
+**Öneri:** Şimdi **API/auth helper**. UI “yeterince iyi / kilitli”; bir sonraki değer kod kalitesi ve auth tekrarı. UI ince ayar (login sayfası boyama) kısa bir ara tur olarak helper’dan sonra da yapılabilir.
+
+---
+
+## `api.ts` / TypeScript — `apiFetch` öğretimi (11 Ağustos)
+
+Bu not CSS değil; **TypeScript + ortak HTTP** dili. Kod satır satır bilinçli yazılsın diye uzun tutuldu.
+
+### `type` class gibi mi?
+
+**Hayır — C# `class` değil.** Daha çok **şekil tarifi** (C# `record` / anonymous shape / DTO interface’e yakın).
+
+```ts
+type ApiFetchOptions = {
+  method?: string
+  body?: unknown
+  auth?: boolean
+}
+```
+
+- Runtime’da nesne üretmez; derleme zamanında “bu obje böyle alanlar taşır” der.
+- `?` = alan **opsiyonel** (vermesen de olur).
+- `unknown` = “bir şey gelebilir; önce kontrol et” (C# `object`’ten daha sıkı kullanım).
+
+`interface` ile çoğu zaman benzer iş; burada `type` kullandık.
+
+### `: Promise<Response>` ne demek?
+
+```ts
+export async function apiFetch(...): Promise<Response>
+```
+
+- `async` fonksiyon **her zaman** Promise döner.
+- `Promise<Response>` = “bitince elinde tarayıcının `fetch` cevabı (`Response`) olacak”.
+- Sen `await apiFetch(...)` deyince Promise çözülür, `response` gelir; `.ok`, `.json()`, `.status` kullanırsın.
+
+C# eşlemesi kabaca: `Task<HttpResponseMessage>` — `await` edince cevap.
+
+### `options: ApiFetchOptions = {}` ne yapıyor?
+
+```ts
+options: ApiFetchOptions = {}
+```
+
+İkinci parametreyi **vermezsen** boş obje `{}` kullanılır.
+
+```ts
+apiFetch('/api/characters')           // options = {}
+apiFetch('/api/auth/login', { ... })  // senin objen
+```
+
+`{}` olunca içerideki varsayılanlar devreye girer: `method = 'GET'`, `auth = true`.
+
+### `const { method = 'GET', body, auth = true } = options`
+
+**Destructuring:** `options` içinden alanları çıkar.
+
+- `method` yoksa → `'GET'`
+- `auth` yoksa → `true` (korumalı endpoint varsayılan)
+- `body` yoksa → `undefined`
+
+### `Record<string, string>` C# record mı?
+
+**C# `record` değil.** Anlamı: “anahtarı string, değeri string olan sözlük / map”.
+
+```ts
+const headers: Record<string, string> = {}
+headers['Content-Type'] = 'application/json'
+headers.Authorization = `Bearer ${token}`
+```
+
+C# eşlemesi: `Dictionary<string, string>` (veya header dictionary).  
+TypeScript `Record<K,V>` = “K → V eşlemesi”.
+
+### `auth: false` kodda nerede?
+
+**İki yer birlikte çalışır:**
+
+1. **Çağıran (LoginPage):**
+
+```ts
+apiFetch('/api/auth/login', {
+  method: 'POST',
+  auth: false,  // ← burada “Bearer isteme” diyoruz
+  body: { userNameOrEmail, password },
+})
+```
+
+2. **`apiFetch` içi:**
+
+```ts
+if (auth) {
+  // Bearer ekle
+}
+```
+
+`auth === false` → `if (auth)` **çalışmaz** → header’a token konmaz.  
+Login/register’da henüz token yok; varsayılan `auth: true` yanlışlıkla boş/eski token göndermesin diye açıkça `false` veriyoruz.
+
+Karakter listesi: `apiFetch('/api/characters?...')` → `auth` verilmez → `true` → Bearer eklenir.
+
+### `apiFetch` akışı (baştan sona)
+
+1. `path` al (`/api/...`); başına `API_BASE` ekle.
+2. `options`’tan method / body / auth çıkar (yoksa GET + auth true).
+3. `headers` sözlüğü oluştur.
+4. `body` varsa → `Content-Type: application/json` + sonra `JSON.stringify(body)`.
+5. `auth` true ve token varsa → `Authorization: Bearer …`.
+6. Tarayıcı `fetch(...)` çağır; `Response` döndür.
+7. Sayfa: `response.ok` / `status` / `json()` kendisi yorumlar.
+
+Hata ayrımı:
+
+| Durum | Ne olur? |
+|--------|----------|
+| Ağ / SSL / API kapalı | `fetch` **throw** → Login’de `catch` → “API’ye ulaşılamadı…” |
+| 401 / 400 / 403 | `fetch` **throw etmez**; `response.ok === false` → “Giriş başarısız” vb. |
+
+Yani “API’ye ulaşılamadı” = helper bozuk diye varsayma; çoğu zaman **backend kapalı** veya **https://localhost:7275 sertifikası kabul edilmemiş**.
+

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import CharacterCard from './CharacterCard'
 import './CharactersPage.css'
+import { apiFetch } from './api'
 
 interface CharacterRow {
   id: string
@@ -16,7 +17,9 @@ function CharactersPage() {
   const [items, setItems] = useState<CharacterRow[]>([])
   const [error, setError] = useState('')
   // const navigate = useNavigate()
-  const token = localStorage.getItem('token')
+ 
+ 
+  // const token = localStorage.getItem('token')  (bu sayfada artık lazım değil)  cünkü ortak apı uth metodları yazdık
 
   // if (!token) {
   //   return <Navigate to="/login" replace />
@@ -28,27 +31,44 @@ function CharactersPage() {
   // yeni AppLayout eklediğimiz için buradan kaldırdık
   // }
 
-  async function load() {
-    try {
-      const response = await fetch(
-        'https://localhost:7275/api/characters?page=1&pageSize=20',
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      )
+  // async function load() { (bu sayfada artık lazım değil)  cünkü ortak apı uth metodları yazdık
 
-      if (!response.ok) {
-        setError('Karakterler alınamadı')
+  //   try {
+  //     const response = await fetch(
+  //       'https://localhost:7275/api/characters?page=1&pageSize=20',
+  //       {
+  //         headers: {
+  //           Authorization: `Bearer ${token}`,
+  //         },
+  //       },
+  //     )
+
+  //     if (!response.ok) {
+  //       setError('Karakterler alınamadı')
+  //       return
+  //     }
+
+  //     const data = await response.json()
+  //     setItems(data.items)
+  //   } catch {
+  //     setError('API’ye ulaşılamadı')
+  //   }
+  // }
+
+  async function load() {
+    try{
+      const response = await apiFetch('/api/characters?page=1&pageSize=20')
+
+      if(!response.ok) {
+        setError('Karakterler Alınmadı')
         return
       }
 
       const data = await response.json()
       setItems(data.items)
-    } catch {
+    }catch {
       setError('API’ye ulaşılamadı')
-    }
+    }  
   }
 
   useEffect(() => {
