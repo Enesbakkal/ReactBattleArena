@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 11 Ağustos 2026 — Palet kilit. Açıklamalar daha uzun. Öneri: sırada API/auth helper (UI ince ayar sonra).
+Son güncelleme: 11 Ağustos 2026 — API/auth helper tamam (`api.ts`); tüm sayfalar taşındı. Palet kilit. Açıklamalar daha uzun.
 
 ## Yeni chat’e geçerken oku
 
@@ -34,43 +34,43 @@ Detay: `PROJE_MANTIGI.md`
 
 - Cursor: yönlendirme; kod VS Code’da.
 - 1–2 kavram / oturum; adım adım; WinForms örneği yok.
-- **Açıklamalar:** bundan sonra biraz **daha uzun** yaz (kısa tek cümle yetmez; kavram + neden + C#/web eşlemesi). Not: `REACT-OGRENIM.md` / bu checkpoint.
+- **Açıklamalar:** biraz **daha uzun** (kavram + neden + C#/web eşlemesi). Not: `REACT-OGRENIM.md`.
 
 ---
 
 ## Şu an neredeyiz?
 
 - [x] Backend Adım 1–15
-- [x] React faz 0–5 (Login → Characters Bearer → Register → Router/Logout)
+- [x] React faz 0–5
 - [x] Faz 6 kart grid + Create ayrı sayfa
-- [x] **Characters frontend CRUD tamam**
-- [x] **AppLayout üst menü + Outlet** (nested routes)
-  - Not: uzun Outlet açıklaması `REACT-OGRENIM.md`
-  - Düzeltme: önce `App.tsx` layout’a bağlanmamıştı → menü görünmüyordu
-- [x] **UI renk temeli — KİLİT** koyu mor tema (teal iskelet, mor hue)
-  - `%60 #1e1a24` · `%30 #2e2838` · `%10 #b39bc9` · yazı açık
-  - Mantık: `REACT-OGRENIM.md` → “Renk mantığı (60-30-10)”
-- [ ] **API/auth helper** (önerilen sıradaki) — ortak `fetch` + Bearer + base URL
-- [ ] Liste yükleme 3–4 sn gecikmesi (helper sonrası / ile birlikte)
-- [ ] UI ince ayar (login/register boyama) — helper’dan sonra kısa tur
+- [x] Characters frontend CRUD
+- [x] AppLayout + Outlet
+- [x] UI renk KİLİT (koyu mor 60-30-10)
+- [x] **API/auth helper** — `web/src/api.ts`
+  - `apiFetch` + `getToken` / `setToken` / `clearToken`
+  - Login/Register `auth: false`; diğerleri Bearer varsayılan
+  - Taşınan: Login, Register, Characters, Create, Detail, Edit, AppLayout
+  - Notlar: `REACT-OGRENIM.md` (`apiFetch` öğretimi + helper tamamlandı)
+- [ ] Liste yükleme 3–4 sn gecikmesi
+- [ ] UI ince ayar (login/register boyama)
 - [ ] Battle Arena backend
 
 ## Karar notları
 
 - Mega Grid yok; `CharacterCard` + sayfa CSS grid.
-- Resim upload erken — Image URL string.
-- **App layout:** üst menü; Brand + Karakterler solda, Çıkış sağda.
-- **Renk KİLİT:** zemin `#1e1a24` · kart `#2e2838` · accent `#b39bc9`.
-- **Pedagoji:** açıklamalar 11 Ağustos’tan itibaren daha uzun (neden + eşleme).
-- Basit UI polish ≠ API / Arena yazımını değiştirmez.
+- **Renk KİLİT:** `#1e1a24` / `#2e2838` / `#b39bc9`.
+- **HTTP:** sayfalarda doğrudan `localhost` + `fetch` yok; sadece `api.ts`.
+- Player CUD → 403 “Yetkin yok” beklenen (Admin SSMS + yeniden login).
+- Firefox CORS + status null → çoğu zaman Api kapalı / sertifika.
+- Pedagoji: açıklamalar daha uzun (11 Ağustos+).
 
 ## Backend not
 
-Admin: SSMS `Role = Admin` + yeniden login. 401 token; 403 rol; PUT/DELETE 204 body yok.
+İlk Admin: SSMS’te `Role = Admin` + yeniden login. 401 token; 403 rol; PUT/DELETE 204 body yok.
 
 ## Yeni thread açılış cümlesi (kopyala)
 
 ```
 ReactBattleArena — CHECKPOINT.md, PROJE_MANTIGI.md ve REACT-OGRENIM.md oku.
-Cursor sadece yönlendirme; kod VS Code’da. Palet şimdilik kilit; sıradaki adımı seç.
+Cursor sadece yönlendirme; kod VS Code’da. API helper tamam; sıradaki: liste gecikmesi / login UI / Arena.
 ```

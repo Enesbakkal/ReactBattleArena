@@ -1015,3 +1015,39 @@ Hata ayrımı:
 
 Yani “API’ye ulaşılamadı” = helper bozuk diye varsayma; çoğu zaman **backend kapalı** veya **https://localhost:7275 sertifikası kabul edilmemiş**.
 
+---
+
+## API/auth helper — tamamlandı (11 Ağustos)
+
+### Ne yaptık?
+
+`web/src/api.ts` eklendi:
+
+- `API_BASE` = `https://localhost:7275`
+- `getToken` / `setToken` / `clearToken`
+- `apiFetch(path, { method, body, auth? })` → ortak headers + Bearer
+
+Sayfalar taşındı (doğrudan `fetch` + URL yok; yorum satırlarında eski kod kalabilir):
+
+| Dosya | Not |
+|--------|-----|
+| `LoginPage` | `auth: false` + `setToken` |
+| `RegisterPage` | `auth: false` |
+| `CharactersPage` | GET liste |
+| `CharacterCreatePage` | GET preview + POST |
+| `CharacterDetailPage` | GET + DELETE |
+| `CharacterEditPage` | GET + PUT |
+| `AppLayout` | `getToken` + logout `clearToken` |
+
+Tek canlı `fetch`: `api.ts` içindeki `fetch` (doğru).
+
+### Debug notları (bugün)
+
+1. **Firefox “CORS … status null”** — çoğu zaman Api kapalı / SSL; CORS policy değil. `dotnet run` + `https://localhost:7275` sertifika kabul.
+2. **Player edit → “Yetkin yok”** — beklenen: Register = Player; CUD Admin. SSMS `Role = Admin` + yeniden login.
+3. `catch` ≠ 401/403; ağ hatası. `!response.ok` = sunucu cevap verdi.
+
+### Sonraki
+
+Liste 3–4 sn gecikmesi inceleme · UI login/register boyama · Battle Arena backend.
+
