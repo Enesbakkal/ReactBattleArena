@@ -15,7 +15,8 @@ alwaysApply: true
 - Kısa kavram → kullanıcı yazar → ASP.NET/HTML/HttpClient eşlemesi → çalıştır → sonraki parça.
 - Öğrenci: web developer (.NET API); WinForms yok — WinForms örneği verme.
 - React’e yeni: takılan JSX/syntax (`&&`, map, hooks…) açıkla; notlara yaz (`REACT-OGRENIM.md`).
-- **Açıklama uzunluğu (11 Ağustos+):** biraz daha uzun anlat — sadece “şu satır şunu yapar” yetmez; neden + eşleme + sık hata. Aşırı roman değil; 1–2 kavramı doyurucu yaz.
+- **Açıklama uzunluğu (11 Ağustos+):** doyurucu anlat. Sadece bullet/özet yetmez — neden + ASP.NET/`fetch` eşlemesi + sık hata. Aşırı roman değil; 1–2 kavramı veya soru paketini okumaya değer yaz.
+- **Soru paketleri / test Q&A:** chat’te ve `REACT-OGRENIM.md`’de kısa indeks yetmez; detaylı bölüm zorunlu (13 Ağustos geri bildirimi). “Concise” kuralı öğrenme açıklamasını kısaltmaz.
 - Bir oturumda en fazla 1–2 yeni kavram.
 - Adım adım yaptır; kopyala-yapıştır yığını yok.
 

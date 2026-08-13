@@ -1051,3 +1051,242 @@ Tek canlı `fetch`: `api.ts` içindeki `fetch` (doğru).
 
 Liste 3–4 sn gecikmesi inceleme · UI login/register boyama · Battle Arena backend.
 
+---
+
+## Test soruları / cevaplar (13 Ağustos) — tekrar için
+
+Aşağıdaki kısa madde listesi ilk gece yazıldı; **okumaya değmeyecek kadar kısaydı**.  
+**Yarın için asıl kaynak:** hemen altındaki **“Detaylı tekrar”** bölümü. Orayı oku.
+
+`useEffect` + return HTML mantığı yarın ayrıca konuşulacak; o konu bu notta bilerek yarım bırakıldı.
+
+### Kısa indeks (sadece başlık)
+
+1. Liste fetch → GetPaged  
+2. page / pageSize / 200  
+3. Skip((page-1)*pageSize)  
+4. Kart Link → detay route → GetById  
+5. Kartta ATK/DEF/SPD?  
+6. SPA: tıklayınca yeniden backend  
+7. `/characters` yüklenme sırası  
+8. Detay → Edit (Link + GetById + PUT Admin)  
+9. App.tsx Routes ne işe yarar  
+
+---
+
+## Test soruları — detaylı tekrar (13 Ağustos, genişletilmiş — yarın oku)
+
+Bu bölüm, test sırasında biriken soruların **doyurucu** cevabı. ASP.NET tarafı ile React tarafını yan yana tutar.
+
+### 0) Önce kafadaki karışıklığı ayır: iki farklı “yol”
+
+| Katman | Ne işe yarar? | Örnek |
+|--------|----------------|--------|
+| **React Router path** | Tarayıcı adres çubuğu → hangi **React sayfası** açılsın | `/characters/abc-guid` → `CharacterDetailPage` |
+| **API HTTP path** | Frontend → hangi **backend endpoint** | `GET /api/characters/abc-guid` → `GetById` |
+
+İkisi aynı kelimeyi (`characters`, `id`) kullanır ama **aynı şey değil**.  
+`<Link to={...}>` neredeyse her zaman **Router path**’tir. Backend’e gitmek için sayfa içinde `apiFetch(...)` gerekir.
+
+“Edit” yazdık diye C#’ta `Edit` metodu arama — bizde update metodu adı `Update`, HTTP `PUT`.
+
+---
+
+### 1) `apiFetch('/api/characters?page=1&pageSize=20')` GetPaged’e mi gidiyor?
+
+**Evet.** Metod adını URL’ye yazmana gerek yok; ASP.NET **HTTP yöntemi + route şablonu** ile eşler.
+
+Controller:
+
+```csharp
+[Route("api/[controller]")]   // Characters → /api/characters
+public sealed class CharactersController ...
+
+[HttpGet]   // GET + /api/characters
+public async Task<...> GetPaged(
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 20, ...)
+```
+
+Akış:
+
+1. Browser/React: `GET https://localhost:7275/api/characters?page=1&pageSize=20` (+ varsa Bearer).
+2. Routing: controller = Characters, action = GetPaged (isim URL’de yok).
+3. `page` / `pageSize` query string’den model bind.
+4. `_mediator.Send(new GetCharactersQuery(page, pageSize))`.
+5. Handler DB’den sayfalı listeyi alır → `Ok(result)` → JSON `{ items, total }`.
+6. React: `const data = await response.json(); setItems(data.items)`.
+
+**Neden karışır?** Swagger’da metod adı `GetPaged` görürsün; Postman/fetch’te sadece path + query yazarsın. MVC View action adı gibi URL’ye gömülmez.
+
+---
+
+### 2) `Math.Max` / `Math.Clamp` / **200** ne anlama geliyor?
+
+Handler’da:
+
+```csharp
+var page = Math.Max(1, request.Page);
+var pageSize = Math.Clamp(request.PageSize, 1, 200);
+
+var query = _db.Characters
+    .AsNoTracking()
+    .OrderByDescending(c => c.CreatedAtUtc);
+```
+
+- **`Math.Max(1, page)`:** İstemci `page=0` veya negatif yollarsa yine 1. Sayfa numarası insanlar için 1’den başlar.
+- **`Math.Clamp(pageSize, 1, 200)`:** `pageSize` en az 1, en fazla **200**.  
+  **200 = sunucu üst sınırı (koruma).** “Sayfada varsayılan kaç kayıt” değil.  
+  Frontend `pageSize=20` ister → 20 gelir. Biri `pageSize=5000` yazarsa DB’yi kilitlemesin diye yine 200’e iner.
+- **`AsNoTracking()`:** Sadece okuma; EF change tracker maliyeti yok (liste için iyi).
+- **`OrderByDescending(CreatedAtUtc)`:** En yeni karakterler önce. Skip/Take’den **önce** sıra net olmalı; yoksa sayfalama anlamsız/ rastgele kayar.
+
+Frontend şu an sabit: `?page=1&pageSize=20` → ilk sayfa, 20 kart.
+
+---
+
+### 3) `Skip((page - 1) * pageSize)` — “-1 array gibi mi?”
+
+**Evet: 0 tabanlı ofset.** Dizide `arr[0]` ilk eleman; SQL/EF `Skip(0)` de “hiç atlama, baştan al”.
+
+Formül: kaç kaydı **atlayıp** sonra `Take(pageSize)` kadar al.
+
+| İnsan sayfası | pageSize | Skip hesabı | Anlam |
+|---------------|----------|-------------|--------|
+| 1 | 20 | `(1-1)*20 = 0` | İlk 20 |
+| 2 | 20 | `(2-1)*20 = 20` | 21–40 |
+| 3 | 20 | `(3-1)*20 = 40` | 41–60 |
+
+`(page - 1)` şart çünkü UI “1. sayfa” der; veritabanı ofseti 0’dan sayar.  
+`Take(pageSize)` = bu dilimde en fazla kaç satır.
+
+Sonra `Select(... CharacterRowDto)` → sadece liste için gereken alanlar (projection).  
+`ToListAsync` → gerçek SQL çalışır, belleğe liste gelir.  
+`total = CountAsync` → kaç karakter var toplam (ileride “sayfa 1/5” için).
+
+---
+
+### 4) Karttaki Link GetById’ye mi gidiyor?
+
+Kart kodu:
+
+```tsx
+<Link to={`/characters/${id}`} className="character-card-link">
+  <article className="character-card">...</article>
+</Link>
+```
+
+Bu satır **API çağırmaz**. Sadece tarayıcıyı React path’ine götürür: `/characters/{guid}`.
+
+Sonra:
+
+1. `App.tsx`: `path="/characters/:id"` → `CharacterDetailPage`.
+2. Detail: `const { id } = useParams()` — URL’deki guid.
+3. Detail içinde (mount sonrası): `apiFetch(\`/api/characters/${id}\`)`.
+4. Backend: `[HttpGet("{id:guid}")]` → **`GetById`** → `GetCharacterByIdQuery`.
+
+Liste cevabında zaten `id`, `name`, … vardı; detayda **biography** vb. tam DTO için (ve taze veri için) yine GetById yapılır.  
+Kart = “hangi id’ye gideceğini bilen link”; GetById = detay sayfasının işi.
+
+---
+
+### 5) Kartta BaseAttack / Defense / Speed görünmeli mi?
+
+**Şu an:** Kart props’ları `id, name, universe, rarity, imageUrl`. Liste API’si (`CharacterRowDto`) stats’ı **gönderiyor**; UI **göstermiyor**.
+
+**Müşteri / Arena açısından:** “Hangi güce göre seçerim?” sorusu haklı. İleride:
+
+- kartta küçük ATK/DEF/SPD satırı, veya  
+- liste filtre/sıralama (attack’a göre),  
+
+mantıklı ürün adımı. Şimdi öğrenme CRUD odaklı olduğu için bilinçli sade bırakıldı — “unuttuk / eksik API” değil, **UI tercihi**.
+
+---
+
+### 6) SPA: tıklayınca listeden mi okuyor, backend’e mi gidiyor?
+
+**Backend’e gidiyor.** Senin sezgin doğru.
+
+“Single Page Application” şunu demez: “tüm veriyi bir kere çek, her yerde kullan.”  
+Şunu der: **sayfa yenilemeden** (tam HTML reload olmadan) React farklı ekranları gösterir. Veri hâlâ isteğe bağlı HTTP ile gelir.
+
+Bizim pratik:
+
+| Ekran | Veri kaynağı |
+|-------|----------------|
+| Liste | `GET /api/characters?page&pageSize` → `items` state |
+| Detay | **yeni** `GET /api/characters/{id}` → `character` state |
+| Edit | **yine yeni** `GET /api/characters/{id}` → form state’leri |
+
+Liste state’i detaya/edit’e props ile taşınmıyor. Avantaj: başka admin aynı anda güncellediyse detayda güncel satır. Dezavantaj: ekstra istek (şu an sorun değil).
+
+---
+
+### 7) `/characters` sayfası yüklenince neler oluyor? (useEffect yarın derinleşecek)
+
+Zaman sırası (şu an yeterli seviye):
+
+1. Adres `/characters` (veya `/` → Navigate ile characters).
+2. `Routes`: layout içi child → `CharactersPage` mount.
+3. İlk render: `items = []` → grid boş; hata yoksa kart yok.
+4. `useEffect(() => { load() }, [])` → “bu sayfa ilk kez ekrana gelince bir kez load”.
+5. `load` → `apiFetch('/api/characters?page=1&pageSize=20')` → GetPaged.
+6. JSON → `setItems(data.items)` → React **yeniden çizer**.
+7. `items.map` → her satır için `<CharacterCard id=... name=... />` (link’li kart).
+
+Yarın konuşulacak kısım: neden `useEffect`, neden `[]`, `return (` altındaki JSX’in “HTML gibi ama state’e bağlı şablon” olduğu.
+
+---
+
+### 8) Detay → Edit: kim çağırıyor, data nereden, hangi metoda?
+
+Detayda (Admin UI linki):
+
+```tsx
+<Link to={`/characters/${id}/edit`}>Düzenle</Link>
+```
+
+Bu **React Router**’a gider: `/characters/:id/edit` → `CharacterEditPage`  
+(`App.tsx`’te `:id/edit` route’u `:id`’den **önce** tanımlı; yoksa `edit` kelimesi id sanılırdı.)
+
+**Data akışı:**
+
+1. Edit sayfası açılır / mount olur.
+2. Kendi `useEffect` + `apiFetch(/api/characters/${id})` → yine **GetById**.
+3. Gelen JSON alanları forma yazılır: `setName(data.name)`, `setBaseAttack(...)`, …
+4. Kullanıcı kaydeder → `apiFetch(..., { method: 'PUT', body: {...} })`.
+5. Backend: `[HttpPut("{id:guid}")] Update` + `[Authorize(Roles = Admin)]`.
+6. Başarı → genelde **204 No Content** → `response.json()` yok; navigate ile detaya/listeye dönülür.
+
+**“Admin kimle geliyor?”**
+
+- Link her giriş yapmış kullanıcıya görünebilir (şu an role’e göre gizlemiyoruz).
+- Asıl kapı JWT: login’de role claim (SSMS’te `Role = Admin` + **yeniden login**).
+- Player PUT denerse **403** — “Yetkin yok” beklenen davranış.
+
+Detaydaki `character` state edit sayfasına otomatik geçmez; edit **kendi GET’ini** yapar.
+
+---
+
+### 9) `App.tsx` Routes — “backend verisini buraya koy” mu?
+
+**Hayır.** `App.tsx` sadece **hangi URL’de hangi React component** montajlansın diye bir harita:
+
+```tsx
+<Route path="/characters" element={<CharactersPage />} />
+<Route path="/characters/:id/edit" element={<CharacterEditPage />} />
+<Route path="/characters/:id" element={<CharacterDetailPage />} />
+```
+
+Veri koyma işi her sayfanın kendi içinde (`apiFetch` + `useState`).  
+`AppLayout` parent’ı ortak header’ı çizer; `<Outlet />` o anki child sayfayı ortada gösterir.
+
+Kabaca eşleme: “hangi path → hangi ekran” — ASP.NET’te endpoint routing’e benzer fikir, ama burada **UI ekranı** seçiyorsun, JSON endpoint değil.
+
+---
+
+### Yarın oturumda ayrıca
+
+- `useEffect` + `return (` HTML/JSX mantığı (bu gece bilinçli ertelendi).
+- İstersen Login → yanlış şifre → Register akışını da aynı detayda sesli tekrar.
+
