@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using ReactBattleArena.Application.Abstractions;
+using ReactBattleArena.Domain.Authorization;
 using ReactBattleArena.Domain.Characters;
 using ReactBattleArena.Domain.Users;
 
@@ -15,6 +16,10 @@ public sealed class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<Character> Characters => Set<Character>();
 
     public DbSet<User> Users => Set<User>();
+    public DbSet<Role> Roles => Set<Role>();
+    public DbSet<Permission> Permissions => Set<Permission>();
+    public DbSet<UserRole> UserRoles => Set<UserRole>();
+    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

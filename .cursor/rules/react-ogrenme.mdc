@@ -23,12 +23,23 @@ alwaysApply: true
 ## Proje
 
 - Konum: `D:\ReactBattleArena`
-- Backend hazır (JWT, Admin/Player, CORS 5173). Frontend `web/` sıfırdan kurulacak.
+- Backend hazır (JWT, Admin/Player, CORS 5173). Frontend `web/` (Vite React TS) — Characters CRUD + `api.ts` tamam.
 - Ürün/mimari: `PROJE_MANTIGI.md`
 - İlerleme: `CHECKPOINT.md` (önce bunu oku)
-- Checklist: `PROJE_EKLEMELERI.md`
-- Öğrenim notları: `REACT-OGRENIM.md` — **eski fazlar ASLA silinmez**; her tamamlanan faz alta eklenir, hepsi kalır.
+- Checklist: `PROJE_EKLEMELERI.md` (Adım 1–28; bundan sonra her tamamlanan iş buraya)
+- Öğrenim notları: `REACT-OGRENIM.md` — **eski fazlar ASLA silinmez**; backend Adım 1–15 dosyanın **başında**, React fazları ortada, yeni iş alta (RBAC gibi).
+
+### `PROJE_EKLEMELERI.md` amacı (14 Ağustos — kendine not)
+
+- Bu dosya **tüm projenin** takip listesidir: backend + frontend + DB + ileride Docker/Kubernetes vb.
+- Amaç: best-practice çizgisinde “baştan sona bir proje nasıl ilerler”i görmek; sadece backend checklist değil.
+- React ve sonraki işler buraya **yapıldığı gerçek sırayla** eklenir (silmeden alta genişlet; numaralı adımlar).
+- **Kalite (14 Ağustos+):** Her anlamlı tamamlanan iş (BE/FE/DB/DevOps) aynı gün veya oturum sonunda buraya düzgün maddeyle işlenir; “sadece CHECKPOINT’te kaldı” bırakılmaz. Öğrenim detayı `REACT-OGRENIM.md`, canlı durum `CHECKPOINT.md`, kalıcı checklist burası.
+- **Sıra (20 Ağustos+):** Madde **yapıldığı gerçek sırayla** eklenir; backend’leri bir yığında, frontend’leri başka yığında gruplama. Örnek: back → back → front → back → front → front olabilir. Maksat “ne sırayla ne ekledik” takibi.
+- **Uzunluk:** Açıklama çok kısa özet olmasın, roman da olmasın — ne yaptık + neden bir-iki cümle yeter. Detaylı kavram `REACT-OGRENIM.md`.
 
 ## React faz sırası
 
-Faz 0 kavram → Faz 1 Vite → Faz 2 Login → Faz 3 Characters+Bearer → Faz 4 Register/Admin create → Faz 5 router+Logout
+Faz 0 kavram → Faz 1 Vite → Faz 2 Login → Faz 3 Characters+Bearer → Faz 4 Register/Admin create → Faz 5 router+Logout  
+→ kart grid / detail / edit / delete → AppLayout → api helper  
+(`PROJE_EKLEMELERI` Adım 16–28 işlendi, 14 Ağu)

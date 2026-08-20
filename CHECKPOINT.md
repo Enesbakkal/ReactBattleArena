@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 11 Ağustos 2026 — API/auth helper tamam (`api.ts`); tüm sayfalar taşındı. Palet kilit. Açıklamalar daha uzun.
+Son güncelleme: 20 Ağustos 2026 — RBAC Adım 29: Domain + EF config + DbSet, build OK. Sıradaki: migration + seed. Refresh token yok.
 
 ## Yeni chat’e geçerken oku
 
@@ -8,6 +8,7 @@ Son güncelleme: 11 Ağustos 2026 — API/auth helper tamam (`api.ts`); tüm say
 2. `PROJE_MANTIGI.md` — ürün / mimari özet
 3. `PROJE_EKLEMELERI.md` — adım checklist
 4. İsteğe bağlı: `.cursor/rules/react-ogrenme.mdc`
+5. **Çarşamba görüşme:** `AUTH-REACT-CALISMA.md` (Auth + React dersi)
 
 ---
 
@@ -53,6 +54,11 @@ Detay: `PROJE_MANTIGI.md`
   - Notlar: `REACT-OGRENIM.md` (`apiFetch` öğretimi + helper tamamlandı)
 - [ ] Liste yükleme 3–4 sn gecikmesi
 - [ ] UI ince ayar (login/register boyama)
+- [x] **`PROJE_EKLEMELERI.md` ← React Adım 16–28** (14 Ağu; gerçek sırayla)
+- [ ] **Adım 29 RBAC** — Role + Permission (refresh token yok)
+  - [x] Domain entity’ler + EF configuration + DbSet (`dotnet build` OK)
+  - [ ] Migration + seed; JWT hâlâ `User.Role` string
+  - [ ] `HasPermission` + React `can()`
 - [ ] Battle Arena backend
 
 ## Karar notları
@@ -63,6 +69,7 @@ Detay: `PROJE_MANTIGI.md`
 - Player CUD → 403 “Yetkin yok” beklenen (Admin SSMS + yeniden login).
 - Firefox CORS + status null → çoğu zaman Api kapalı / sertifika.
 - Pedagoji: açıklamalar daha uzun (11 Ağustos+).
+- RBAC: ara tabloda FK; `UserRoleId` yok — composite `(UserId, RoleId)`.
 
 ## Backend not
 
@@ -72,5 +79,5 @@ Detay: `PROJE_MANTIGI.md`
 
 ```
 ReactBattleArena — CHECKPOINT.md, PROJE_MANTIGI.md ve REACT-OGRENIM.md oku.
-Cursor sadece yönlendirme; kod VS Code’da. API helper tamam; sıradaki: liste gecikmesi / login UI / Arena.
+REACT-OGRENIM başı backend Adım 1–15, sonra React, sonda RBAC. Cursor yönlendirme; kod VS Code’da. Sıradaki: RBAC migration + seed. Refresh token yok.
 ```

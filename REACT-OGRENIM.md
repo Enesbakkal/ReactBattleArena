@@ -1,10 +1,192 @@
-# React Öğrenim Notları
+# Öğrenim Notları (Backend + React)
 
-Her faz bitince buraya **eklenir**. Döndüğünde hızlıca hatırlamak için oku.
+Her faz / adım bitince buraya **eklenir**. Döndüğünde hızlıca hatırlamak için oku.
 
-**KURAL (asla bozma):** Eski fazlar silinmez, kısaltılmaz, üzerine yazılmaz. Faz 0, 1, 2… hepsi dosyada kalır; yeni faz sadece **alta eklenir**. 1500 faz olsa her birinin açıklaması burada olur.
+**KURAL (asla bozma):** Eski fazlar silinmez, kısaltılmaz, üzerine yazılmaz. Backend Adım 1… ve React Faz 0, 1, 2… hepsi dosyada kalır; yeni iş **yapıldığı sıraya göre** eklenir (React döneminde alta; bu dosyanın başı Temmuz backend akışıdır). 1500 faz olsa her birinin açıklaması burada olur.
 
 **Öğrenci:** Web developer (.NET API). WinForms yok. Eşlemeler: Razor/MVC View, HTML form, HttpClient/`fetch`.
+
+**Dosya sırası:** önce backend (Adım 1–15, Temmuz) → sonra React fazları (aşağıda, Temmuz sonu–Ağustos) → en sonda Adım 29 RBAC (20 Ağustos). Checklist: `PROJE_EKLEMELERI.md`.
+
+---
+
+## Backend Adım 1–2 — Solution ve referanslar
+
+Dört proje, dışarıdan içe bağımlılık:
+
+- **Domain** — entity, kural; NuGet yok (iş kuralı)
+- **Application** — command/query, MediatR, validator; Domain’e bakar
+- **Infrastructure** — EF, BCrypt, JWT; Application + Domain
+- **Api** — HTTP; Application + Infrastructure
+
+Referans: Application → Domain; Infrastructure → Application+Domain; Api → Application+Infrastructure. Domain başka katmanı **bilmez**.
+
+`ReactBattleArena.slnx` + `.NET 10`. Plan: `PROJE_MANTIGI.md`.
+
+---
+
+## Backend Adım 3 — Domain Character
+
+`Characters/Character.cs`: `private` ctor (EF), `private set`, `Create` factory, `Update`. Dışarıdan `new Character()` yok. Tablo henüz yok — önce iş nesnesi.
+
+---
+
+## Backend Adım 4–6 — Create CQRS
+
+HTTP doğrudan DbContext’e gitmez:
+
+`POST body` → `CreateCharacterRequest` → controller `Send(CreateCharacterCommand)` → handler → `IApplicationDbContext`.
+
+- **Command** = `record` (immutable istek). Entity = `class` (kimlik + değişen alanlar).
+- **Handler** = işi yapan sınıf; controller SQL bilmez.
+- **Validator** = FluentValidation; handler’dan önce pipeline’da çalışır.
+- **`IApplicationDbContext`** = Application’ın gördüğü kapı (`DbSet` + `SaveChangesAsync`). EF somutu Infrastructure’da.
+
+Eşleme: eski MVC’de controller’da iş + SQL karışırdı; burada controller ince, handler kalın.
+
+---
+
+## Backend Adım 7 — Infrastructure ve DB
+
+`ApplicationDbContext` : `IApplicationDbContext`. `CharacterConfiguration` → tablo `Characters`, uzunluklar, index.
+
+Connection string `appsettings` (Development; secret commit etme).  
+`dotnet ef migrations add InitialCreate` → `Characters` tablosu. Migration = şema versiyonu, elle SQL yazmıyoruz.
+
+---
+
+## Backend Adım 8 — DI pipeline
+
+`AddApplication`: MediatR handler taraması + `ValidationBehavior` (pipeline).  
+`AddInfrastructure`: DbContext, hasher, JWT.
+
+`Program.cs`: `AddApplication()` + `AddInfrastructure()`.
+
+**Akış (ezberle):**
+
+```
+Controller  →  IMediator.Send
+           →  ValidationBehavior  (FluentValidation)
+           →  Handler
+           →  DbContext / SaveChanges
+           →  HTTP 200/201/…
+```
+
+Validator hata verirse `ValidationException` — henüz 400’e çevrilmemiş (Adım 10).
+
+---
+
+## Backend Adım 9 — Characters API + Scalar
+
+`CharactersController`: `[Route("api/[controller]")]` → `/api/characters`.  
+`[HttpPost]` + `[FromBody] CreateCharacterRequest` → `Created("/api/characters/{id}", id)`.
+
+Scalar (`/scalar/v1`) = Swagger benzeri deneme UI. WeatherForecast şablonları silindi.
+
+---
+
+## Backend Adım 10 — Validation 400
+
+`ValidationBehavior` exception fırlatır; HTTP bunu kendiliğinden güzel 400 yapmaz.
+
+`FluentValidationExceptionMiddleware` yakalar → `ValidationProblemDetails` (alan adı + mesaj).  
+`UseFluentValidationExceptionHandler()` — `MapControllers`’tan **önce**.
+
+Kısa şifre / boş name → **400**, handler’a düşmez. Eşleme: MVC `ModelState.IsValid` ama pipeline’da, her command için.
+
+---
+
+## Backend Adım 11 — Character GET
+
+- `GET /api/characters?page&pageSize` → `GetPaged` → `{ items, total }`
+- `GET /api/characters/{id}` → `GetById` → yoksa **404**
+
+Liste DTO (`CharacterRowDto`) detaydan zayıf olabilir (biography yok).  
+`AsNoTracking()` okuma. Sıra: `OrderBy` **Skip/Take’den önce**.
+
+---
+
+## Backend Adım 12 — Update / Delete
+
+PUT `/api/characters/{id}` → `UpdateCharacterCommand` → yoksa 404, başarı **204** (body yok).  
+DELETE aynı: 204 / 404.
+
+POST Create bir ara silinmişti, geri eklendi. MediatR: `Send(DeleteCharacterCommand)` → `IRequestHandler<DeleteCharacterCommand, bool>`.
+
+---
+
+## Hafta sonu tekrarı (12 Temmuz) — kod akışı
+
+CHECKPOINT’teki “Hafta sonu — kod akışı tekrarı” buraya alındı (CHECKPOINT sonradan durum dosyası oldu).
+
+1. Controller → MediatR → ValidationBehavior → Handler → DbContext
+2. Validator ↔ middleware: `ValidationException` → 400
+3. `record` (Command/Query/DTO) vs `class` (Domain entity, Id, private set)
+4. Paging (aşağıdaki tablo)
+5. `IRequest<PagedXxxResult>` = “bu mesajın cevabı bu tip”
+6. Handler kaydı: `AddMediatR` assembly tarar; elle her handler’ı DI’ya yazmazsın
+
+### Paging (GetCharacters / GetUsers aynı fikir)
+
+| Satır | Mantık |
+|-------|--------|
+| `Math.Max(1, page)` | Sayfa &lt; 1 ise 1 |
+| `Math.Clamp(pageSize, 1, 200)` | Üst sınır 200 (koruma); frontend 20 isterse 20 |
+| `AsNoTracking()` | Sadece okuma |
+| `OrderByDescending(CreatedAtUtc)` | Skip/Take tutarlı olsun |
+| `CountAsync` | Toplam (sayfa sayısı için) |
+| `Skip((page-1)*pageSize)` + `Take` | Sayfa 1 → Skip 0 (0 tabanlı ofset) |
+
+---
+
+## Backend Adım 13 — User modülü
+
+Aynı CQRS kalıbı, ikinci aggregate: `User` (UserName, Email, DisplayName, Points, sonra PasswordHash, Role).
+
+Unique: UserName + Email (`UserConfiguration`). Migration `AddUsers`.
+
+`UsersController` CRUD. `Controllers/Class.cs` şablon silindi.
+
+Paging: `GetUsersQueryHandler` — Character listesi ile aynı Max/Clamp/Skip.
+
+---
+
+## Backend Adım 14 — Authentication (Register + Login + JWT)
+
+**Authentication = kimsin.** Şifre DB’de düz durmaz.
+
+1. `PasswordHash` + `SetPasswordHash`. Migration `AddUserPasswordHash`.
+2. `IPasswordHasher` / `BCryptPasswordHasher` — `Hash` kayıtta, `Verify` login’de. Geri çözülmez.
+3. Klasör adı `Authentication` (Authorization ile karışmasın).
+4. `POST /api/auth/register` — `[AllowAnonymous]`. Duplicate username/email → `ValidationFailure` → 400. Varsayılan rol sonra Player.
+5. `POST /api/auth/login` — kullanıcı yok veya şifre yanlış → **aynı 401** (email sızdırma). Başarı: `LoginResult` + JWT.
+6. JWT: HMAC-SHA256, `Jwt:Key` / Issuer / Audience / ExpireMinutes. Claim: `sub`, name, email, **Role**.
+7. `AddAuthentication(JwtBearer)` + `UseAuthentication` **sonra** `UseAuthorization`.
+8. Yazma endpoint’leri `[Authorize]` — token yok/bozuk → 401.
+9. `GET /api/auth/me` — token’dan “ben kimim” (React yenilenince login JSON gitmiş olur).
+10. Scalar Bearer kilidi: UI’dan token yapıştırıp deneme.
+
+Şifre ≠ JWT: BCrypt hash; SHA256 token **imzası**. Refresh token yok (bilinçli, 20 Ağu).
+
+---
+
+## Backend Adım 15 — Authorization (string Role)
+
+**Authorization = ne yapabilirsin.** `Roles.Admin` / `Roles.Player`. `User.Role` kolon + migration `AddUserRole`.
+
+Register/CreateUser → Player. İlk Admin: SSMS `Role = Admin` + **yeniden login** (eski JWT’de eski rol).
+
+Character POST/PUT/DELETE: `[Authorize(Roles = Roles.Admin)]`. Player → **403**. GET list/detail açık.
+
+CORS: Vite 5173 → Api 7275. CORS ≠ auth.
+
+Bu model Adım 29’da yetmez (yetki rol adına gömülü). Devamı dosyanın **sonunda** (React’ten sonra, gerçek sıra).
+
+---
+
+## React fazları — burada başlar (eski içerik, silinmedi)
+
+Aşağıdaki Faz 0… Ağustos notları **aynen durur**. Backend Adım 29 RBAC en altta.
 
 ---
 
@@ -1289,4 +1471,106 @@ Kabaca eşleme: “hangi path → hangi ekran” — ASP.NET’te endpoint routi
 
 - `useEffect` + `return (` HTML/JSX mantığı (bu gece bilinçli ertelendi).
 - İstersen Login → yanlış şifre → Register akışını da aynı detayda sesli tekrar.
+
+---
+
+## RBAC — Role + Permission (20 Ağustos, oturum 1)
+
+Refresh token **yok** (ayrı konu: oturum süresi). Bu faz: yetkiyi rol adına değil **permission adına** bağlamak.
+
+### Bugün neden yetmez?
+
+`Users.Role` string (`"Admin"` / `"Player"`). JWT’de bir `ClaimTypes.Role`. Karakter yazma: `[Authorize(Roles = "Admin")]`.
+
+Sorun: iş kuralı **rol ismine gömülü**. ShopOwner eklemek = her `Admin` kontrolünü ve her butonu tek tek düşünmek. Player yarın karakter eklesin = controller’ı yeniden yazmak.
+
+Hedef cümle: *“Admin mi?”* değil, *“`characters.create` var mı?”*
+
+### AuthN vs AuthZ (tekrar, bu modele bağla)
+
+- **Authentication:** kimsin? Login + BCrypt + JWT. 401 = kanıt yok / yanlış.
+- **Authorization:** ne yapabilirsin? 403 = seni tanıdım, bu fiili yapamazsın.
+
+Frontend buton gizlemek **yetki değildir**; API yine 403 der. UI = UX.
+
+### Role vs Permission
+
+**Role** = isim çantası (`Admin`, `Player`, `ShopOwner`). Tek başına endpoint korumaz.
+
+**Permission** = somut fiil:
+
+- `characters.create` / `characters.update` / `characters.delete`
+- `shop.items.create` (şimdilik sadece kayıt; shop ekranı yok)
+
+**RolePermission** ara tablo: “bu rol bu fiili yapabilir.” Player’a karakter ekleme vermek = buraya satır; Create action aynı kalır.
+
+**UserRole** ara tablo: kullanıcı ↔ rol. Bir kişi yarın hem Player hem ShopOwner olabilir.
+
+### Many-to-many (neden `User.Role` tek kolon yetmez)
+
+`User.RoleId` (tek FK) = **one-to-many**: bir kullanıcının **tek** rolü. “Player + ShopOwner” imkânsız (veya virgüllü string — kırılır).
+
+**Many-to-many** = ara tablo. Her iki tarafta da “birden fazla”:
+
+- `UserRoles`: Enes–Player, Mehmet–Player **ve** Mehmet–ShopOwner (iki satır)
+- `RolePermissions`: Admin–characters.create, ShopOwner–shop.items.create. Player–characters.create **yok** (şimdilik)
+
+İki rolün yetkileri login’de **birleşir** (union). Mehmet figür ekleyebilir (ShopOwner), karakter ekleyemez (hiçbir rolünde `characters.create` yok).
+
+Eşleme: SQL’de `Users`–`UserRoles`–`Roles` join; EF’de `HasMany` + join entity. ASP.NET Identity’de `AspNetUserRoles` aynı fikir.
+
+### Bu oturumda yazılacak (VS Code)
+
+`User` / `Character` gibi: `private` ctor, `private set`, `Create` factory.
+
+1. `Domain/Authorization/Role.cs` — `Id`, `Name` (unique olacak), `Create(name)`
+2. `Domain/Authorization/Permission.cs` — `Id`, `Code` (`characters.create`), `Create(code)`
+
+Join entity’ler (`UserRole`, `RolePermission`) **sonraki parça** — önce bu iki kavram netleşsin.
+
+Eski `Roles.Admin` sabitleri duruyor; JWT hâlâ string `User.Role`. Bu oturumda controller’a dokunma.
+
+### Domain entity’ler yazıldı (oturum 1 devam)
+
+`User` kalıbı: `public sealed`, `private` ctor, `Create` factory.
+
+- `Role` — `Id` + `Name` (`Admin` / `Player` / `ShopOwner`)
+- `Permission` — `Id` + `Code` (`characters.create` …). İsim değil fiil kodu.
+- `UserRole` — `UserId` + `RoleId`, kendi `Id` yok (ara tablo)
+- `RolePermission` — `RoleId` + `PermissionId`
+
+Sık hata: VS class şablonu `internal class` + boş gövde üretir; Domain dışarıdan görülemez. `namespace ReactBattleArena .Domain` (boşluk) derlenmez — boşluğu sil.
+
+### EF configuration + DbSet (aynı oturum, build OK)
+
+`CharacterConfiguration` ile aynı klasör: `Infrastructure/Persistence/`.
+
+- `Roles` / `Permissions`: `HasKey(Id)`, unique index (`Name` / `Code`).
+- `UserRoles` / `RolePermissions`: `HasKey` iki kolon — ayrı `UserRoleId` yok; satır zaten `(UserId, RoleId)` ile tek.
+- `HasOne<User>().WithMany().HasForeignKey(x => x.UserId)`: FK bindiği tabloda. `WithMany()` boş = `User`’da collection yok, ilişki yine var.
+- User silinince `UserRoles` Cascade; Role/Permission Restrict.
+- `ApplyConfigurationsFromAssembly` yeni config’leri kendisi alır.
+- `IApplicationDbContext` + `ApplicationDbContext` dört `DbSet`.
+
+`Users.Role` string kolonu duruyor. JWT hâlâ o string. SQL’de yeni tablolar **yok** — migration sonraki oturum.
+
+### User ↔ Role: FK kimde? (build OK sonrası)
+
+FK’yi **ana tablo vermez**. FK, **bağ tablosundadır**.
+
+- `Users.Id` = PK (anahtar sahibi)
+- `Roles.Id` = PK
+- `UserRoles.UserId` → `Users.Id` (FK)
+- `UserRoles.RoleId` → `Roles.Id` (FK)
+
+`User` içinde `RoleId` yok (o one-to-many olurdu: tek rol). Many-to-many olduğu için üçüncü tablo her iki PK’yi kopyalar.
+
+EF’de `HasOne<User>().WithMany().HasForeignKey(x => x.UserId)`: “UserRole’un bir User’ı var; User’ın çok UserRole’u olabilir; kolon `UserId`.” `WithMany()` boş = `User` sınıfına `List<UserRole>` yazmadık.
+
+Cascade vs Restrict: kullanıcı silinince `UserRoles` satırları silinsin (`Cascade`). Rol silinince bağlı kullanıcı varsa SQL reddetsin (`Restrict`) — “Admin’i sil, herkesin bağı uçsun” olmasın.
+
+Aynı şema `RolePermissions`: `RoleId` → `Roles`, `PermissionId` → `Permissions`.
+
+
+
 
