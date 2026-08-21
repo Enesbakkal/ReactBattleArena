@@ -269,8 +269,9 @@ Yapılış sırası (bu adım backend; FE henüz yok):
 - [x] EF `UserRoleConfiguration` / `RolePermissionConfiguration` — composite PK; User silinince UserRoles Cascade; Role/Permission Restrict
 - [x] `IApplicationDbContext` + `ApplicationDbContext` DbSet’ler (`Roles`, `Permissions`, `UserRoles`, `RolePermissions`)
 - [x] `dotnet build` OK
-- [ ] Migration (tablolar henüz SQL’de yok)
-- [ ] Seed (Admin / Player / ShopOwner + permission bağları) + mevcut `User.Role` string taşıma
+- [x] Migration `AddRbacTables` — `Roles`, `Permissions`, `UserRoles`, `RolePermissions` (Users.Role kolonu duruyor)
+- [x] `PermissionCodes` + `Roles.ShopOwner` + `AuthSeeder` (idempotent; API açılışında)
+- [x] Mevcut kullanıcılar `Users.Role` string → `UserRoles` satırı
 - [ ] JWT permission claim + `/me`
 - [ ] Characters CUD `HasPermission`
 - [ ] React `can()` + buton gizleme
@@ -293,7 +294,7 @@ Yapılış sırası (bu adım backend; FE henüz yok):
 - [ ] Login/Register UI’yi kilit palete boyama
 - [ ] Battle Arena backend
 - [ ] (İleride) Docker / Kubernetes / CI
-- [ ] Adım 29 RBAC devam: **migration + seed** → JWT/`me` → HasPermission → FE `can()`
+- [ ] Adım 29 RBAC devam: **JWT permission claim + `/me`** → HasPermission → FE `can()`
 
 
 
@@ -408,8 +409,17 @@ Yapılış sırası (bu adım backend; FE henüz yok):
 - Adım 29 RBAC başladı (refresh token yok)
 - Domain: `Role`, `Permission`, `UserRole`, `RolePermission`
 - EF config + DbSet; composite PK (ayrı UserRoleId yok); build OK
-- `Users.Role` string ve JWT hâlâ eski model; migration/seed yok
+- `Users.Role` string ve JWT hâlâ eski model; tablolar + seed henüz yoktu
 - Not: `REACT-OGRENIM.md` (role vs permission, FK kimde)
+
+
+
+### 21 Ağustos 2026
+
+- Migration `AddRbacTables` (4 tablo; `Users.Role` drop edilmedi)
+- Seed: `PermissionCodes`, `ShopOwner`, `AuthSeeder` + `Program` CreateScope
+- Mevcut user’lar `UserRoles`’e taşındı. JWT hâlâ string Role claim
+- Sıradaki: login JWT permission + `/me`
 
 ---
 
@@ -511,6 +521,7 @@ Yapılış sırası (bu adım backend; FE henüz yok):
 | **28 Temmuz**        | `auth - roles admin player - User Role ... Player 403 ... Scalar Bearer ...` |
 | **Ağustos React**    | Vite · login · characters · register · router · card CRUD · layout · api.ts  |
 | **20 Ağu RBAC**      | `auth - rbac role permission domain - Role Permission UserRole RolePermission EF composite PK DbSet ...` |
+| **21 Ağu RBAC**      | `auth - rbac tables seed - AddRbacTables PermissionCodes AuthSeeder User.Role to UserRoles Program scope` |
 
 
 ---

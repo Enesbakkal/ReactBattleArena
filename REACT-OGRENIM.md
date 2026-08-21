@@ -1552,7 +1552,7 @@ Sık hata: VS class şablonu `internal class` + boş gövde üretir; Domain dı�
 - `ApplyConfigurationsFromAssembly` yeni config’leri kendisi alır.
 - `IApplicationDbContext` + `ApplicationDbContext` dört `DbSet`.
 
-`Users.Role` string kolonu duruyor. JWT hâlâ o string. SQL’de yeni tablolar **yok** — migration sonraki oturum.
+`Users.Role` string kolonu duruyor. JWT hâlâ o string. Tablolar + seed: aşağıdaki “21 Ağustos” bölümü.
 
 ### User ↔ Role: FK kimde? (build OK sonrası)
 
@@ -1571,6 +1571,16 @@ Cascade vs Restrict: kullanıcı silinince `UserRoles` satırları silinsin (`Ca
 
 Aynı şema `RolePermissions`: `RoleId` → `Roles`, `PermissionId` → `Permissions`.
 
+### Migration + seed (21 Ağustos)
 
+`AddRbacTables`: dört tablo, composite PK, `Users.Role` duruyor. Seed geçici değil — katalog satırları.
 
+`AuthSeeder` API açılışında, idempotent (yoksa ekle).
 
+**Dictionary:** `ToDictionaryAsync(r => r.Name)` *bir* değer değil; tüm roller. Key = `"Admin"`, Value = o `Role` (Guid Id). `Users.Role` string → `RoleId` Guid. Döngüde her kullanıcı için tekrar `Roles` sorgusu yok.
+
+**CreateScope:** `ApplicationDbContext` scoped (HTTP isteği ömrü). `Program.cs` istek değil. Kök provider’dan scoped alınamaz → kısa scope aç, seed et, `using` ile kapat.
+
+Register hâlâ sadece `Users.Role = Player`; sonraki API açılışı `UserRoles` ekler. JWT hâlâ string Role claim — sıradaki parça permission claim.
+
+---

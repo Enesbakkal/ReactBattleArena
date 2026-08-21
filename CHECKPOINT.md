@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 20 Ağustos 2026 — RBAC Adım 29: Domain + EF config + DbSet, build OK. Sıradaki: migration + seed. Refresh token yok.
+Son güncelleme: 21 Ağustos 2026 — RBAC tablolar + seed tamam. Sıradaki: JWT permission claim + `/me`. Refresh token yok.
 
 ## Yeni chat’e geçerken oku
 
@@ -57,8 +57,8 @@ Detay: `PROJE_MANTIGI.md`
 - [x] **`PROJE_EKLEMELERI.md` ← React Adım 16–28** (14 Ağu; gerçek sırayla)
 - [ ] **Adım 29 RBAC** — Role + Permission (refresh token yok)
   - [x] Domain entity’ler + EF configuration + DbSet (`dotnet build` OK)
-  - [ ] Migration + seed; JWT hâlâ `User.Role` string
-  - [ ] `HasPermission` + React `can()`
+  - [x] Migration `AddRbacTables` + `AuthSeeder` (Users.Role → UserRoles)
+  - [ ] JWT permission claim + `/me`; Characters hâlâ `[Authorize(Roles = Admin)]`
 - [ ] Battle Arena backend
 
 ## Karar notları
@@ -79,5 +79,5 @@ Detay: `PROJE_MANTIGI.md`
 
 ```
 ReactBattleArena — CHECKPOINT.md, PROJE_MANTIGI.md ve REACT-OGRENIM.md oku.
-REACT-OGRENIM başı backend Adım 1–15, sonra React, sonda RBAC. Cursor yönlendirme; kod VS Code’da. Sıradaki: RBAC migration + seed. Refresh token yok.
+Cursor yönlendirme; kod VS Code’da. Sıradaki: RBAC JWT permission claim + `/me`. Refresh token yok.
 ```

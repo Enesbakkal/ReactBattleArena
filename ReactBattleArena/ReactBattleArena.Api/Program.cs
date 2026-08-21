@@ -1,11 +1,12 @@
-using Scalar.AspNetCore;
-using ReactBattleArena.Infrastructure;
-using ReactBattleArena.Application;
-using ReactBattleArena.Api.Extensions;
-using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using ReactBattleArena.Api.Extensions;
 using ReactBattleArena.Api.OpenApi;
+using ReactBattleArena.Application;
+using ReactBattleArena.Infrastructure;
+using ReactBattleArena.Infrastructure.Persistence;
+using Scalar.AspNetCore;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -57,6 +58,14 @@ builder.Services
     });
 
 var app = builder.Build();
+
+// DbContext scoped (istek ömrü). Program kökü request değil → CreateScope ile kısa ömürlü kapsül;
+// using bitince context Dispose. Yoksa root provider'dan scoped alınamaz.
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await AuthSeeder.SeedAsync(db);
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
