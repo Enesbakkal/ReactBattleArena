@@ -1581,6 +1581,78 @@ Aynı şema `RolePermissions`: `RoleId` → `Roles`, `PermissionId` → `Permiss
 
 **CreateScope:** `ApplicationDbContext` scoped (HTTP isteği ömrü). `Program.cs` istek değil. Kök provider’dan scoped alınamaz → kısa scope aç, seed et, `using` ile kapat.
 
-Register hâlâ sadece `Users.Role = Player`; sonraki API açılışı `UserRoles` ekler. JWT hâlâ string Role claim — sıradaki parça permission claim.
+Register hâlâ sadece `Users.Role = Player`; sonraki API açılışı `UserRoles` ekler.
+
+### Yetki JWT’de değil DB’de (22 Ağustos)
+
+Canlıda var olan fiili vermek/almak **kod yazmadan** `UserRoles` / `RolePermissions` ile olur.
+
+JWT’ye permission gömmek de bir okul (stateless, kısa access token). Bu projede **anında kes/ver** istediğimiz için JWT sadece kimlik (`sub`). Yetki her istekte DB.
+
+**`UserPermission` tablosu yok.** `IUserPermissionService` join servisi:
+
+`User → UserRoles → Role → RolePermissions → Permission.Code`
+
+Kullanıcıya fiil doğrudan bağlanmaz; rol bağlanır.
+
+| Tablo | Yönetim |
+|--------|---------|
+| Roles | Admin / Player / ShopOwner |
+| Permissions | fiil kataloğu |
+| RolePermissions | role hangi fiil |
+| UserRoles | kullanıcı hangi rol |
+
+Tek kişiye rol vermeden istisna yetki = ileride `UserPermissions`; şimdi yok.
+
+Kod doğru: interface Application, implement Infrastructure, `AddScoped`. `Distinct` birleşik roller için.
+
+### UserPermission tablosu neden yok (best practice)
+
+Bunu “yapmayalım diye” atlamadık. Klasik RBAC’te kullanıcıya fiil doğrudan yazılmaz; kullanıcıya **rol**, role **permission** verilir. Tablolar: `Roles`, `Permissions`, `UserRoles`, `RolePermissions`. Canlıda yetki vermek = bu bağlara satır eklemek, controller’a dokunmamak.
+
+`UserPermissions` (şu kullanıcıya şu fiil, rol atlamadan) bazı ürünlerde istisna ACL olarak durur: “bu tek kişi silebilsin, rolü değişmesin.” O zaman her istekte iki kaynak birleşir, seed ve admin ekranı karmaşıklaşır. Bizim hedef (Admin / Player / ShopOwner, DB’den yönetilen çanta) için **best practice RBAC join’dir**, ayrı user-permission tablosu değil. İleride tek kullanıcı istisnası gerekirse o tablo eklenir; şimdi doğru model bu.
+
+### HasPermission nasıl çalışır (policy provider)
+
+ASP.NET yetkiyi şöyle arar: attribute’da bir **policy adı** görür (`Permission:characters.create`), DI’daki tek `IAuthorizationPolicyProvider`’a “bu isimde kural var mı?” diye sorar. Framework’ün kendi sınıfı `DefaultAuthorizationPolicyProvider` zaten **public**’tir; gizlilik için `new` etmiyoruz.
+
+Sorun şu: DI’ya kendi provider’ımızı yazınca **eski default’un yerini alırız**. `[Authorize]` (ör. `/me`) ve ileride başka named policy’ler hâlâ default’un işi. Kendi sınıfımız sadece `Permission:` ile başlayan adları üretir; geri kalanı içeride tuttuğumuz default örneğe **devreder**. `_fallback = new DefaultAuthorizationPolicyProvider(options)` tam olarak bu: “yerini aldığım sınıfın bir kopyasını yanında taşı, bilmediğim isimleri ona sor.” `public` yapmak yetmez; yerini doldurduğumuz için default davranışı biz sürdürmek zorundayız. (İstersen aynı sınıf `DefaultAuthorizationPolicyProvider`’dan türeyip `GetPolicyAsync`’i override eder; fikir aynı.)
+
+`GetDefaultPolicyAsync` / `GetFallbackPolicyAsync` da interface’in parçası; onları da fallback’e bırakıyoruz ki `[Authorize]` boş policy ile bozulmasın.
+
+`HasPermissionAttribute` aslında `AuthorizeAttribute`’tur: constructor `Policy = "Permission:" + kod` yazar. Provider o string’i görünce `PermissionRequirement` üretir. `PermissionAuthorizationHandler` token’dan user id alır, `IUserPermissionService` ile DB’ye bakar, kod listede varsa `Succeed`. Token’da permission claim aramaz.
+
+### AddAuthorization ile UseAuthorization
+
+`app.UseAuthorization()` sende **zaten var** — bu middleware’dir: istek pipeline’da `[Authorize]` / policy kontrolü. **Silme.**
+
+`builder.Services.AddAuthorization()` sende **yoktu**. Bu DI kaydıdır: AuthorizationOptions, default provider, handler’ların çalışacağı altyapı. Custom `IAuthorizationPolicyProvider` constructor’ı `IOptions<AuthorizationOptions>` ister; o options’ı `AddAuthorization()` doldurur. Yani yeni satırı **ekle**, eski `UseAuthorization` satırına dokunma. İkisi çift değil, biri servis biri boru hattı.
+
+JwtBearer + `[Authorize(Roles=Admin)]` bugüne kadar çalıştı çünkü framework bir miktar authorization servisini dolaylı ekleyebiliyor. Kendi provider’ı kaydedince `AddAuthorization()`’ı açık yazmak doğru ve zararsız.
+
+### Attribute class’ta mı, metodda mı?
+
+Class üzerine tek `[HasPermission(CharactersCreate)]` **koymuyoruz.** İki neden: (1) class attribute tüm action’lara bulaşır; GET liste/detay herkese açık kalacaksa yazma yetkisi class’a konunca GET de 401/403 olur veya her GET’e `[AllowAnonymous]` yağar. (2) Create, Update, Delete **farklı kodlar** — class’ta tek string olmaz. “Yarın düzenler ama silemez” tam da bu yüzden üç ayrı metod attribute. Aynı şeyi üç kere yapmıyoruz; üç farklı kapı.
+
+### Test (Scalar veya React, Bearer ile)
+
+1. Admin ile login, token’ı kopyala, `POST /api/characters` → **201**. PUT/DELETE kendi id’nle **204**.
+2. Player ile login, aynı POST → **403** (token geçerli, `characters.create` yok). GET `/api/characters` token’sız bile **200**.
+3. SSMS: Player rolünün Id’si + `characters.create` permission Id’si ile `RolePermissions`’a bir satır. **Aynı Player token** ile tekrar POST → **201** (yeniden login yok; yetki DB’den).
+4. O satırı sil, aynı token ile POST → yine **403**.
+
+ShopOwner karakter ekleyemez (`shop.items.create` var, character yok). JWT’yi decode edip permission arama; orada olmamalı.
+
+### HasPermission bağlandı + testte çıkan iki hata (22 Ağustos devam)
+
+Characters yazma artık `[Authorize(Roles = Admin)]` değil. POST’ta yalnızca `HasPermission(CharactersCreate)`, PUT’ta Update, DELETE’te Delete. Üçünü aynı metodun üstüne koymak AND olur: Player’a sadece create verirsen yine 403.
+
+`Program.cs`: `AddAuthorization()` + `PermissionPolicyProvider` (Singleton) + `PermissionAuthorizationHandler` (Scoped). `UseAuthorization()` duruyor.
+
+**Test nereye:** Scalar’da `POST /api/characters` (Create). Body `name` / `universe` / rarity / attack… Login `POST /api/auth/login`, token’ı Bearer’a yapıştır. Yanlışlıkla aynı JSON’u `POST /api/auth/register`e gönderirsen FluentValidation UserName/Email/Password der — karakter validator’ı değil, kayıt validator’ı.
+
+**403 + RolePermissions dolu:** Fiil Player **rolüne** yazılmış olabilir; join robin’e `UserRoles` ile bakar. `Users.Role = Player` string’i bu sorguda yok. Register `UserRoles` yazmıyor; seeder yalnızca API açılışında doldurur. Robin API açıkken kaydolduysa `UserRoles` boş kalır → Api’yi restart et veya `UserRoles` insert. Join’de `characters.create` görünce aynı Bearer ile POST **201** (yeniden login yok).
+
+Yarın: `/me` permissions listesi; Register’a `UserRole` yazmak; React `can()` ile buton gizleme.
 
 ---

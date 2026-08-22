@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 21 Ağustos 2026 — RBAC tablolar + seed tamam. Sıradaki: JWT permission claim + `/me`. Refresh token yok.
+Son güncelleme: 22 Ağustos 2026 — HasPermission DB’den; Characters CUD Admin string Roles yok. Yarın: `/me` + Register UserRoles + React `can()`.
 
 ## Yeni chat’e geçerken oku
 
@@ -58,7 +58,9 @@ Detay: `PROJE_MANTIGI.md`
 - [ ] **Adım 29 RBAC** — Role + Permission (refresh token yok)
   - [x] Domain entity’ler + EF configuration + DbSet (`dotnet build` OK)
   - [x] Migration `AddRbacTables` + `AuthSeeder` (Users.Role → UserRoles)
-  - [ ] JWT permission claim + `/me`; Characters hâlâ `[Authorize(Roles = Admin)]`
+  - [x] `IUserPermissionService` (join; UserPermission tablosu yok)
+  - [x] `HasPermission` Characters CUD; Player’a RolePermission + UserRoles ile 201
+  - [ ] `/me` permissions; Register `UserRoles`; React `can()`
 - [ ] Battle Arena backend
 
 ## Karar notları
@@ -66,18 +68,19 @@ Detay: `PROJE_MANTIGI.md`
 - Mega Grid yok; `CharacterCard` + sayfa CSS grid.
 - **Renk KİLİT:** `#1e1a24` / `#2e2838` / `#b39bc9`.
 - **HTTP:** sayfalarda doğrudan `localhost` + `fetch` yok; sadece `api.ts`.
-- Player CUD → 403 “Yetkin yok” beklenen (Admin SSMS + yeniden login).
+- Player CUD: permission yoksa 403; `RolePermissions` + `UserRoles` varsa 201 (yeniden login gerekmez).
+- Scalar’da karakter JSON’u Register’a gitmesin — UserName/Email/Password 400’ü odur.
 - Firefox CORS + status null → çoğu zaman Api kapalı / sertifika.
 - Pedagoji: açıklamalar daha uzun (11 Ağustos+).
 - RBAC: ara tabloda FK; `UserRoleId` yok — composite `(UserId, RoleId)`.
 
 ## Backend not
 
-İlk Admin: SSMS’te `Role = Admin` + yeniden login. 401 token; 403 rol; PUT/DELETE 204 body yok.
+İlk Admin: `UserRoles` ile Admin rolü (Users.Role string tek başına HasPermission’a yetmez). 401 token; 403 permission yok; PUT/DELETE başarı 204.
 
 ## Yeni thread açılış cümlesi (kopyala)
 
 ```
 ReactBattleArena — CHECKPOINT.md, PROJE_MANTIGI.md ve REACT-OGRENIM.md oku.
-Cursor yönlendirme; kod VS Code’da. Sıradaki: RBAC JWT permission claim + `/me`. Refresh token yok.
+Cursor yönlendirme; kod VS Code’da. Sıradaki: GET /api/auth/me permissions, Register UserRoles, React can(). Refresh token yok. Yetki JWT’de değil.
 ```

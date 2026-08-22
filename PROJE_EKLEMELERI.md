@@ -272,8 +272,12 @@ Yapılış sırası (bu adım backend; FE henüz yok):
 - [x] Migration `AddRbacTables` — `Roles`, `Permissions`, `UserRoles`, `RolePermissions` (Users.Role kolonu duruyor)
 - [x] `PermissionCodes` + `Roles.ShopOwner` + `AuthSeeder` (idempotent; API açılışında)
 - [x] Mevcut kullanıcılar `Users.Role` string → `UserRoles` satırı
-- [ ] JWT permission claim + `/me`
-- [ ] Characters CUD `HasPermission`
+- [x] Karar: yetki JWT’de değil; DB join (`IUserPermissionService` tablo değil)
+- [x] `IUserPermissionService` + `UserPermissionService` + DI Scoped
+- [x] `HasPermission` + policy provider/handler; Characters CUD `Roles.Admin` kalktı
+- [x] Test: Admin POST `/api/characters` 201; Player + RolePermission + UserRoles ile 201 (JWT’ye permission gömülmedi)
+- [ ] Register sırasında `UserRoles` yazılmıyor (şimdilik seeder / restart)
+- [ ] `GET /api/auth/me` permissions listesi
 - [ ] React `can()` + buton gizleme
 
 
@@ -294,7 +298,7 @@ Yapılış sırası (bu adım backend; FE henüz yok):
 - [ ] Login/Register UI’yi kilit palete boyama
 - [ ] Battle Arena backend
 - [ ] (İleride) Docker / Kubernetes / CI
-- [ ] Adım 29 RBAC devam: **JWT permission claim + `/me`** → HasPermission → FE `can()`
+- [ ] Adım 29 RBAC devam: **`/me` permissions** → Register `UserRoles` → FE `can()`
 
 
 
@@ -419,7 +423,17 @@ Yapılış sırası (bu adım backend; FE henüz yok):
 - Migration `AddRbacTables` (4 tablo; `Users.Role` drop edilmedi)
 - Seed: `PermissionCodes`, `ShopOwner`, `AuthSeeder` + `Program` CreateScope
 - Mevcut user’lar `UserRoles`’e taşındı. JWT hâlâ string Role claim
-- Sıradaki: login JWT permission + `/me`
+- Sıradaki o gün: JWT permission düşünülüyordu; 22 Ağu karar: yetki DB, JWT kimlik
+
+
+
+### 22 Ağustos 2026
+
+- Yetki JWT’ye gömülmez; `IUserPermissionService` join (UserPermission tablosu yok)
+- `HasPermission` + policy provider/handler; Characters CUD `Roles.Admin` kalktı
+- Test: `POST /api/characters` (Create). Register’a karakter JSON’u → UserName/Email 400
+- Player 403: RolePermissions yetmez, `UserRoles` şart; Register seeder’a kadar satır yazmıyor
+- Player + create permission + UserRoles → aynı token ile 201
 
 ---
 
@@ -521,7 +535,7 @@ Yapılış sırası (bu adım backend; FE henüz yok):
 | **28 Temmuz**        | `auth - roles admin player - User Role ... Player 403 ... Scalar Bearer ...` |
 | **Ağustos React**    | Vite · login · characters · register · router · card CRUD · layout · api.ts  |
 | **20 Ağu RBAC**      | `auth - rbac role permission domain - Role Permission UserRole RolePermission EF composite PK DbSet ...` |
-| **21 Ağu RBAC**      | `auth - rbac tables seed - AddRbacTables PermissionCodes AuthSeeder User.Role to UserRoles Program scope` |
+| **22 Ağu HasPermission** | `auth - rbac HasPermission DB - policy handler Characters CUD IUserPermissionService me later` |
 
 
 ---

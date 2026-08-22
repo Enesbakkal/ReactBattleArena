@@ -1,9 +1,10 @@
 ﻿using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ReactBattleArena.Api.Authorization;
 using ReactBattleArena.Api.Contracts;
 using ReactBattleArena.Application.Characters.Commands;
 using ReactBattleArena.Application.Characters.Queries;
-using Microsoft.AspNetCore.Authorization;
 using ReactBattleArena.Domain.Authorization;
 
 namespace ReactBattleArena.Api.Controllers;
@@ -42,7 +43,7 @@ public sealed class CharactersController : ControllerBase
         return result is null ? NotFound() : Ok(result);
     }
 
-    [Authorize(Roles = Roles.Admin)]
+    [HasPermission(PermissionCodes.CharactersCreate)]  // POST
     [HttpPost]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -65,7 +66,7 @@ public sealed class CharactersController : ControllerBase
         return Created($"/api/characters/{id}", id);
     }
 
-    [Authorize(Roles = Roles.Admin)]
+    [HasPermission(PermissionCodes.CharactersUpdate)]  // PUT
     [HttpPut("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -91,7 +92,7 @@ public sealed class CharactersController : ControllerBase
         return updated ? NoContent() : NotFound();
     }
 
-    [Authorize(Roles = Roles.Admin)]
+    [HasPermission(PermissionCodes.CharactersDelete)]  // DELETE
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
