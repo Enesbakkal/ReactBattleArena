@@ -2,9 +2,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration.UserSecrets;
 using ReactBattleArena.Api.Contracts;
+using ReactBattleArena.Application.Abstractions;
+using ReactBattleArena.Application.Abstractions;
 using ReactBattleArena.Application.Authentication.Commands;
+using ReactBattleArena.Domain.Authorization;
 using ReactBattleArena.Domain.Users;
+using System.Security;
 using System.Security.Claims;
 
 namespace ReactBattleArena.Api.Controllers;
@@ -15,10 +20,12 @@ namespace ReactBattleArena.Api.Controllers;
 public sealed class AuthController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly IUserPermissionService _permissions;
 
-    public AuthController(IMediator mediator)
+    public AuthController(IMediator mediator, IUserPermissionService permissions)
     {
         _mediator = mediator;
+        _permissions = permissions;
     }
 
     [AllowAnonymous]//Böylece ileride global [Authorize] eklesek bile login/register çalışır.
@@ -56,14 +63,23 @@ public sealed class AuthController : ControllerBase
     [HttpGet("me")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public IActionResult Me()
+    public async Task<IActionResult> Me(CancellationToken cancellationToken)
     {
+        var idValue = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue("sub");
+
+        if (!Guid.TryParse(idValue, out var userId))
+            return Unauthorized();
+
+        var codes = await _permissions.GetCodesAsync(userId, cancellationToken);
+
         return Ok(new
-        { 
-            id = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
+        {
+            id = userId,// out var daki userId
             userName = User.Identity?.Name,
-            email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
-                ?? User.FindFirst("email")?.Value
+            email = User.FindFirst(ClaimTypes.Email)?.Value
+                ?? User.FindFirst("email")?.Value,
+            permissions = codes
         });
     }
 

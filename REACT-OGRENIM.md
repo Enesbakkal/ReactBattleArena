@@ -1655,4 +1655,12 @@ Characters yazma artık `[Authorize(Roles = Admin)]` değil. POST’ta yalnızca
 
 Yarın: `/me` permissions listesi; Register’a `UserRole` yazmak; React `can()` ile buton gizleme.
 
+### Register UserRoles + GET /me permissions (24 Ağustos)
+
+Kayıt artık iki kayıt yazıyor: `Users` satırı (Role string hâlâ Player) ve hemen ardından `UserRoles` ile Player rolünün Guid’ine bağ. Seed’in Api açılışını beklemek zorunda değilsin; yeni kullanıcı kaydolur olmaz `HasPermission` join’i onu görür. `Roles` tablosunda Player yoksa `SingleAsync` patlar — seed çalışmamış demektir, yutmak istemiyoruz.
+
+`GET /api/auth/me` Bearer ister. Token’dan user id (`NameIdentifier` veya `sub`) okunur, `IUserPermissionService` o anki join’i döner. Liste JWT’de saklı değildir; SSMS’te `RolePermissions` değişince sonraki `/me` güncellenir, yeniden login şart değildir.
+
+Görülen örnek: Admin (zoro) dört kod (`characters.*` + `shop.items.create`). Player (robin) şu an `characters.create` — bu seed default’u değil, daha önce Player rolüne elle eklenen satır; yeni kayıtlı düz Player’da dizi boş kalmalı (katalog GET zaten açık). React sıradaki parçada bu listeyle `can("characters.create")` yapıp Ekle/Düzenle/Sil’i gizleyecek.
+
 ---

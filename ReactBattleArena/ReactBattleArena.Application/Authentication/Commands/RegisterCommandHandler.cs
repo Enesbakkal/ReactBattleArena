@@ -50,6 +50,13 @@ public sealed class RegisterCommandHandler : IRequestHandler<RegisterCommand, Gu
         _db.Users.Add(entity);
         await _db.SaveChangesAsync(cancellationToken);
 
+        var playerRole = await _db.Roles.SingleAsync(
+            r => r.Name == Roles.Player, cancellationToken);
+        //Rol yoksa (seed çalışmamış) sessizce geçme, patlat ki fark edesin.
+
+        _db.UserRoles.Add(UserRole.Create(entity.Id, playerRole.Id));
+        await _db.SaveChangesAsync(cancellationToken);
+
         return entity.Id;
     }
 }

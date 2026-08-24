@@ -276,8 +276,8 @@ Yapılış sırası (bu adım backend; FE henüz yok):
 - [x] `IUserPermissionService` + `UserPermissionService` + DI Scoped
 - [x] `HasPermission` + policy provider/handler; Characters CUD `Roles.Admin` kalktı
 - [x] Test: Admin POST `/api/characters` 201; Player + RolePermission + UserRoles ile 201 (JWT’ye permission gömülmedi)
-- [ ] Register sırasında `UserRoles` yazılmıyor (şimdilik seeder / restart)
-- [ ] `GET /api/auth/me` permissions listesi
+- [x] Register `UserRoles` (Player) — Api restart gerekmez
+- [x] `GET /api/auth/me` → `{ id, userName, email, permissions }`
 - [ ] React `can()` + buton gizleme
 
 
@@ -298,7 +298,7 @@ Yapılış sırası (bu adım backend; FE henüz yok):
 - [ ] Login/Register UI’yi kilit palete boyama
 - [ ] Battle Arena backend
 - [ ] (İleride) Docker / Kubernetes / CI
-- [ ] Adım 29 RBAC devam: **`/me` permissions** → Register `UserRoles` → FE `can()`
+- [ ] Adım 29 RBAC devam: **React `can()`** + Ekle/Düzenle/Sil gizleme
 
 
 
@@ -435,6 +435,14 @@ Yapılış sırası (bu adım backend; FE henüz yok):
 - Player 403: RolePermissions yetmez, `UserRoles` şart; Register seeder’a kadar satır yazmıyor
 - Player + create permission + UserRoles → aynı token ile 201
 
+
+
+### 24 Ağustos 2026
+
+- Register artık `UserRoles` (Player) yazıyor; Api restart şart değil
+- `GET /api/auth/me` permissions DB join; zoro Admin dört kod, robin’de elle eklenmiş create göründü
+- Sıradaki: React `can()` (Ekle / Düzenle / Sil)
+
 ---
 
 
@@ -536,6 +544,7 @@ Yapılış sırası (bu adım backend; FE henüz yok):
 | **Ağustos React**    | Vite · login · characters · register · router · card CRUD · layout · api.ts  |
 | **20 Ağu RBAC**      | `auth - rbac role permission domain - Role Permission UserRole RolePermission EF composite PK DbSet ...` |
 | **22 Ağu HasPermission** | `auth - rbac HasPermission DB - policy handler Characters CUD IUserPermissionService me later` |
+| **24 Ağu /me**       | `auth - me permissions register UserRoles - GET auth/me codes Register writes Player UserRole` |
 
 
 ---

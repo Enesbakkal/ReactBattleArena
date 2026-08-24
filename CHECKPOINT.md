@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 22 Ağustos 2026 — HasPermission DB’den; Characters CUD Admin string Roles yok. Yarın: `/me` + Register UserRoles + React `can()`.
+Son güncelleme: 24 Ağustos 2026 — `/me` permissions + Register UserRoles tamam. Sıradaki: React `can()`.
 
 ## Yeni chat’e geçerken oku
 
@@ -60,7 +60,8 @@ Detay: `PROJE_MANTIGI.md`
   - [x] Migration `AddRbacTables` + `AuthSeeder` (Users.Role → UserRoles)
   - [x] `IUserPermissionService` (join; UserPermission tablosu yok)
   - [x] `HasPermission` Characters CUD; Player’a RolePermission + UserRoles ile 201
-  - [ ] `/me` permissions; Register `UserRoles`; React `can()`
+  - [x] Register `UserRoles` + `GET /api/auth/me` permissions
+  - [ ] React `can()` + buton gizleme
 - [ ] Battle Arena backend
 
 ## Karar notları
@@ -82,5 +83,5 @@ Detay: `PROJE_MANTIGI.md`
 
 ```
 ReactBattleArena — CHECKPOINT.md, PROJE_MANTIGI.md ve REACT-OGRENIM.md oku.
-Cursor yönlendirme; kod VS Code’da. Sıradaki: GET /api/auth/me permissions, Register UserRoles, React can(). Refresh token yok. Yetki JWT’de değil.
+Cursor yönlendirme; kod VS Code’da. Sıradaki: React can() — /me permissions ile Ekle/Düzenle/Sil gizle. Refresh token yok. Yetki JWT’de değil.
 ```
