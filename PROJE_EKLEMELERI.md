@@ -259,7 +259,7 @@ Bu dosya **tüm projenin** baştan sona takip listesidir (best practice çizgisi
 
 ### Adım 29 — RBAC (Role + Permission) — devam ediyor
 
-Yapılış sırası (bu adım backend; FE henüz yok):
+Yapılış sırası (back → back → … → front):
 
 - [x] Karar: refresh token yok (ayrı faz — oturum süresi ≠ yetki modeli)
 - [x] Kavram: Role vs Permission, many-to-many, UI gizleme ≠ API (`REACT-OGRENIM.md`)
@@ -278,7 +278,10 @@ Yapılış sırası (bu adım backend; FE henüz yok):
 - [x] Test: Admin POST `/api/characters` 201; Player + RolePermission + UserRoles ile 201 (JWT’ye permission gömülmedi)
 - [x] Register `UserRoles` (Player) — Api restart gerekmez
 - [x] `GET /api/auth/me` → `{ id, userName, email, permissions }`
-- [ ] React `can()` + buton gizleme
+- [x] React `hasPermission` (`web/src/permissions.ts`) — `can` değil; C# `HasPermission` ile aynı cümle
+- [x] Liste `/me` + Ekle gizleme; detay `/me` + Düzenle/Sil; URL ile create hâlâ 403 (API kapısı)
+- [ ] Create/Edit sayfasına doğrudan URL (guard / Context) — sonraki
+
 
 
 
@@ -294,11 +297,11 @@ Yapılış sırası (bu adım backend; FE henüz yok):
 
 ### Sıradaki
 
+- [ ] Create/Edit URL guard veya ortak permission Context (şimdi her sayfa kendi `/me`)
 - [ ] Liste yükleme 3–4 sn gecikmesi (inceleme)
 - [ ] Login/Register UI’yi kilit palete boyama
 - [ ] Battle Arena backend
 - [ ] (İleride) Docker / Kubernetes / CI
-- [ ] Adım 29 RBAC devam: **React `can()`** + Ekle/Düzenle/Sil gizleme
 
 
 
@@ -441,7 +444,9 @@ Yapılış sırası (bu adım backend; FE henüz yok):
 
 - Register artık `UserRoles` (Player) yazıyor; Api restart şart değil
 - `GET /api/auth/me` permissions DB join; zoro Admin dört kod, robin’de elle eklenmiş create göründü
-- Sıradaki: React `can()` (Ekle / Düzenle / Sil)
+- React `permissions.ts` + `hasPermission`; liste/detay `load` içinde `/me`
+- Detayda `/me` unutulunca `permissions=[]` → zoro’da da Düzenle/Sil yoktu
+- JSX `koşul && <Link>`: sol kapı, sağ çizilen parça
 
 ---
 
@@ -545,6 +550,7 @@ Yapılış sırası (bu adım backend; FE henüz yok):
 | **20 Ağu RBAC**      | `auth - rbac role permission domain - Role Permission UserRole RolePermission EF composite PK DbSet ...` |
 | **22 Ağu HasPermission** | `auth - rbac HasPermission DB - policy handler Characters CUD IUserPermissionService me later` |
 | **24 Ağu /me**       | `auth - me permissions register UserRoles - GET auth/me codes Register writes Player UserRole` |
+| **24 Ağu FE gizle**  | `react - hasPermission hide crud links - /me permissions Karakter ekle Duzenle Sil` |
 
 
 ---

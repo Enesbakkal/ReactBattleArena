@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 24 Ağustos 2026 — `/me` permissions + Register UserRoles tamam. Sıradaki: React `can()`.
+Son güncelleme: 24 Ağustos 2026 — React `hasPermission` + Ekle/Düzenle/Sil gizleme (`/me`). Adım 29 UI parçası bitti; URL guard / Context sonra.
 
 ## Yeni chat’e geçerken oku
 
@@ -61,7 +61,8 @@ Detay: `PROJE_MANTIGI.md`
   - [x] `IUserPermissionService` (join; UserPermission tablosu yok)
   - [x] `HasPermission` Characters CUD; Player’a RolePermission + UserRoles ile 201
   - [x] Register `UserRoles` + `GET /api/auth/me` permissions
-  - [ ] React `can()` + buton gizleme
+  - [x] React `hasPermission` — liste Ekle, detay Düzenle/Sil (`/me` şart)
+  - [ ] Create/Edit doğrudan URL; ortak Context (şimdi her sayfa `/me`)
 - [ ] Battle Arena backend
 
 ## Karar notları
@@ -73,7 +74,8 @@ Detay: `PROJE_MANTIGI.md`
 - Scalar’da karakter JSON’u Register’a gitmesin — UserName/Email/Password 400’ü odur.
 - Firefox CORS + status null → çoğu zaman Api kapalı / sertifika.
 - Pedagoji: açıklamalar daha uzun (11 Ağustos+).
-- RBAC: ara tabloda FK; `UserRoleId` yok — composite `(UserId, RoleId)`.
+- UI gizleme ≠ yetki: link yok olsa da `/characters/new` API’de 403.
+- Detayda `/me` yoksa `permissions` boş kalır; Admin’de de Düzenle/Sil görünmez.
 
 ## Backend not
 
@@ -83,5 +85,5 @@ Detay: `PROJE_MANTIGI.md`
 
 ```
 ReactBattleArena — CHECKPOINT.md, PROJE_MANTIGI.md ve REACT-OGRENIM.md oku.
-Cursor yönlendirme; kod VS Code’da. Sıradaki: React can() — /me permissions ile Ekle/Düzenle/Sil gizle. Refresh token yok. Yetki JWT’de değil.
+Cursor yönlendirme; kod VS Code’da. Sıradaki: Create/Edit URL guard veya permission Context. Refresh token yok. Yetki JWT’de değil. UI gizleme ≠ API.
 ```
