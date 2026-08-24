@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import './CharactersPage.css'
 import { apiFetch, getToken } from './api'
+import { hasPermission, PERMISSIONS } from './permissions'
+
 
 interface CharacterDetail {
   id: string
@@ -26,6 +28,7 @@ function CharacterDetailPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [deleteError, setDeleteError] = useState('')
+  const [permissions, setPermissions] = useState<string[]>([])
 
   useEffect(() => {
     async function load() {
@@ -65,6 +68,12 @@ function CharacterDetailPage() {
 
         const data = await response.json()
         setCharacter(data)
+
+        const meResponse = await apiFetch('/api/auth/me')
+        if(meResponse.ok){
+          const me = await meResponse.json()
+          setPermissions(me.permissions ?? [])
+        }
       } catch {
         setError('API’ye ulaşılamadı')
       } finally {
@@ -133,10 +142,14 @@ function CharacterDetailPage() {
       <div className="characters-page__header">
         <h1>Karakter detay</h1>
         <div className="characters-page__actions">
-          <Link to={`/characters/${id}/edit`}>Düzenle</Link>
-          <button type="button" onClick={handleDelete}>
-            Sil
-          </button>
+          {hasPermission(permissions, PERMISSIONS.charactersUpdate) && (
+            <Link to={`/characters/${id}/edit`}>Düzenle</Link>
+          )}
+          {hasPermission(permissions, PERMISSIONS.charactersDelete) && (
+            <button type="button" onClick={handleDelete}>
+              Sil
+            </button>
+          )}
           <Link to="/characters">Listeye dön</Link>
         </div>
       </div>

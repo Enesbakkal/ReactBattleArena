@@ -1661,6 +1661,16 @@ Kayıt artık iki kayıt yazıyor: `Users` satırı (Role string hâlâ Player) 
 
 `GET /api/auth/me` Bearer ister. Token’dan user id (`NameIdentifier` veya `sub`) okunur, `IUserPermissionService` o anki join’i döner. Liste JWT’de saklı değildir; SSMS’te `RolePermissions` değişince sonraki `/me` güncellenir, yeniden login şart değildir.
 
-Görülen örnek: Admin (zoro) dört kod (`characters.*` + `shop.items.create`). Player (robin) şu an `characters.create` — bu seed default’u değil, daha önce Player rolüne elle eklenen satır; yeni kayıtlı düz Player’da dizi boş kalmalı (katalog GET zaten açık). React sıradaki parçada bu listeyle `can("characters.create")` yapıp Ekle/Düzenle/Sil’i gizleyecek.
+Görülen örnek: Admin (zoro) dört kod (`characters.*` + `shop.items.create`). Player (robin) şu an `characters.create` — bu seed default’u değil, daha önce Player rolüne elle eklenen satır; yeni kayıtlı düz Player’da dizi boş kalmalı (katalog GET zaten açık).
+
+### hasPermission ve `&&` (Link koşul değil)
+
+`hasPermission(permissions, PERMISSIONS.charactersCreate)` true/false döner: listede o kod var mı. `PERMISSIONS.charactersCreate` sadece yazım hatası olmasın diye sabit (`"characters.create"`).
+
+JSX’teki `&&` “Link bir if mi?” demek değil. JavaScript’te `A && B`: A false ise sonuç A’dır (B’ye bakılmaz); A true ise sonuç B’dir. React `return` içinde bunu görünce false ise hiçbir şey çizmez, true ise sağdaki `<Link>` / `<button>`’u çizer. Koşul solda, çizilecek parça sağda. Razor’daki `@if (hasCreate) { <a>...</a> }` ile aynı iş; sözdizimi `&&`.
+
+Üç ayrı kontrol bilinçli: create / update / delete farklı fiiller. robin’de sadece create varsa Ekle görünür, Düzenle/Sil görünmez.
+
+Detay sayfasında `/me` çağrılmazsa `permissions` `[]` kalır; herkes için butonlar gizlenir (zoro dahil). Liste `load` ve detay `load` içinde `setPermissions` şart.
 
 ---

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import CharacterCard from './CharacterCard'
 import './CharactersPage.css'
 import { apiFetch } from './api'
+import {hasPermission, PERMISSIONS } from './permissions'
 
 interface CharacterRow {
   id: string
@@ -15,6 +16,7 @@ interface CharacterRow {
 
 function CharactersPage() {
   const [items, setItems] = useState<CharacterRow[]>([])
+  const [permissions, setPermissions] = useState<string[]>([])
   const [error, setError] = useState('')
   // const navigate = useNavigate()
  
@@ -66,6 +68,13 @@ function CharactersPage() {
 
       const data = await response.json()
       setItems(data.items)
+
+      const meResponse = await apiFetch('/api/auth/me')
+      if(meResponse.ok){
+        const me = await meResponse.json()
+        setPermissions(me.permissions ?? [])
+      }
+
     }catch {
       setError('API’ye ulaşılamadı')
     }  
@@ -80,10 +89,12 @@ function CharactersPage() {
       <div className="characters-page__header">
         <h1>Karakterler</h1>
         <div className="characters-page__actions">
-          <Link to="/characters/new">Karakter ekle</Link>
-          {/* <button type="button" onClick={handleLogout}>
-            Çıkış
-          </button> */}
+          {hasPermission(permissions, PERMISSIONS.charactersCreate) && (
+            <Link to="/characters/new">Karakter ekle</Link>
+          )}
+            {/* Evet: charactersCreate (yani "characters.create") listede varsa Karakter ekle çizilir. Alttakiler de aynı fikir: characters.update varsa Düzenle, characters.delete varsa Sil.
+            &&’in solundaki koşul, sağındaki Link değil. JavaScript şöyle çalışır: A && B — A yanlışsa B’ye hiç bakılmaz, sonuç false olur; A doğruysa sonuç B’dir. 
+            React bunu JSX’te görünce false ise hiçbir şey basmaz, true ise sağdaki <Link> veya <button>’u basar. Yani hasPermission(...) kapı, Link sadece “kapı açıksa çizilecek parça.” */}
         </div>
       </div>
 
