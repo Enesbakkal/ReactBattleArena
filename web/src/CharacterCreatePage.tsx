@@ -3,6 +3,8 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import CharacterCard from './CharacterCard'
 import './CharactersPage.css'
 import { apiFetch, getToken } from './api'
+import {hasPermission, PERMISSIONS } from './permissions'
+
 
 interface CharacterRow {
   id: string
@@ -26,12 +28,11 @@ function CharacterCreatePage() {
   const [imageUrl, setImageUrl] = useState('')
   const [formError, setFormError] = useState('')
   const [formSuccess, setFormSuccess] = useState('')
+  const [permissions, setPermissions] = useState<string[]>([])
+  const [meLoaded, setMeLoaded] = useState(false) // /me bitti mi 
+
 
   const [items, setItems] = useState<CharacterRow[]>([])
-
-  if (!token) {
-    return <Navigate to="/login" replace />
-  }
 
   async function loadPreview() {
     try {
@@ -46,12 +47,22 @@ function CharacterCreatePage() {
 
       const response = await apiFetch('/api/characters?page=1&pageSize=8')
 
-      if (!response.ok) return
-      const data = await response.json()
-      setItems(data.items)
+      if (!response.ok) {
+        // liste gelmese de /me devam etsin
+      } else {
+        const data = await response.json()
+        setItems(data.items)
+      }
+
+      const meResponse = await apiFetch('/api/auth/me')
+      if(meResponse.ok) {
+        const me = await meResponse.json()
+        setPermissions(me.permissions ?? [])
+      }
     } catch {
       // önizleme opsiyonel; formu bozma
     }
+    setMeLoaded(true)//hata olsa da çalışsın diye
   }
 
   useEffect(() => {
@@ -97,7 +108,7 @@ function CharacterCreatePage() {
       })
 
       if (response.status === 403) {
-        setFormError('Yetkin yok (Admin gerekli)')
+        setFormError('Yetkin yok')
         return
       }
 
@@ -120,6 +131,18 @@ function CharacterCreatePage() {
     } catch {
       setFormError('API’ye ulaşılamadı')
     }
+  }
+
+   if (!token) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (!meLoaded){
+    return <p>Yükleniyor...</p>
+  }
+
+  if (!hasPermission(permissions, PERMISSIONS.charactersCreate)){
+    return <Navigate to="/characters" replace />
   }
 
   return (

@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 24 Ağustos 2026 — React `hasPermission` + Ekle/Düzenle/Sil gizleme (`/me`). Adım 29 UI parçası bitti; URL guard / Context sonra.
+Son güncelleme: 25 Ağustos 2026 — Create sayfa kapısı (`/characters/new` + `characters.create`). Edit URL guard sonra.
 
 ## Yeni chat’e geçerken oku
 
@@ -62,7 +62,8 @@ Detay: `PROJE_MANTIGI.md`
   - [x] `HasPermission` Characters CUD; Player’a RolePermission + UserRoles ile 201
   - [x] Register `UserRoles` + `GET /api/auth/me` permissions
   - [x] React `hasPermission` — liste Ekle, detay Düzenle/Sil (`/me` şart)
-  - [ ] Create/Edit doğrudan URL; ortak Context (şimdi her sayfa `/me`)
+  - [x] Create URL kapısı — `meLoaded` + `/me` + `Navigate` (`CharacterCreatePage`)
+  - [ ] Edit URL kapısı (`characters.update`); ortak Context (şimdi her sayfa `/me`)
 - [ ] Battle Arena backend
 
 ## Karar notları
@@ -76,6 +77,10 @@ Detay: `PROJE_MANTIGI.md`
 - Pedagoji: açıklamalar daha uzun (11 Ağustos+).
 - UI gizleme ≠ yetki: link yok olsa da `/characters/new` API’de 403.
 - Detayda `/me` yoksa `permissions` boş kalır; Admin’de de Düzenle/Sil görünmez.
+- Create kapısı `useEffect`’ten **sonra**; `meLoaded` false iken erken `return` effect’i keser → sonsuz Yükleniyor.
+- `me.permissions` (çoğul). `me.permission` → hep `[]` → herkes listeye atılır.
+- Player `RolePermissions`’ta `characters.create` varsa **tüm** Player’lar new’de kalır (Sanji’ye özel satır yok). Seed default değil.
+- Katalog `POST /characters` ≠ oyuncunun takımında karakter olması. New kapısı katalog yazma fiili.
 
 ## Backend not
 
@@ -85,5 +90,5 @@ Detay: `PROJE_MANTIGI.md`
 
 ```
 ReactBattleArena — CHECKPOINT.md, PROJE_MANTIGI.md ve REACT-OGRENIM.md oku.
-Cursor yönlendirme; kod VS Code’da. Sıradaki: Create/Edit URL guard veya permission Context. Refresh token yok. Yetki JWT’de değil. UI gizleme ≠ API.
+Cursor yönlendirme; kod VS Code’da. Sıradaki: CharacterEditPage URL kapısı (characters.update). Sanji new’de kalır (Player’da create var); Edit’te atılır. Refresh token yok. Yetki JWT’de değil.
 ```

@@ -1673,4 +1673,25 @@ JSX’teki `&&` “Link bir if mi?” demek değil. JavaScript’te `A && B`: A 
 
 Detay sayfasında `/me` çağrılmazsa `permissions` `[]` kalır; herkes için butonlar gizlenir (zoro dahil). Liste `load` ve detay `load` içinde `setPermissions` şart.
 
+### Create sayfa kapısı (25 Ağustos)
+
+Link gizlenince URL durur. `/characters/new` hâlâ `CharacterCreatePage`’i açar. `AppLayout` sadece **token** bakar (kimsin). Create’deki ikinci kapı **fiil**: `characters.create` yoksa forma girme. ASP.NET: Razor’da butonu gizlesen de action üstündeki `[HasPermission]` durur. React’te o eşleme erken `return <Navigate to="/characters" replace />`. `replace` = geçmişe “new” yazılmaz; Geri ile yetkisiz forma düşmez.
+
+Güvenlik hâlâ `POST /api/characters`. Bu kapı UX: yetkisiz kişi formu doldurup 403 yemesin.
+
+**Neden hemen Navigate edemezsin:** `useState<string[]>([])` ilk anda boş. `/me` gelmeden “yetki yok → at” dersen Admin de bir kare yetkisiz görünür. C#’ta `await GetCodesAsync` bitmeden 403 basmazsın. React’te aynı bekleme: `meLoaded === false` iken form yok, Navigate yok; kısa “Yükleniyor…”. Geldikten sonra `hasPermission(..., PERMISSIONS.charactersCreate)` yoksa Navigate.
+
+**Hook sırası (bu oturumun asıl tuzağı):** `if (!meLoaded) return ...` `useEffect`’ten **önce** durursa ilk çizimde `meLoaded` zaten false → effect hiç kayıt olmaz → `loadPreview` çalışmaz → sonsuz Yükleniyor. Token `if`’i eskiden de effect’in üstündeydi; token varsa geçiliyordu. `meLoaded` herkese false başladığı için bu sefer herkesi kesti. Doğru sıra: state → `loadPreview` → `useEffect` → `handleCreate` → üç `if` (token, meLoaded, hasPermission) → form `return`. Hook’lar bitti, sonra kapı — Razor’da `OnGet` bitmeden `return Redirect` yok.
+
+**İki yazım / akış hatası:** API `{ permissions: [...] }` döner. `me.permission` (tekil) `undefined` → `?? []` → herkes listeye atılır (zoro dahil). Liste/detayda çoğul yazılmıştı. İkincisi: `if (!response.ok) return` preview listesi bozulunca fonksiyonu bitirir; `try/catch` dışındaki `setMeLoaded(true)` çalışmaz. Yetki listesine bağlı olmamalı; preview hata olsa da `/me` devam.
+
+**Player’a create, Sanji’ye değil:** `UserPermission` tablosu yok. Join: UserRoles → RolePermissions → Permission.Code. SSMS’te `RolePermissions` satırı **Player** (`36AEC94F-…`) → `characters.create` ise Emre, Sanji, brook, Enes, robin hepsi aynı fiili alır. Kullanıcı satırına elle create yok. Seed Player’a create vermez; bu satır testte eklendi. zoro Admin (CUD + shop).
+
+Bu yüzden Sanji ile `/characters/new` **form açılır** — kapı bozuk değil. Network `GET /api/auth/me`: `id` Sanji Guid, `permissions: ["characters.create"]`. “Listeye atılmaz” = Yükleniyor’dan sonra formda kal; `<Navigate to="/characters" />` çalışma. Atılıyorsan kapı create yok sandı (`/me` boş veya state’e yazılmadan `meLoaded`).
+
+**Katalog vs takım:** Ürün “her Player’ın karakteri olacak” = kataloğu incele, takıma seç (ileride). `POST /api/characters` = katalog kartı üretmek (Naruto’yu sisteme eklemek). New kapısı o fiil. Takıma alma ayrı endpoint/permission olacak. Create sayfası yanlış yer değil. Player yarın kataloğa da yazacaksa `RolePermissions`’a satır; sayfa aynı kalır. Düzenle/Sil Player’da yok — kaçış UI testi **Edit** (`characters.update`).
+
+Sıradaki: `CharacterEditPage` aynı iskelet, `PERMISSIONS.charactersUpdate`. Context (tek `/me`) ayrı oturum.
+
 ---
+

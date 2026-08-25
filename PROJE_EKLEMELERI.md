@@ -280,7 +280,9 @@ Yapılış sırası (back → back → … → front):
 - [x] `GET /api/auth/me` → `{ id, userName, email, permissions }`
 - [x] React `hasPermission` (`web/src/permissions.ts`) — `can` değil; C# `HasPermission` ile aynı cümle
 - [x] Liste `/me` + Ekle gizleme; detay `/me` + Düzenle/Sil; URL ile create hâlâ 403 (API kapısı)
-- [ ] Create/Edit sayfasına doğrudan URL (guard / Context) — sonraki
+- [x] Create sayfa kapısı: `/me` + `meLoaded` + `hasPermission(characters.create)` yoksa `Navigate` listeye
+- [ ] Edit sayfa kapısı (`characters.update`) — sonraki
+- [ ] Ortak permission Context (şimdi Create/liste/detay ayrı `/me`)
 
 
 
@@ -297,7 +299,8 @@ Yapılış sırası (back → back → … → front):
 
 ### Sıradaki
 
-- [ ] Create/Edit URL guard veya ortak permission Context (şimdi her sayfa kendi `/me`)
+- [ ] Edit URL kapısı (`CharacterEditPage` + `characters.update`)
+- [ ] Ortak permission Context (her sayfa kendi `/me`)
 - [ ] Liste yükleme 3–4 sn gecikmesi (inceleme)
 - [ ] Login/Register UI’yi kilit palete boyama
 - [ ] Battle Arena backend
@@ -448,6 +451,14 @@ Yapılış sırası (back → back → … → front):
 - Detayda `/me` unutulunca `permissions=[]` → zoro’da da Düzenle/Sil yoktu
 - JSX `koşul && <Link>`: sol kapı, sağ çizilen parça
 
+### 25 Ağustos 2026
+
+- `CharacterCreatePage`: token’dan sonra yetki kapısı; `/me` bitmeden form yok (`meLoaded`)
+- Hook sırası: `useEffect` erken `return`’ün **üstünde** olmalı — aksi halde sonsuz Yükleniyor
+- Yazım: `me.permissions`; preview `return` `setMeLoaded`’ı atlamasın
+- UI: Sanji `/me` → `["characters.create"]` — new’de form açılır (doğru). Player rolüne elle create; kişiye değil
+- Katalog ekleme ≠ takımda karakter. Create kapısı yanlış sayfa değil; kaçış testi Edit (`update` Player’da yok)
+
 ---
 
 
@@ -551,6 +562,7 @@ Yapılış sırası (back → back → … → front):
 | **22 Ağu HasPermission** | `auth - rbac HasPermission DB - policy handler Characters CUD IUserPermissionService me later` |
 | **24 Ağu /me**       | `auth - me permissions register UserRoles - GET auth/me codes Register writes Player UserRole` |
 | **24 Ağu FE gizle**  | `react - hasPermission hide crud links - /me permissions Karakter ekle Duzenle Sil` |
+| **25 Ağu Create kapı** | `react - create page permission guard - /me meLoaded Navigate characters.create` |
 
 
 ---
