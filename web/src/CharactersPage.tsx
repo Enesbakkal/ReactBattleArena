@@ -5,6 +5,7 @@ import CharacterCard from './CharacterCard'
 import './CharactersPage.css'
 import { apiFetch } from './api'
 import {hasPermission, PERMISSIONS } from './permissions'
+import { usePermissions } from './PermissionContext'
 
 interface CharacterRow {
   id: string
@@ -15,8 +16,9 @@ interface CharacterRow {
 }
 
 function CharactersPage() {
+  const permissions = usePermissions()
   const [items, setItems] = useState<CharacterRow[]>([])
-  const [permissions, setPermissions] = useState<string[]>([])
+  // const [permissions, setPermissions] = useState<string[]>([])   bu satırı sildik çünkü permission ve me ile authorization app layoutden yapmaya karar verdik 
   const [error, setError] = useState('')
   // const navigate = useNavigate()
  
@@ -69,11 +71,12 @@ function CharactersPage() {
       const data = await response.json()
       setItems(data.items)
 
-      const meResponse = await apiFetch('/api/auth/me')
-      if(meResponse.ok){
-        const me = await meResponse.json()
-        setPermissions(me.permissions ?? [])
-      }
+      // const meResponse = await apiFetch('/api/auth/me')
+      // if(meResponse.ok){
+      //   const me = await meResponse.json()
+      //   setPermissions(me.permissions ?? [])
+      // }  
+      // buraya artık gerek kalmadı çünkü me authorization'ı artık applayoutdan yapmaya karar verdik
 
     }catch {
       setError('API’ye ulaşılamadı')

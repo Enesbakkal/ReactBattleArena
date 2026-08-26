@@ -281,8 +281,10 @@ Yapılış sırası (back → back → … → front):
 - [x] React `hasPermission` (`web/src/permissions.ts`) — `can` değil; C# `HasPermission` ile aynı cümle
 - [x] Liste `/me` + Ekle gizleme; detay `/me` + Düzenle/Sil; URL ile create hâlâ 403 (API kapısı)
 - [x] Create sayfa kapısı: `/me` + `meLoaded` + `hasPermission(characters.create)` yoksa `Navigate` listeye
-- [ ] Edit sayfa kapısı (`characters.update`) — sonraki
-- [ ] Ortak permission Context (şimdi Create/liste/detay ayrı `/me`)
+- [x] Edit sayfa kapısı: `characters.update`; Sanji URL ile listeye düşer; zoro Guid ile form
+- [x] `PermissionContext` + AppLayout tek `/me`; `CharactersPage` `usePermissions` (Create/Edit/Detail henüz değil)
+- [ ] Create / Edit / Detail Context (kendi `/me` kalsın diye bu turda dokunulmadı)
+- [ ] Konuş: refresh token bu yapıda olmalı mı?
 
 
 
@@ -299,8 +301,9 @@ Yapılış sırası (back → back → … → front):
 
 ### Sıradaki
 
-- [ ] Edit URL kapısı (`CharacterEditPage` + `characters.update`)
-- [ ] Ortak permission Context (her sayfa kendi `/me`)
+- [ ] Create / Edit / Detail → `usePermissions` (sayfa `/me` silinsin) — **yarın**
+- [ ] Konuş: refresh token bu yapıda olmalı mı? — **öbür gün** (AuthN oturum, RBAC değil)
+- [ ] `REACT-OGRENIM` 26 Ağu altına okuma hali (eski satıra yazma; tüm dosyayı toparlama) — refresh’ten sonra, başlık başlık
 - [ ] Liste yükleme 3–4 sn gecikmesi (inceleme)
 - [ ] Login/Register UI’yi kilit palete boyama
 - [ ] Battle Arena backend
@@ -459,6 +462,19 @@ Yapılış sırası (back → back → … → front):
 - UI: Sanji `/me` → `["characters.create"]` — new’de form açılır (doğru). Player rolüne elle create; kişiye değil
 - Katalog ekleme ≠ takımda karakter. Create kapısı yanlış sayfa değil; kaçış testi Edit (`update` Player’da yok)
 
+### 26 Ağustos 2026
+
+- Edit kapısı: `PERMISSIONS.charactersUpdate`; `/me` karakter GET’ten önce; kapı `useEffect` sonrası
+- URL `:id` Guid — `/characters/Franky/edit` 404 (isim değil). Sanji edit’te listeye düşer (doğru)
+- Refresh token: bu fazda yok; permission değil, oturum süresi — ayrı konuşma (CHECKPOINT’te işaretli)
+- `PermissionContext` + AppLayout `/me` + `meLoaded` sonra `Outlet`; liste `usePermissions`
+- Create/Edit/Detail’e bu turda dokunulmadı: önce tek sayfada kanıt (liste Ekle + Network)
+- `hasPermission` ≠ `usePermissions` (kontrol vs kaynak)
+- Nested route: liste↔create layout unmount olmaz; dönüşte layout `/me` yok
+- Plan kilit: yarın diğer sayfalar Context; öbür gün refresh konuşması; sonra 26 Ağu `REACT-OGRENIM` okuma hali (üzerine yazma yok)
+- Dev Strict Mode: ilk açılışta 2× `me` normal; 3. Initiator/HMR/eski Network
+- `web/src` düz klasör bu ölçekte doğru; Context ile big-bang `pages/` yok
+
 ---
 
 
@@ -563,6 +579,7 @@ Yapılış sırası (back → back → … → front):
 | **24 Ağu /me**       | `auth - me permissions register UserRoles - GET auth/me codes Register writes Player UserRole` |
 | **24 Ağu FE gizle**  | `react - hasPermission hide crud links - /me permissions Karakter ekle Duzenle Sil` |
 | **25 Ağu Create kapı** | `react - create page permission guard - /me meLoaded Navigate characters.create` |
+| **26 Ağu Edit+Context** | `react - edit guard PermissionContext - AppLayout me usePermissions list only` |
 
 
 ---

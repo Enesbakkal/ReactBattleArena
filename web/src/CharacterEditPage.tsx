@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import './CharactersPage.css'
 import { apiFetch, getToken } from './api'
+import { hasPermission, PERMISSIONS } from './permissions'
 
 function CharacterEditPage() {
   const { id } = useParams<{ id: string }>()
@@ -21,6 +22,7 @@ function CharacterEditPage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [formError, setFormError] = useState('')
+  const [permissions, setPermissions] = useState<string[]>([])
 
   useEffect(() => {
     async function load() {
@@ -39,6 +41,12 @@ function CharacterEditPage() {
         //     },
         //   },
         // )  Buna gerek kalmadı ortak auth yazdık
+
+        const meResponse = await apiFetch('/api/auth/me')
+        if(meResponse.ok){
+          const me = await meResponse.json()
+          setPermissions(me.permissions ?? [])
+        }
 
         const response = await apiFetch(`/api/characters/${id}`)
 
@@ -146,6 +154,16 @@ function CharacterEditPage() {
     } catch {
       setFormError('API’ye ulaşılamadı')
     }
+  }
+
+  if (!token) {
+  return <Navigate to="/login" replace />
+  }
+  if (loading) {
+    return <p>Yükleniyor…</p>
+  }
+  if (!hasPermission(permissions, PERMISSIONS.charactersUpdate)) {
+    return <Navigate to="/characters" replace />
   }
 
   return (

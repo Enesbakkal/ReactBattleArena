@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 25 Ağustos 2026 — Create sayfa kapısı (`/characters/new` + `characters.create`). Edit URL guard sonra.
+Son güncelleme: 26 Ağustos 2026 — liste Context’te. Plan: yarın Create/Edit/Detail `usePermissions` → öbür gün refresh token konuşması → ardından `REACT-OGRENIM` başlık başlık “okuma hali” (üzerine yazma; Temmuz’a dokunma; ilk parça 26 Ağu).
 
 ## Yeni chat’e geçerken oku
 
@@ -63,7 +63,10 @@ Detay: `PROJE_MANTIGI.md`
   - [x] Register `UserRoles` + `GET /api/auth/me` permissions
   - [x] React `hasPermission` — liste Ekle, detay Düzenle/Sil (`/me` şart)
   - [x] Create URL kapısı — `meLoaded` + `/me` + `Navigate` (`CharacterCreatePage`)
-  - [ ] Edit URL kapısı (`characters.update`); ortak Context (şimdi her sayfa `/me`)
+  - [x] Edit URL kapısı — `characters.update` (`CharacterEditPage`); Sanji listeye düşer
+  - [x] `PermissionContext` + AppLayout `/me`; liste `usePermissions` (Create/Edit/Detail sonraki)
+  - [ ] Create/Edit/Detail’i Context’e bağla (kendi `/me` kalksın)
+  - [ ] Konuş: refresh token (oturum süresi ≠ RBAC)
 - [ ] Battle Arena backend
 
 ## Karar notları
@@ -81,6 +84,13 @@ Detay: `PROJE_MANTIGI.md`
 - `me.permissions` (çoğul). `me.permission` → hep `[]` → herkes listeye atılır.
 - Player `RolePermissions`’ta `characters.create` varsa **tüm** Player’lar new’de kalır (Sanji’ye özel satır yok). Seed default değil.
 - Katalog `POST /characters` ≠ oyuncunun takımında karakter olması. New kapısı katalog yazma fiili.
+- Edit URL `:id` **Guid**. `/characters/Franky/edit` 404; isim değil.
+- `usePermissions` = diziyi Context’ten oku. `hasPermission` = dizide kod var mı. İkisi aynı şey değil.
+- Layout unmount olmaz (`/characters` ↔ `/new`); listeye dönüşte layout `/me` tekrar atmaz.
+- Dev’de Strict Mode `useEffect`’i iki kez çalıştırır → ilk açılışta 2× `me` normal. Production’da 1.
+- **Konuşulacak (unutma):** yapıda refresh token olmalı mı? Bu fazda yok. RBAC/permission değil; access JWT bitince tekrar login vs sessiz yenileme.
+- Frontend klasörleme: `web/src` düz (on iki dosya) bu ölçekte doğru; Context ile tüm sayfaları `pages/` altına taşıma.
+- **`REACT-OGRENIM` düzeltme yöntemi (26 Ağu kilit):** Tüm dosyayı hikâyeleştir / “toparla” **isteme**. Bir başlık seç; eski metne dokunma; **alta** chat gibi okuma hali ekle (bir fikir bir cümle). İlk parça: 26 Ağustos (Edit + Context + `usePermissions`). Temmuz backend’e şimdi girme. Amaç: auth biterken tekrar + metin düzelir.
 
 ## Backend not
 
@@ -90,5 +100,5 @@ Detay: `PROJE_MANTIGI.md`
 
 ```
 ReactBattleArena — CHECKPOINT.md, PROJE_MANTIGI.md ve REACT-OGRENIM.md oku.
-Cursor yönlendirme; kod VS Code’da. Sıradaki: CharacterEditPage URL kapısı (characters.update). Sanji new’de kalır (Player’da create var); Edit’te atılır. Refresh token yok. Yetki JWT’de değil.
+Cursor yönlendirme; kod VS Code’da. Sıradaki: Create/Edit/Detail usePermissions (sayfa /me sil). Sonra refresh token konuşması. REACT-OGRENIM: tümünü toparlama; 26 Ağu altına okuma hali. Yetki JWT’de değil.
 ```

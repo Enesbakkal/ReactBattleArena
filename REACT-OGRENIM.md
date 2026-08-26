@@ -1693,5 +1693,63 @@ Bu yüzden Sanji ile `/characters/new` **form açılır** — kapı bozuk değil
 
 Sıradaki: `CharacterEditPage` aynı iskelet, `PERMISSIONS.charactersUpdate`. Context (tek `/me`) ayrı oturum.
 
+### Edit sayfa kapısı + Guid URL (26 Ağustos)
+
+Create ile aynı fikir, fiil `characters.update`. `CharacterEditPage` zaten karakter GET için `loading` tutuyordu; ikinci bir `meLoaded` gerekmedi. `/me` mevcut `load()` içinde, karakter `apiFetch`’inden **önce** (404 `return` `/me`’yi atlamasın). `setLoading(false)` `finally`’de. Kapı `useEffect` ve `handleSubmit` **sonra**: token yok → login; `loading` → Yükleniyor; update yok → `<Navigate to="/characters" replace />`.
+
+Player rolünde update/delete yok. Sanji adres çubuğundan `.../edit` yazınca **listeye düşer**. Create’de kalması çelişki değil: Player’da `characters.create` var (elle `RolePermissions`), `update` yok.
+
+`:id` route parametresi **Guid**. `/characters/Franky/edit` API’ye `GET /api/characters/Franky` gider → 404 → “Karakter bulunamadı”. zoro’da update olduğu için kapı atmaz; 404 mesajını görürsün. Form için örn. Franky:
+
+`http://localhost:5173/characters/44AEDA65-284D-4100-937A-1E1295AA89A0/edit`
+
+veya zoro listeden karta tıklayıp **Düzenle** (link Guid yazar).
+
+### Refresh token (konuşulacak, bu fazda yok)
+
+Permission “ne yapabilirim” (her istekte DB join). Refresh “oturum ne kadar açık kalır” (access JWT bitince tekrar login mi, sessiz yeni access mi). Aynı kapı değil. Şimdilik access bitince login. SPA’da günlerce açık kalsın mı, cookie mi `localStorage` mı: Create/Edit Context bağından **sonra** ayrı oturum.
+
+### PermissionContext — tek `/me` (26 Ağustos)
+
+Dört sayfa ayrı `/me` = aynı join dört kez. Nested route’ta `AppLayout` kalır, `Outlet` değişir. `/me` layout’ta bir kez; çocuklar diziyi okur.
+
+ASP.NET: her action’da `GetCodesAsync` yerine request’te bir kez yükleyip `HttpContext.Items`’tan okumak. Hâlâ DB; JWT’ye permission yazılmıyor.
+
+`PermissionContext.tsx`: `createContext` kutu, `Provider` değer, `usePermissions` okuma. Context `null` başlar (Login ağacın dışında). `usePermissions` Login’de çağrılırsa throw — sessiz `[]` herkesi yetkisiz gösterir.
+
+`AppLayout`: `useState` permissions + `meLoaded`; `useEffect` token varken `/me`, `setMeLoaded(true)` try/catch **dışı**. Hook’lar `if (!token)` **üstünde** (Create’deki tuzak). Token yok → login; `meLoaded` false → Yükleniyor; true → Provider + mevcut kabuk + `Outlet` içeride. `/me` bitmeden `Outlet` yok: çocuk ilk anda boş diziyle “yetkin yok” deyip atmasın.
+
+Layout `hasPermission` import etmez. Layout cüzdanı doldurur; buton gizleme sayfada.
+
+**Neden sadece liste?** Bir oturumda tek kanıt: Sanji’de Ekle, Network’te listenin kendi `/me`’si yok. Create/Edit/Detail’e aynı anda dokunmak dört sayfalık kopya + hangi 403’ün kimin `/me`’si karışır. Layout Provider’ı verdiği için diğerleri **bağlanabilir**; bağlamadık. Create’e basınca o sayfanın `/me`’si beklenen. Sonraki iş: o üçünde `usePermissions`, sayfa `/me` sil.
+
+Listeye dönüşte layout `/me` tekrar **atmaz** — unmount olmadı. Doğru.
+
+**İlk açılışta 2–3 `me`:** Liste artık `/me` atmıyor. AppLayout atıyor. `main.tsx` `<StrictMode>` development’ta effect’i iki kez çalıştırır (mount–unmount–mount). Production’da tek. Üçüncü: temizlenmemiş Network, Vite HMR, Initiator kolonu. Strict Mode’u kapatma.
+
+### `hasPermission` ile `usePermissions` alakası yok (ayrı iş, aynı dizi)
+
+Aynı şey değiller. Birlikte kullanılırlar.
+
+`usePermissions` React hook. Context’ten **o anki dizi**yi okur (`["characters.create", …]`). “Şu fiil var mı?” diye bakmaz. `/me` sonucunu sayfaya taşır.
+
+`hasPermission` düz fonksiyon. React bilmez. Dizi + kod → `includes` → true/false. C# `codes.Contains("characters.create")`.
+
+```ts
+const permissions = usePermissions()
+hasPermission(permissions, PERMISSIONS.charactersCreate)
+```
+
+Birincisi “cüzdan nerede?”, ikincisi “bu fiil cüzdanda var mı?”. `PERMISSIONS.charactersCreate` yazım sabiti; `"characters.create"` ile aynı.
+
+Context olmasa `hasPermission` yine çalışır (state veya elle dizi). `usePermissions` olmasa dizi yine `useState` + sayfa `/me` olabilir (eski liste). Ortak nokta: ikisi de **aynı string dizisi**. Biri kaynak, biri kontrol.
+
+### Klasörleme (düz `src`)
+
+On iki dosya ile `web/src` düz bırakmak bu ölçekte doğru. Vite de böyle açılır. Backend katman klasörleri onlarca dosya + kural için. Context eklerken Login’leri `pages/` altına taşımak ayrı refactor; karıştırma. `PermissionContext.tsx` `permissions.ts` yanında durur.
+
+Sıradaki: Create/Edit/Detail `usePermissions`. Refresh token konuşması. Arena değil.
+
 ---
+
 
