@@ -4,6 +4,7 @@ import CharacterCard from './CharacterCard'
 import './CharactersPage.css'
 import { apiFetch, getToken } from './api'
 import {hasPermission, PERMISSIONS } from './permissions'
+import { usePermissions } from './PermissionContext'
 
 
 interface CharacterRow {
@@ -17,6 +18,8 @@ interface CharacterRow {
 function CharacterCreatePage() {
   const navigate = useNavigate()
   const token = getToken()
+  const permissions = usePermissions()
+
 
   const [name, setName] = useState('')
   const [universe, setUniverse] = useState('')
@@ -28,8 +31,8 @@ function CharacterCreatePage() {
   const [imageUrl, setImageUrl] = useState('')
   const [formError, setFormError] = useState('')
   const [formSuccess, setFormSuccess] = useState('')
-  const [permissions, setPermissions] = useState<string[]>([])
-  const [meLoaded, setMeLoaded] = useState(false) // /me bitti mi 
+  // const [permissions, setPermissions] = useState<string[]>([])
+  // const [meLoaded, setMeLoaded] = useState(false) // /me bitti mi   bunları kaldırdık çünkü artık ortak permission ekledik 
 
 
   const [items, setItems] = useState<CharacterRow[]>([])
@@ -54,15 +57,15 @@ function CharacterCreatePage() {
         setItems(data.items)
       }
 
-      const meResponse = await apiFetch('/api/auth/me')
-      if(meResponse.ok) {
-        const me = await meResponse.json()
-        setPermissions(me.permissions ?? [])
-      }
+      // const meResponse = await apiFetch('/api/auth/me')
+      // if(meResponse.ok) {
+      //   const me = await meResponse.json()
+      //   setPermissions(me.permissions ?? [])
+      // }  bunları kaldırdık çünkü artık ortak permission ekledik
     } catch {
       // önizleme opsiyonel; formu bozma
     }
-    setMeLoaded(true)//hata olsa da çalışsın diye
+    // setMeLoaded(true)//hata olsa da çalışsın diye  bunları kaldırdık çünkü artık ortak permission ekledik
   }
 
   useEffect(() => {
@@ -137,9 +140,9 @@ function CharacterCreatePage() {
     return <Navigate to="/login" replace />
   }
 
-  if (!meLoaded){
-    return <p>Yükleniyor...</p>
-  }
+  // if (!meLoaded){
+  //   return <p>Yükleniyor...</p>
+  // }  bunları kaldırdık çünkü artık ortak permission ekledik
 
   if (!hasPermission(permissions, PERMISSIONS.charactersCreate)){
     return <Navigate to="/characters" replace />

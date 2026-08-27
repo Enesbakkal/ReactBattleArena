@@ -3,12 +3,14 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import './CharactersPage.css'
 import { apiFetch, getToken } from './api'
 import { hasPermission, PERMISSIONS } from './permissions'
+import { usePermissions } from './PermissionContext'
 
 function CharacterEditPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   // const token = localStorage.getItem('token')   buna gerek kalmadfı ortak auth yazdık
   const token = getToken()
+  const permissions = usePermissions()
 
   const [name, setName] = useState('')
   const [universe, setUniverse] = useState('')
@@ -22,7 +24,7 @@ function CharacterEditPage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [formError, setFormError] = useState('')
-  const [permissions, setPermissions] = useState<string[]>([])
+  // const [permissions, setPermissions] = useState<string[]>([])  bunu sildik çünkü applayouta ortak permission ekledik
 
   useEffect(() => {
     async function load() {
@@ -42,11 +44,11 @@ function CharacterEditPage() {
         //   },
         // )  Buna gerek kalmadı ortak auth yazdık
 
-        const meResponse = await apiFetch('/api/auth/me')
-        if(meResponse.ok){
-          const me = await meResponse.json()
-          setPermissions(me.permissions ?? [])
-        }
+        // const meResponse = await apiFetch('/api/auth/me')
+        // if(meResponse.ok){
+        //   const me = await meResponse.json()
+        //   setPermissions(me.permissions ?? [])
+        // } bunu sildik çünkü applayouta ortak permission ekledik
 
         const response = await apiFetch(`/api/characters/${id}`)
 
@@ -81,9 +83,9 @@ function CharacterEditPage() {
     load()
   }, [id, token])
 
-  if (!token) {
-    return <Navigate to="/login" replace />
-  }
+  // if (!token) {
+  //   return <Navigate to="/login" replace />
+  // }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -131,7 +133,7 @@ function CharacterEditPage() {
       }
 
       if (response.status === 403) {
-        setFormError('Yetkin yok (Admin gerekli)')
+        setFormError('Yetkin yok')
         return
       }
 

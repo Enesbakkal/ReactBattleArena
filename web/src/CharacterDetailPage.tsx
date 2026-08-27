@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import './CharactersPage.css'
 import { apiFetch, getToken } from './api'
 import { hasPermission, PERMISSIONS } from './permissions'
+import { usePermissions } from './PermissionContext'
 
 
 interface CharacterDetail {
@@ -23,12 +24,13 @@ function CharacterDetailPage() {
   const navigate = useNavigate()
   // const token = localStorage.getItem('token') ortak auth 
   const token = getToken()
+  const permissions = usePermissions()
 
   const [character, setCharacter] = useState<CharacterDetail | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [deleteError, setDeleteError] = useState('')
-  const [permissions, setPermissions] = useState<string[]>([])
+  // const [permissions, setPermissions] = useState<string[]>([]) bunu sildik çünkü app layouta ortak permission ekledik
 
   useEffect(() => {
     async function load() {
@@ -69,11 +71,12 @@ function CharacterDetailPage() {
         const data = await response.json()
         setCharacter(data)
 
-        const meResponse = await apiFetch('/api/auth/me')
-        if(meResponse.ok){
-          const me = await meResponse.json()
-          setPermissions(me.permissions ?? [])
-        }
+        // const meResponse = await apiFetch('/api/auth/me')
+        // if(meResponse.ok){
+        //   const me = await meResponse.json()
+        //   setPermissions(me.permissions ?? [])
+        // }   bunu sildik çünkü app layouta ortak permission ekledik
+
       } catch {
         setError('API’ye ulaşılamadı')
       } finally {
