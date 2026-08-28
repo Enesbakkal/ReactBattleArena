@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 26 Ağustos 2026 — liste Context’te. Plan: yarın Create/Edit/Detail `usePermissions` → öbür gün refresh token konuşması → ardından `REACT-OGRENIM` başlık başlık “okuma hali” (üzerine yazma; Temmuz’a dokunma; ilk parça 26 Ağu).
+Son güncelleme: 28 Ağustos 2026 — `RefreshTokens` tablosu var (entity + EF + `AddRefreshTokens`). Login henüz refresh yazmıyor. Permission hâlâ DB.
 
 ## Yeni chat’e geçerken oku
 
@@ -64,9 +64,10 @@ Detay: `PROJE_MANTIGI.md`
   - [x] React `hasPermission` — liste Ekle, detay Düzenle/Sil (`/me` şart)
   - [x] Create URL kapısı — `meLoaded` + `/me` + `Navigate` (`CharacterCreatePage`)
   - [x] Edit URL kapısı — `characters.update` (`CharacterEditPage`); Sanji listeye düşer
-  - [x] `PermissionContext` + AppLayout `/me`; liste `usePermissions` (Create/Edit/Detail sonraki)
-  - [ ] Create/Edit/Detail’i Context’e bağla (kendi `/me` kalksın)
-  - [ ] Konuş: refresh token (oturum süresi ≠ RBAC)
+  - [x] `PermissionContext` + AppLayout `/me`; liste + Create/Edit/Detail `usePermissions`
+  - [x] RefreshToken Domain + EF + migration `AddRefreshTokens` (tablo boş; login yazmıyor)
+  - [ ] Login cevabına refresh + `POST /api/auth/refresh`
+  - [ ] React: 401’de sessiz yenileme (`api.ts`)
 - [ ] Battle Arena backend
 
 ## Karar notları
@@ -88,9 +89,8 @@ Detay: `PROJE_MANTIGI.md`
 - `usePermissions` = diziyi Context’ten oku. `hasPermission` = dizide kod var mı. İkisi aynı şey değil.
 - Layout unmount olmaz (`/characters` ↔ `/new`); listeye dönüşte layout `/me` tekrar atmaz.
 - Dev’de Strict Mode `useEffect`’i iki kez çalıştırır → ilk açılışta 2× `me` normal. Production’da 1.
-- **Konuşulacak (unutma):** yapıda refresh token olmalı mı? Bu fazda yok. RBAC/permission değil; access JWT bitince tekrar login vs sessiz yenileme.
-- Frontend klasörleme: `web/src` düz (on iki dosya) bu ölçekte doğru; Context ile tüm sayfaları `pages/` altına taşıma.
-- **`REACT-OGRENIM` düzeltme yöntemi (26 Ağu kilit):** Tüm dosyayı hikâyeleştir / “toparla” **isteme**. Bir başlık seç; eski metne dokunma; **alta** chat gibi okuma hali ekle (bir fikir bir cümle). İlk parça: 26 Ağustos (Edit + Context + `usePermissions`). Temmuz backend’e şimdi girme. Amaç: auth biterken tekrar + metin düzelir.
+- **Konuşulacak (unutma):** refresh cookie vs `localStorage` — şimdilik tablo + hash; ham token DB’de yok.
+- **`REACT-OGRENIM` düzeltme yöntemi (26 Ağu kilit):** Tüm dosyayı hikâyeleştir / “toparla” **isteme**. Bir başlık seç; eski metne dokunma; **alta** chat gibi okuma hali ekle. İlk parça hâlâ 26 Ağustos. Temmuz’a dokunma.
 
 ## Backend not
 
@@ -100,5 +100,5 @@ Detay: `PROJE_MANTIGI.md`
 
 ```
 ReactBattleArena — CHECKPOINT.md, PROJE_MANTIGI.md ve REACT-OGRENIM.md oku.
-Cursor yönlendirme; kod VS Code’da. Sıradaki: Create/Edit/Detail usePermissions (sayfa /me sil). Sonra refresh token konuşması. REACT-OGRENIM: tümünü toparlama; 26 Ağu altına okuma hali. Yetki JWT’de değil.
+Cursor yönlendirme; kod VS Code’da. Sıradaki: Login refresh token üretimi (hash DB, ham cevapta). Yetki JWT’de değil. Refresh ≠ permission.
 ```

@@ -282,9 +282,21 @@ Yapılış sırası (back → back → … → front):
 - [x] Liste `/me` + Ekle gizleme; detay `/me` + Düzenle/Sil; URL ile create hâlâ 403 (API kapısı)
 - [x] Create sayfa kapısı: `/me` + `meLoaded` + `hasPermission(characters.create)` yoksa `Navigate` listeye
 - [x] Edit sayfa kapısı: `characters.update`; Sanji URL ile listeye düşer; zoro Guid ile form
-- [x] `PermissionContext` + AppLayout tek `/me`; `CharactersPage` `usePermissions` (Create/Edit/Detail henüz değil)
-- [ ] Create / Edit / Detail Context (kendi `/me` kalsın diye bu turda dokunulmadı)
-- [ ] Konuş: refresh token bu yapıda olmalı mı?
+- [x] `PermissionContext` + AppLayout tek `/me`; `CharactersPage` `usePermissions`
+- [x] Create / Edit / Detail `usePermissions` (sayfa `/me` kalktı; `meLoaded` Create’de layout’a bırakıldı)
+- [x] Karar: refresh **var** (oturum); permission hâlâ DB join, JWT’ye gömülmez
+
+### Adım 30 — Refresh token (oturum) — devam ediyor
+
+- [x] Kavram: access JWT (kimsin, kısa) vs refresh (yeni access, hash DB’de)
+- [x] Domain `RefreshToken` — `User` kalıbı; `TokenHash`; `Revoke`
+- [x] EF `RefreshTokenConfiguration` — kendi `Id`; `TokenHash` unique 64; User Cascade
+- [x] `IApplicationDbContext` + `ApplicationDbContext` `RefreshTokens`
+- [x] Migration `AddRefreshTokens` + `database update` (tablo boş)
+- [ ] Login: ham refresh cevapta, hash satırda
+- [ ] `POST /api/auth/refresh` + rotation
+- [ ] React `api.ts` 401 yenileme
+
 
 
 
@@ -301,9 +313,10 @@ Yapılış sırası (back → back → … → front):
 
 ### Sıradaki
 
-- [ ] Create / Edit / Detail → `usePermissions` (sayfa `/me` silinsin) — **yarın**
-- [ ] Konuş: refresh token bu yapıda olmalı mı? — **öbür gün** (AuthN oturum, RBAC değil)
-- [ ] `REACT-OGRENIM` 26 Ağu altına okuma hali (eski satıra yazma; tüm dosyayı toparlama) — refresh’ten sonra, başlık başlık
+- [ ] Login: refresh üret (hash DB, ham JSON)
+- [ ] `POST /api/auth/refresh` (eski revoke, yeni çift)
+- [ ] React: access bitince sessiz yenile (`api.ts`)
+- [ ] `REACT-OGRENIM` 26 Ağu altına okuma hali (eski satıra yazma)
 - [ ] Liste yükleme 3–4 sn gecikmesi (inceleme)
 - [ ] Login/Register UI’yi kilit palete boyama
 - [ ] Battle Arena backend
@@ -475,6 +488,19 @@ Yapılış sırası (back → back → … → front):
 - Dev Strict Mode: ilk açılışta 2× `me` normal; 3. Initiator/HMR/eski Network
 - `web/src` düz klasör bu ölçekte doğru; Context ile big-bang `pages/` yok
 
+### 27 Ağustos 2026
+
+- Create / Edit / Detail `usePermissions`; sayfa `/me` ve Create `meLoaded` kalktı (layout bekliyor)
+- Sanji `/characters/new` açık (Player’da create var); kaçış `/characters/{guid}/edit`
+
+### 28 Ağustos 2026
+
+- Refresh başı: Domain `RefreshToken` + EF + `AddRefreshTokens` → tablo `RefreshTokens`
+- Ham token DB’de yok (`TokenHash`). Kendi `Id` (UserRole composite değil)
+- Config: `Persistence` yazımı, `RefreshTokens` çoğul, `OnDelete` noktalı virgül — yoksa build/ef patlar
+- `dotnet-ef` 10.0.5 vs runtime 10.0.9 uyarı; migration yine Done. Proje NuGet’i bu yüzden güncelleme
+- Login henüz satır yazmıyor
+
 ---
 
 
@@ -580,6 +606,8 @@ Yapılış sırası (back → back → … → front):
 | **24 Ağu FE gizle**  | `react - hasPermission hide crud links - /me permissions Karakter ekle Duzenle Sil` |
 | **25 Ağu Create kapı** | `react - create page permission guard - /me meLoaded Navigate characters.create` |
 | **26 Ağu Edit+Context** | `react - edit guard PermissionContext - AppLayout me usePermissions list only` |
+| **27 Ağu Context sayfalar** | `react - create edit detail usePermissions - page me removed layout context` |
+| **28 Ağu Refresh tablo** | `auth - refresh token table - RefreshToken entity EF AddRefreshTokens` |
 
 
 ---

@@ -1750,6 +1750,27 @@ On iki dosya ile `web/src` düz bırakmak bu ölçekte doğru. Vite de böyle a�
 
 Sıradaki: Create/Edit/Detail `usePermissions`. Refresh token konuşması. Arena değil.
 
+### Create / Edit / Detail Context (27 Ağustos)
+
+Liste kanıtından sonra üç sayfa da `usePermissions()`. Sayfa `/me` kalktı. Create’deki `meLoaded` da kalktı: `AppLayout` `/me` bitmeden `Outlet` açmıyor. Sadece `meLoaded`’ı yoruma alıp boş `permissions` state bırakmak zoro’yu da listeye atardı.
+
+Kapı: `if (!token)` kimlik (layout zaten bakıyor). `hasPermission` bu sayfanın fiili. Detayda `Navigate` yok; Düzenle/Sil `&&`. Sanji `/characters/new` açık (Player create). Giremediği yer Edit Guid: `/characters/{id}/edit`.
+
+### Refresh token — tablo (28 Ağustos)
+
+Permission “ne yapabilirim” (DB join, her istek). Refresh “oturum ne kadar açık” (access JWT 60 dk bitince şifresiz yeni access). Aynı kapı değil. JWT’ye permission hâlâ gömülmez.
+
+Access zaten var: login bir JWT, `localStorage`, `ExpireMinutes: 60`, bitince 401. Arena için rahatsız → tabloyu ekledik; login henüz yazmıyor.
+
+**Domain** `RefreshToken` (`Domain/Authentication/`): `User` kalıbı. `TokenHash` — ham metin DB’de yok (şifre gibi). `Revoke` sonraki çıkış/yenilemede eski satırı öldürür. Kendi `Id`: bir kullanıcının zaman içinde çok satırı olur; `UserRole` çift PK değil.
+
+**EF:** `RefreshTokenConfiguration` — tablo `RefreshTokens`, `TokenHash` unique 64 (SHA256 hex), User `Cascade`. `ApplyConfigurationsFromAssembly` yeni sınıfı alır. Namespace `Persistence` (çift s yok). `OnDelete` noktalı virgül şart.
+
+**Migration** `AddRefreshTokens` + `database update`. SSMS’te tablo boş. `dotnet-ef` araç sürümü runtime’dan eski olabilir (10.0.5 vs 10.0.9); uyarı, başarısızlık değil. `dotnet tool update --global dotnet-ef` isteğe bağlı. Proje JwtBearer paketini bu uyarıyla güncelleme.
+
+Sıradaki: login’de rastgele refresh üret, hash’i satıra yaz, hamını JSON’da bir kez dön. `POST /refresh` ve React sonra. Cookie vs `localStorage` henüz kilit değil.
+
 ---
+
 
 
