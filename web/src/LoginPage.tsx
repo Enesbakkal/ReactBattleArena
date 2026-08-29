@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate} from 'react-router-dom'
-import { apiFetch, setToken } from './api'
+import { apiFetch, setToken, setRefreshToken } from './api'
 
 
 function LoginPage() {
@@ -53,6 +53,7 @@ function LoginPage() {
 
       const data = await response.json()
       setToken(data.token)
+      setRefreshToken(data.refreshToken)
       navigate('/characters')
 
     } catch (err) {

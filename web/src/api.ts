@@ -10,6 +10,14 @@ export function setToken(token: string) {
 
 export function clearToken() {
   localStorage.removeItem('token')
+  localStorage.removeItem('refreshToken')
+}
+
+export function getRefreshToken(): string | null {
+  return localStorage.getItem('refreshToken')
+}
+export function setRefreshToken(token: string) {
+  localStorage.setItem('refreshToken', token)
 }
 
 type ApiFetchOptions = {

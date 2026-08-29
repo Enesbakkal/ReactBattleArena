@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using ReactBattleArena.Abstractions;
 using ReactBattleArena.Application.Abstractions;
 using ReactBattleArena.Infrastructure.Persistence;
 using ReactBattleArena.Infrastructure.Security;
@@ -25,6 +26,7 @@ public static class DependencyInjection
         
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
+        services.AddSingleton<IRefreshTokenGenerator, RefreshTokenGenerator>();
         services.AddScoped<IUserPermissionService, UserPermissionService>();
 
         return services;

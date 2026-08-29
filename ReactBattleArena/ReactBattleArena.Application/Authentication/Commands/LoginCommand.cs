@@ -9,5 +9,6 @@ public sealed record LoginResult(
     Guid UserId,
     string UserName,
     string Email,
-    string Token);
+    string Token,
+    string RefreshToken);
 //null → kullanıcı yok / şifre yanlış → controller 401.

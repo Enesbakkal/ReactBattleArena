@@ -1,6 +1,8 @@
 ﻿using MediatR;
 using Microsoft.EntityFrameworkCore;
+using ReactBattleArena.Abstractions;
 using ReactBattleArena.Application.Abstractions;
+using ReactBattleArena.Domain.Authentication;
 
 namespace ReactBattleArena.Application.Authentication.Commands;
 
@@ -9,15 +11,18 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, LoginRes
     private readonly IApplicationDbContext _db;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenService _jwtTokenService;
+    private readonly IRefreshTokenGenerator _refreshTokens;
 
     public LoginCommandHandler(
         IApplicationDbContext db,
         IPasswordHasher passwordHasher,
-        IJwtTokenService jwtTokenService)
+        IJwtTokenService jwtTokenService,
+        IRefreshTokenGenerator refreshTokens)
     {
         _db = db;
         _passwordHasher = passwordHasher;
         _jwtTokenService = jwtTokenService;
+        _refreshTokens = refreshTokens;
     }
 
     public async Task<LoginResult?> Handle(LoginCommand request, CancellationToken cancellationToken)
@@ -35,6 +40,14 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, LoginRes
 
         var token = _jwtTokenService.CreateToken(user);
 
-        return new LoginResult(user.Id, user.UserName, user.Email, token);
+        var utcNow = DateTime.UtcNow;
+        var (rawRefresh, hash, expires) = _refreshTokens.Create(utcNow);
+        _db.RefreshTokens.Add(
+            RefreshToken.Create(user.Id, hash, expires, utcNow));
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+
+        return new LoginResult(user.Id, user.UserName, user.Email, token, rawRefresh);
     }
 }
