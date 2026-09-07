@@ -71,7 +71,11 @@ Infrastructure hem Application’a hem Domain’e bakar. EF’in somut `Applicat
   </ItemGroup>
 ```
 
-Api, Application + Infrastructure’a bakar; Domain’e doğrudan bakmaz. Character tipine ihtiyacı olursa Application üzerinden gider, Domain projesini Api’ye eklemeyiz. Eski bir ASP.NET MVC projesinde çoğu zaman tek proje olurdu: controller, SQL, iş kuralı aynı yerde. Burada o karışıklığı baştan kestik.
+Api, Application + Infrastructure’a bakar; Domain satırı `Api.csproj`’ta yok. SDK-style projede `ProjectReference` zinciri derlemeye de akar: Api → Application → Domain olduğu için Api, Domain’in public tiplerini yine `using` edebilir (`CharactersController` sonradan `PermissionCodes` için `ReactBattleArena.Domain.Authorization` yazar). Bu “Application üzerinden Domain’e ulaşmak”tır — ekstra Domain referansı yazmana gerek kalmaz.
+
+Yine de controller’ın işi `Character.Create` çağırmak değildir; `CreateCharacterCommand` gönderir, entity’yi handler üretir. Derleyicinin Domain’i görmesi ile katmanın Domain’i sahiplenmesi aynı şey değil.
+
+Eski bir ASP.NET MVC projesinde çoğu zaman tek proje olurdu: controller, SQL, iş kuralı aynı yerde. Burada o karışıklığı baştan kestik.
 
 Eşleme: `HttpClient` ile başka bir API’ye istek atan bir .NET client, karşı tarafın `DbContext`’ini referans almaz; sözleşmeye bakar. Application katmanı da Infrastructure’ın somut EF sınıfını değil `IApplicationDbContext` sözleşmesini görür.
 
@@ -260,7 +264,11 @@ public interface IApplicationDbContext
 
 2 Temmuz’da bu arayüzde yalnızca `DbSet<Character> Characters` ve `SaveChangesAsync` vardı. `Users` 12 Temmuz’da, RBAC set’leri 20–21 Ağustos’ta, `RefreshTokens` 28 Ağustos’ta eklendi. Handler hâlâ sadece `Characters` kullanıyor; ekstra set’ler sonraki bölümlerin işi.
 
-Neden interface? Handler’ın `ApplicationDbContext`’e (Infrastructure sınıfı) bağlı kalmasını istemedik. Application projesi Infrastructure’a referans **vermez**; verse katman tersine dönerdi. Bunun bedeli: arayüz `DbSet` kullandığı için Application `Microsoft.EntityFrameworkCore` paketini alır. Tam bir repository arayüzü (`ICharacterRepository`) EF tipini Application’dan çıkarırdı; biz “DbContext’in ince arayüzü”nü seçtik. BattleArena referansındaki kalıp da buydu.
+Neden interface? Handler’ın `ApplicationDbContext`’e (Infrastructure sınıfı) bağlı kalmasını istemedik. `.csproj` içindeki `<ProjectReference>` şu anlama gelir: **bu proje, işaret ettiği projenin public tiplerini kullanabilir.** Application.csproj yalnızca Domain’e bakıyor; Infrastructure satırı yok. Infrastructure.csproj ise Application’a bakıyor — bu yüzden Infrastructure, Application’ın `IApplicationDbContext`’ini görür ve `class ApplicationDbContext : IApplicationDbContext` yazabilir.
+
+Tersini karıştırma: Application, Infrastructure’ın koduna erişemez. Handler `new ApplicationDbContext(...)` veya `using ReactBattleArena.Infrastructure.Persistence` yazamaz; derleyici projeyi görmez. İkisi birbirine referans verse döngü olur, `dotnet build` reddeder. Çalışma anında birbirine bağlayan Api’dir: `AddInfrastructure` somut sınıfı `IApplicationDbContext` olarak kaydeder, handler constructor’da arayüzü ister, DI aynı nesneyi verir.
+
+Bunun bedeli: arayüz `DbSet` kullandığı için Application `Microsoft.EntityFrameworkCore` paketini alır. Tam bir repository arayüzü (`ICharacterRepository`) EF tipini Application’dan çıkarırdı; biz “DbContext’in ince arayüzü”nü seçtik. BattleArena referansındaki kalıp da buydu.
 
 `DbSet<Character>` hem sorgu (`Where`, `ToListAsync`) hem `Add`/`Remove` için. `SaveChangesAsync` değişiklikleri SQL’e basar, etkilenen satır sayısını döner; Create handler o sayıyı kullanmaz, `entity.Id` döner.
 
@@ -465,3 +473,150 @@ Sık düşülen hata: handler’da `new Character { Name = ... }` (private ctor 
 #### Sonuçta ne kazandık
 
 Çalışan bir HTTP API değil; çalışan bir **iskelet**: dört katman kilitli, Character iş nesnesi, “ekle” komutu handler’da, SQL’de `Characters` tablosu. Kapıyı 7 Temmuz’da controller açacak.
+
+---
+
+### 2. 06 Temmuz — MediatR taraması, ValidationBehavior, `AddApplication`
+
+**Commit:** `fa09ee4` (6 Temmuz, “AddApplication - MediatR FluentValidation DI pipeline”).
+
+Bu adımda dosyaları şu sırayla ekledik. Önce `ValidationBehavior.cs`, çünkü 3 Temmuz’daki `CreateCharacterCommandValidator` duruyordu ama kimse onu `Send`’den önce çalıştırmıyordu. Sonra Application’da `DependencyInjection.AddApplication`: handler’ları ve validator’ları assembly taramasıyla DI’ya yazmak, behavior’ı pipeline’a takmak. En sonda `Program.cs`’e `AddApplication()` — bu çağrı olmasa diğer iki dosya derlenir, uygulama ayağa kalkınca hiç kayıt olmazdı. Hâlâ `CharactersController` yok; pipeline kuruldu, HTTP kapısı yarın (bölüm 3).
+
+#### `AddApplication` — üç kayıt, tek metot
+
+```1:25:ReactBattleArena/ReactBattleArena.Application/Common/DependencyInjection.cs
+using FluentValidation;
+using MediatR;
+using Microsoft.Extensions.DependencyInjection;
+using ReactBattleArena.Application.Common;
+using System.Reflection;
+
+namespace ReactBattleArena.Application;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddApplication(this IServiceCollection services)
+    {
+        // Application assembly'sindeki tüm IRequestHandler<,> implementasyonlarını tarar ve DI'a ekler.
+        // DeleteCharacterCommandHandler da burada kayıt olur — elle AddScoped yazmana gerek yok.
+        // İlgili handler yoksa Send çağrısında "handler bulunamadı" hatası alırsın.
+        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
+
+        // FluentValidation → Validator'ları bulur (CreateCharacterCommandValidator vb.)
+        services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+
+        // Pipeline → Her istekte validation çalışır (ValidationBehavior)
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+        return services;
+    }
+}
+```
+
+Dosya klasörü `Common/`, namespace ise `ReactBattleArena.Application`. Api `using ReactBattleArena.Application;` deyince `AddApplication()` görünür. `this IServiceCollection` extension olduğu için `builder.Services.AddApplication()` yazılır; Infrastructure’daki `AddInfrastructure` ile aynı kalıp.
+
+`Assembly.GetExecutingAssembly()` bu kodun derlendiği assembly’dir: Application. MediatR oradaki tüm `IRequestHandler<,>` sınıflarını bulur (`CreateCharacterCommandHandler` 2 Temmuz’dan beri oradaydı). FluentValidation `AbstractValidator<>` türeyenleri bulur. Yeni handler ekleyince bu metoda satır yazmazsın; tarama alır. Handler’ı unutup `Send` edersen çalışma anında “handler bulunamadı” dersin — derleme uyarısı yok.
+
+`typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>)` açık generic kayıttır: her `TRequest` / `TResponse` çifti için aynı behavior sınıfı. `CreateCharacterCommand` → `Guid` için de, sonra gelecek `GetCharactersQuery` için de bu tek satır yeter. `AddTransient` her `Send`’de yeni behavior örneği; hafif bir sınıf, scoped DbContext gibi istek boyu state tutmaz.
+
+6 Temmuz’daki dosyada bu üç çağrı vardı, yorumlar daha kısaydı. `DeleteCharacterCommandHandler` cümlesi 9 Temmuz’da eklendi (o handler henüz yoktu). O gün ayrıca kullanılmayan üç `using` vardı: `Characters.Commands`, `System.Runtime.ConstrainedExecution`, `static Microsoft.EntityFrameworkCore.DbLoggerCategory.Model` — IntelliSense’in yanlış tamamladığı izler; sonra silindi.
+
+#### Program.cs — kaydı gerçekten açmak
+
+```17:19:ReactBattleArena/ReactBattleArena.Api/Program.cs
+builder.Services.AddControllers();
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure(builder.Configuration);
+```
+
+3 Temmuz’da yalnızca `AddInfrastructure` vardı. 6 Temmuz’da `using ReactBattleArena.Application;` ve `AddApplication()` eklendi. Bugünkü `Program.cs` JWT, CORS, Scalar, seeder ile dolu; o satırlar sonraki bölümler. Bu iki çağrının sırası bu gün için önemli değil: ikisi de aynı `IServiceCollection`’a yazar. Eksik olan `AddApplication` olsaydı controller yarın `IMediator` isteyince DI patlardı; `AddInfrastructure` eksik olsaydı handler `IApplicationDbContext` isteyince patlardı.
+
+Eşleme: `Program.cs`’teki `builder.Services.AddXxx()` klasik ASP.NET Core DI kaydıdır. MVC’de `AddControllers` + belki `AddDbContext` tek projede dururdu. Burada Application kendi kaydını kendi assembly’sinde toplar; Api sadece “aç” der. Filter’ı her controller’a `[Validate]` yazmak yerine bir kez pipeline’a takmak gibi — ama HTTP’ye özel değil, her `IMediator.Send` için.
+
+#### ValidationBehavior — handler’dan önce
+
+```1:39:ReactBattleArena/ReactBattleArena.Application/Common/ValidationBehavior.cs
+using FluentValidation;
+using MediatR;
+
+namespace ReactBattleArena.Application.Common;
+
+public sealed class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+    where TRequest : notnull
+{
+    private readonly IEnumerable<IValidator<TRequest>> _validators;
+
+    public ValidationBehavior(IEnumerable<IValidator<TRequest>> validators)
+    {
+        _validators = validators;
+    }
+
+    public async Task<TResponse> Handle(
+        TRequest request,
+        RequestHandlerDelegate<TResponse> next,
+        CancellationToken cancellationToken)
+    {
+        if (!_validators.Any())
+            return await next();
+
+        var context = new ValidationContext<TRequest>(request);
+
+        var failures = _validators
+            .Select(v => v.Validate(context))
+            .SelectMany(r => r.Errors)
+            .Where(f => f != null)
+            .ToList();
+
+        if (failures.Count != 0)
+            throw new ValidationException(failures);
+
+        return await next();
+    }
+}
+
+//Ne yapar? Handler çalışmadan önce validator kurallarını çalıştırır; hata varsa ValidationException fırlatır.
+```
+
+Bu sınıf o günden bugüne **değişmedi**. `IPipelineBehavior<TRequest, TResponse>` MediatR’ın “`Send` ile handler arasına gir” sözleşmesi. `where TRequest : notnull` MediatR 12+ kısıtı; null command yok.
+
+Constructor `IEnumerable<IValidator<TRequest>>` ister. DI, o anki command tipi için kayıtlı validator’ları verir. Liste boş olabilir — `GetCharactersQuery` gibi validator’ı olmayan isteklerde `Any()` false olur, doğrudan `next()` çalışır. Tek `IValidator<TRequest>` isteseydin, validator yokken DI “servis bulunamadı” derdi. `IEnumerable` bu yüzden: sıfır, bir veya birden fazla.
+
+Görünmeyen mekanizma pipeline’dır. `IMediator.Send` bir koridordur; `ValidationBehavior` koridorun ilk odası, `next` sonraki oda (başka behavior varsa o, yoksa handler). `await next()` demezsen handler hiç çalışmaz — `Add` / `SaveChanges` da olmaz. Hata varsa `ValidationException` fırlatılır, `next()` çağrılmaz; boş isimle karakter INSERT edilmez.
+
+`Validate` burada senkron. `SelectMany` birden fazla validator’ın `Errors` listesini tek listeye indirir. `failures.Count != 0` ise exception. Bu exception henüz HTTP 400 değildir. 8 Temmuz’daki middleware (`FluentValidationExceptionMiddleware`) onu `ValidationProblemDetails` yapacak. 6 Temmuz’da endpoint de yok; exception tipi hazır, status kodu yok.
+
+#### Validator zaten vardı — şimdi bulunuyor
+
+```5:18:ReactBattleArena/ReactBattleArena.Application/Characters/Commands/CreateCharacterCommandValidator.cs
+public sealed class CreateCharacterCommandValidator : AbstractValidator<CreateCharacterCommand>
+{
+    public CreateCharacterCommandValidator()
+    {
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
+        RuleFor(x => x.Universe).NotEmpty().MaximumLength(120);
+        RuleFor(x => x.Biography).MaximumLength(2000);
+        RuleFor(x => x.Rarity).InclusiveBetween(1, 5);
+        RuleFor(x => x.BaseAttack).InclusiveBetween(0, 9999);
+        RuleFor(x => x.BaseDefense).InclusiveBetween(0, 9999);
+        RuleFor(x => x.BaseSpeed).InclusiveBetween(0, 9999);
+        RuleFor(x => x.ImageUrl).MaximumLength(500);
+    }
+}
+```
+
+3 Temmuz’da bu sınıf vardı; 6 Temmuz’da `AddValidatorsFromAssembly` onu `IValidator<CreateCharacterCommand>` olarak kaydeder. `Send(new CreateCharacterCommand(...))` olunca behavior `_validators` içinde bunu görür, `Name` boşsa `ValidationException` atar, handler’a düşmez.
+
+Eşleme: MVC’de `[Required]` + `ModelState.IsValid` action’ın başında durur, HTTP model binding’e bağlıdır. Burada kural command tipine bağlıdır. Aynı command’ı testte veya ileride bir background `Send` ile de çalıştırsan validator yine çalışır. Controller `if (!ModelState.IsValid) return BadRequest()` yazmaz; pipeline ortak.
+
+#### Bu kodu kim tetikliyor? (o gün: henüz HTTP yok)
+
+6 Temmuz’da `IMediator.Send` çağıran controller yok. Pipeline DI’da duruyor. 7 Temmuz’da `CharactersController.Create` `Send(CreateCharacterCommand)` deyince sıra şöyle olacak: controller → `Send` → `ValidationBehavior` → (geçerse) `CreateCharacterCommandHandler` → `SaveChanges`. 4 Ağustos’ta `CharacterCreatePage` `apiFetch('/api/characters', { method: 'POST' })` ile o controller’a gidecek; boş isim bu behavior’da takılacak, 8 Temmuz’dan sonra cevap 400 olacak.
+
+#### Bu adımda yapılan / kalan iz
+
+İlk `AddApplication` dosyasına yanlış `using`’ler yapışmıştı (`ConstrainedExecution`, `DbLoggerCategory`). Zararsız, derlemeyi bozmaz; “otomatik import’a güvenme” izi.
+
+Sık düşülen hata: `RegisterServicesFromAssembly`’ye Api assembly’sini vermek — handler’lar Application’dadır, tarama boş kalır, `Send` “handler yok” der. Bir diğeri: behavior’ı kaydedip `next()`’i unutmak — handler hiç çalışmaz. Bir diğeri: validator var sanıp `IValidator<T>` (tekil) inject etmek; query’lerde validator olmayınca uygulama ayağa kalkmaz.
+
+#### Sonuçta ne kazandık
+
+Handler ve validator artık “dosya olarak var” değil, uygulama açılınca bulunuyor ve her `Send` validator’dan geçiyor. HTTP cevabı ve endpoint hâlâ yok; iskelete **otomatik doğrulama koridoru** eklendi.

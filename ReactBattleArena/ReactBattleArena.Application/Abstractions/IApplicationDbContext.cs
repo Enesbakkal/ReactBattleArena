@@ -16,3 +16,9 @@ public interface IApplicationDbContext
     DbSet<RefreshToken> RefreshTokens { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
+
+//Neden interface? Handler’ın ApplicationDbContext’e (Infrastructure sınıfı) bağlı kalmasını istemedik.
+//.csproj içindeki <ProjectReference> şu anlama gelir: bu proje, işaret ettiği projenin public tiplerini kullanabilir.
+//Application.csproj yalnızca Domain’e bakıyor; Infrastructure satırı yok.
+//Infrastructure.csproj ise Application’a bakıyor — bu yüzden Infrastructure,
+//Application’ın IApplicationDbContext’ini görür ve class ApplicationDbContext : IApplicationDbContext yazabilir.
