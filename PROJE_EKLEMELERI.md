@@ -292,8 +292,8 @@ Yapılış sırası (back → back → … → front):
 - [x] Domain `RefreshToken` — `User` kalıbı; `TokenHash`; `Revoke`
 - [x] EF `RefreshTokenConfiguration` — kendi `Id`; `TokenHash` unique 64; User Cascade
 - [x] `IApplicationDbContext` + `ApplicationDbContext` `RefreshTokens`
-- [x] Migration `AddRefreshTokens` + `database update` (tablo boş)
-- [ ] Login: ham refresh cevapta, hash satırda
+- [x] Migration `AddRefreshTokens` + `database update`
+- [x] Login: ham refresh cevapta, hash satırda
 - [ ] `POST /api/auth/refresh` + rotation
 - [ ] React `api.ts` 401 yenileme
 
@@ -313,10 +313,9 @@ Yapılış sırası (back → back → … → front):
 
 ### Sıradaki
 
-- [ ] Login: refresh üret (hash DB, ham JSON)
+- [x] Login: refresh üret (hash DB, ham JSON)
 - [ ] `POST /api/auth/refresh` (eski revoke, yeni çift)
 - [ ] React: access bitince sessiz yenile (`api.ts`)
-- [ ] `REACT-OGRENIM` 26 Ağu altına okuma hali (eski satıra yazma)
 - [ ] Liste yükleme 3–4 sn gecikmesi (inceleme)
 - [ ] Login/Register UI’yi kilit palete boyama
 - [ ] Battle Arena backend
@@ -499,7 +498,11 @@ Yapılış sırası (back → back → … → front):
 - Ham token DB’de yok (`TokenHash`). Kendi `Id` (UserRole composite değil)
 - Config: `Persistence` yazımı, `RefreshTokens` çoğul, `OnDelete` noktalı virgül — yoksa build/ef patlar
 - `dotnet-ef` 10.0.5 vs runtime 10.0.9 uyarı; migration yine Done. Proje NuGet’i bu yüzden güncelleme
-- Login henüz satır yazmıyor
+- Login henüz satır yazmıyordu (29 Ağu’da yazdı)
+
+### 8 Eylül 2026
+
+- `REACT-OGRENIM-V2` bölüm 32–34 yazıldı. `POST /api/auth/refresh` kodu sıradaki iş (VS Code)
 
 ---
 

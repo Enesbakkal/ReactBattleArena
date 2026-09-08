@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 28 Ağustos 2026 — `RefreshTokens` tablosu var (entity + EF + `AddRefreshTokens`). Login henüz refresh yazmıyor. Permission hâlâ DB.
+Son güncelleme: 8 Eylül 2026 — `REACT-OGRENIM-V2` 34 bölüm. Login refresh yazıyor (29 Ağu). `POST /api/auth/refresh` henüz yok. Permission hâlâ DB.
 
 ## Yeni chat’e geçerken oku
 
@@ -65,8 +65,9 @@ Detay: `PROJE_MANTIGI.md`
   - [x] Create URL kapısı — `meLoaded` + `/me` + `Navigate` (`CharacterCreatePage`)
   - [x] Edit URL kapısı — `characters.update` (`CharacterEditPage`); Sanji listeye düşer
   - [x] `PermissionContext` + AppLayout `/me`; liste + Create/Edit/Detail `usePermissions`
-  - [x] RefreshToken Domain + EF + migration `AddRefreshTokens` (tablo boş; login yazmıyor)
-  - [ ] Login cevabına refresh + `POST /api/auth/refresh`
+  - [x] RefreshToken Domain + EF + migration `AddRefreshTokens`
+  - [x] Login cevabına refresh (hash DB, ham JSON)
+  - [ ] `POST /api/auth/refresh` + rotation
   - [ ] React: 401’de sessiz yenileme (`api.ts`)
 - [ ] Battle Arena backend
 

@@ -192,14 +192,13 @@ oldu.
 33. **29 Ağu** (`e45172e`) `IRefreshTokenGenerator` / `RefreshTokenGenerator`,
     login'in hash'i DB'ye ham token'ı cevaba koyması, `api.ts` +
     `LoginPage` `localStorage`
-34. **Henüz yazılmadı** `POST /api/auth/refresh` + `api.ts` 401'de sessiz yenileme.
-    Bu bölüm ancak kod yazıldıktan sonra yazılır.
+34. **8 Eyl** `POST /api/auth/refresh` + `api.ts` 401 — not yazıldı; kodu öğrenci sırayla yazacak.
 
 ## Bölüm durumu
 
 - [x] 1  - [x] 2  - [x] 3  - [x] 4  - [x] 5  - [x] 6  - [x] 7  - [x] 8  - [x] 9
-- [x] 10 - [x] 11 - [x] 12 - [ ] 13 - [ ] 14 - [ ] 15 - [ ] 16 - [ ] 17
-- [ ] 18 - [ ] 19 - [ ] 20 - [ ] 21 - [ ] 22 - [ ] 23 - [ ] 24 - [ ] 25
-- [ ] 26 - [ ] 27 - [ ] 28 - [ ] 29 - [ ] 30 - [ ] 31 - [ ] 32 - [ ] 33 - [ ] 34
+- [x] 10 - [x] 11 - [x] 12 - [x] 13 - [x] 14 - [x] 15 - [x] 16 - [x] 17
+- [x] 18 - [x] 19 - [x] 20 - [x] 21 - [x] 22 - [x] 23 - [x] 24 - [x] 25
+- [x] 26 - [x] 27 - [x] 28 - [x] 29 - [x] 30 - [x] 31 - [x] 32 - [x] 33 - [x] 34
 
 Bölüm bitince buradaki kutuyu işaretle.

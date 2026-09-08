@@ -2,7 +2,7 @@
 
 Bu dosya `REACT-OGRENIM.md` arşivinin yerine, baştan ileriye doğru yeniden yazılan öğrenim notudur. Eski dosyaya dokunulmaz. Bölümler `git log` sırasıyla gider: önce backend (2 Temmuz), sonra React, sonra RBAC, sonra refresh token.
 
-**İlerleme:** 12 / 34 yazıldı · **22 kaldı.**
+**İlerleme:** 34 / 34 yazıldı · **bitti.**
 
 ---
 
@@ -2400,3 +2400,3128 @@ Başarıda ekranda “hoş geldin” yoktu; token yazılıp listeye geçildi. S�
 #### Sonuçta ne kazandık
 
 Tarayıcı login oluyor, JWT 5173’te duruyor. Liste + Bearer sonraki saat (aynı commit, bölüm 13).
+
+---
+
+### 13. 30 Temmuz — `CharactersPage`, Bearer header, ilk `useEffect`
+
+**Commit:** `a2da116` (aynı 30 Temmuz commit’i; form bölüm 11, login `fetch` bölüm 12, bu bölüm liste).
+
+Bu adımda dosyaları şu sırayla ekledik. Önce `CharactersPage.tsx` — token çekmecede duruyordu ama kimse GET atmıyordu; login’den sonra bir ekran lazımdı. Sonra `App.tsx` içinde `isLoggedIn`: token yoksa Login, varsa liste. `useEffect(..., [])` sayfa ilk çizilince `load()` çalışsın diye. `Authorization: Bearer …` Scalar’daki Authorize kutusunun tarayıcı hali. Router, kart grid, `apiFetch` ve yetki kapısı o gün yoktu; hepsi sonra geldi.
+
+#### Neden bu sayfa?
+
+Bölüm 12 token’ı yazdı. Yazmak yetmez: bir sonraki istek header’da taşımazsa Api seni “login olmuş kullanıcı” saymaz. `GET /api/characters` o gün (ve bugün) controller’da `[Authorize]` yok — liste aslında tokensız da 200 döner. Bearer’ı yine koyduk, çünkü ertesi gün Admin `POST` zorunlu olacaktı; header’ı şimdi öğrenmek Scalar’a dönmekten kolaydı.
+
+#### O gün `App`, bugün `Routes`
+
+```10:21:web/src/App.tsx
+function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+
+      <Route element={<AppLayout />}>
+        <Route path="/characters" element={<CharactersPage />} />
+        <Route path="/characters/new" element={<CharacterCreatePage />} />
+        <Route path="/characters/:id/edit" element={<CharacterEditPage />} />
+        <Route path="/characters/:id" element={<CharacterDetailPage />} />
+      </Route>
+```
+
+30 Temmuz’da `Routes` yoktu. `App` şuna yakındı: `useState(() => !!localStorage.getItem('token'))` — `!!` token string ise `true`. `!isLoggedIn` ise `<LoginPage onLogin={() => setIsLoggedIn(true)} />`, değilse `<CharactersPage />`. Login başarısında `onLogin()` bu bayrağı kaldırıyordu; F5 atınca JS state ölür ama `localStorage` kalır, lazy initializer yine `true` der, liste açılır. URL hâlâ `/` idi. 3 Ağustos’ta gerçek path’ler geldi (bölüm 15); layout 9 Ağustos (bölüm 20).
+
+#### `CharacterRow` — JSON’un TypeScript yüzü
+
+```10:16:web/src/CharactersPage.tsx
+interface CharacterRow {
+  id: string
+  name: string
+  universe: string
+  rarity: number
+  imageUrl?: string | null
+}
+```
+
+30 Temmuz’da `imageUrl` yoktu; dört alan yetiyordu. Karşı taraf `CharacterRowDto`: `Id`, `Name`, `Universe`, `Rarity`, … `System.Text.Json` camelCase ile `id` / `name` yollar. Guid JSON’da string olur — bu yüzden `id: string`, `Guid` değil. `interface` derleme zamanı sözleşmesi; runtime’da `response.json()` yine `any` gibi gelir, yanlış alan yazarsan `undefined` görürsün, C# compiler gibi kızmaz.
+
+```19:21:ReactBattleArena/ReactBattleArena.Application/Characters/Queries/GetCharactersQuery.cs
+public sealed record PagedCharacterRowsResult(
+    IReadOnlyList<CharacterRowDto> Items,
+    int TotalCount);
+```
+
+Cevap `{ items: [...], totalCount: N }`. Liste `data.items`; `data` tek başına dizi değil. Razor’da `@Model.Items` ile aynı şekil, isim camelCase.
+
+#### `load` — GET + Bearer
+
+```62:72:web/src/CharactersPage.tsx
+  async function load() {
+    try{
+      const response = await apiFetch('/api/characters?page=1&pageSize=20')
+
+      if(!response.ok) {
+        setError('Karakterler Alınmadı')
+        return
+      }
+
+      const data = await response.json()
+      setItems(data.items)
+```
+
+Bugün `apiFetch` varsayılan `auth: true` ile `Authorization: Bearer ${getToken()}` basar (bölüm 12’deki `api.ts`). 30 Temmuz’da `load` `useEffect`’in *içindeydi* ve ham `fetch` vardı: `localStorage.getItem('token')` yoksa “Token yok — önce login ol”; varsa `headers: { Authorization: \`Bearer ${token}\` }` ve tam URL `https://localhost:7275/api/characters?page=1&pageSize=20`. `Bearer` ile token arasında boşluk unutulursa Api 401 görür. Query `page` / `pageSize` `GetCharactersQuery` + `Math.Clamp` (bölüm 4).
+
+```24:33:ReactBattleArena/ReactBattleArena.Api/Controllers/CharactersController.cs
+    [HttpGet]
+    [ProducesResponseType(typeof(PagedCharacterRowsResult), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PagedCharacterRowsResult>> GetPaged(
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 20,
+    CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(new GetCharactersQuery(page, pageSize), cancellationToken);
+        return Ok(result);
+    }
+```
+
+GET’te `[HasPermission]` yok. Login’siz de 200. Handler `AsNoTracking`, `Skip`/`Take`, `CharacterRowDto`. Eşleme: `HttpClient` `DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token)` sonra `GetFromJsonAsync`. Scalar’da Authorize’a JWT yapıştırıp GET denemek aynı header.
+
+`items` başlangıcı `useState<CharacterRow[]>([])` — ilk boyada liste boş, `load` bitince dolar. Bu yüzden ilk karede “veri yok” normal; hata değil.
+
+#### `useEffect` — sayfa durunca bir kez çalıştır
+
+```86:88:web/src/CharactersPage.tsx
+  useEffect(() => {
+    load()
+  }, [])
+```
+
+30 Temmuz’da `load` bu callback’in içinde tanımlıydı; 31 Temmuz’da (bölüm 14) dışarı alındı ki create sonrası tekrar çağrılsın. Bugün yine dışarıda: `useEffect` sadece `load()` der.
+
+`useEffect` görünmeyen bir kanca: fonksiyon body her render’da çalışır (JSX’i üretir); effect **çizimden sonra** çalışır. İkinci argüman `[]` “bağımlılık yok, yalnızca bu bileşen ilk kez ekrana konunca.” ASP.NET karşılığı: Razor Page `OnGetAsync` / Blazor `OnInitializedAsync` — sayfa açılınca bir kez sunucuya git. Fark: orada istek zaten sayfa isteğidir; burada 5173 HTML’i çoktan geldi, ikinci bir `fetch` Api’ye gider.
+
+`load()`’u JSX içinde, `map`’ten önce çıplak çağırsan her render’da yeni GET + `setItems` + yeni render döngüsü. `useEffect` o döngüyü keser. StrictMode geliştirmede effect’i iki kez koşturur — bölüm 19; 30 Temmuz’da iki Network satırı “bug” sanılabilirdi.
+
+#### Listeyi çizmek — `map` ve `key`
+
+```90:97:web/src/CharactersPage.tsx
+  return (
+    <div className="characters-page">
+      <div className="characters-page__header">
+        <h1>Karakterler</h1>
+        <div className="characters-page__actions">
+          {hasPermission(permissions, PERMISSIONS.charactersCreate) && (
+            <Link to="/characters/new">Karakter ekle</Link>
+          )}
+```
+
+`hasPermission && <Link>` 24 Ağustos (bölüm 28). 30 Temmuz’da bu kapı yoktu; herkes listeyi görüyordu, Ekle ayrı sayfa da yoktu.
+
+```104:118:web/src/CharactersPage.tsx
+      {error && <p>{error}</p>}
+      <div className="characters-grid">
+        {items.map((c) => (
+          <CharacterCard
+            key={c.id}
+            id= {c.id}
+            name={c.name}
+            universe={c.universe}
+            rarity={c.rarity}
+            imageUrl={c.imageUrl}
+          />
+        ))}
+      </div>
+    </div>
+  )
+```
+
+30 Temmuz’da header link, `hasPermission`, `CharacterCard` ve CSS grid yoktu. JSX şuydu: `<ul>{items.map((c) => <li key={c.id}>{c.name} — {c.universe} (rarity {c.rarity})</li>)}</ul>`. `map` C# `foreach`: her satır için bir eleman. `key={c.id}` React’e “bu DOM düğümü hangi kayda ait” der; index `key` silme/eklemede satırları karıştırır. `CharacterCard` 4 Ağustos (bölüm 16); yetki linki 24 Ağustos (bölüm 28). `{error && <p>}` login’deki aynı kalıp.
+
+#### Bu kodu kim tetikliyor?
+
+Login 200 + token → o gün `onLogin` → `CharactersPage` mount → effect → `GET /api/characters?page=1&pageSize=20` + Bearer → `GetPaged` → `GetCharactersQueryHandler` → `items` state → `map`. Network’te 5173’ten 7275’e giden istek; CORS 29 Temmuz’da açılmıştı.
+
+#### Bu adımda yapılan / kalan iz
+
+Sık düşülen hata: `data` dizidir sanıp `.map` — `data.items` lazım. Bir diğeri: `key` unutmak (console uyarısı). Bir diğeri: `http://localhost:7275` (https profili 7275 https). Bearer’ı koyup GET’in hâlâ tokensız da çalıştığını unutmak — “token çalışıyor” kanıtı asıl 31 Temmuz POST 201/403 (bölüm 14). `load`’u effect içinde bırakınca create sonrası listeyi yenilemek için fonksiyonu dışarı almak gerekti; o küçük taşıma ertesi gün.
+
+#### Sonuçta ne kazandık
+
+Login’den sonra karakter listesi 5173’te görünüyor; ilk `useEffect` ve Bearer header duruyor. Kayıt formu ve Admin ekleme 30–31 Temmuz (bölüm 14).
+
+---
+
+### 14. 30–31 Temmuz — `RegisterPage` ve Admin karakter ekleme, 403, liste yenileme
+
+**Commit’ler:** `25d6294` (30 Temmuz akşam, Register), `bc2ce5f` (31 Temmuz, create formu `CharactersPage` içinde).
+
+JWT login + liste vardı; yeni kullanıcı hâlâ Scalar’dan `POST /api/auth/register` atıyordu. Aynı akşam `RegisterPage` eklendi: Login’deki form kalıbı, token yok, başarıda girişe dönüş. Router yoktu — `App` içinde `authView: 'login' | 'register'`. Ertesi gün Admin’in `POST /api/characters` işi arayüze indi: form + Bearer, Player’da **403**, başarıda `await load()`. Form o gün listeyle aynı dosyadaydı; 4 Ağustos’ta `/characters/new` sayfasına taşındı (bölüm 16). Bugünkü kod o taşınmış hâli + `apiFetch`.
+
+#### Register — neden ayrı sayfa, neden token yok
+
+```7:14:web/src/RegisterPage.tsx
+function RegisterPage() {
+  const navigate = useNavigate()
+  const [userName, setUserName] = useState('')
+  const [email, setEmail] = useState('')
+  const [displayName, setDisplayName] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+```
+
+Login ile aynı controlled input fikri; dört alan `RegisterRequest` ile camelCase.
+
+```35:56:web/src/RegisterPage.tsx
+      const response = await apiFetch('/api/auth/register', {
+        method: 'POST',
+        auth: false,
+        body: {
+          userName,
+          email,
+          displayName: displayName || null,
+          password,
+        }
+      })  
+
+      if (!response.ok) {
+        setError('Kayıt başarısız (kullanıcı/email dolu veya validation)')
+        return
+      }
+
+      setSuccess('Kayıt OK — şimdi giriş yap')
+      navigate('/login')
+    } catch {
+      setError('API’ye ulaşılamadı (backend çalışıyor mu?)')
+    }
+  }
+```
+
+30 Temmuz’da `useNavigate` yoktu. Props: `onRegistered` ve `onBack`. `fetch` tam URL + `Content-Type` + `JSON.stringify`. Başarıda `onRegistered()` — parent `setAuthView('login')`. Token yazılmaz: backend `Created` + Guid döner, `LoginResult` değil (bölüm 7). `auth: false` login ile aynı gerekçe — henüz Bearer yok, varsayılan `apiFetch` token aramasın.
+
+`displayName: displayName || null` — kutu boşsa `""` değil `null`; `RegisterRequest.DisplayName` `string?`. İsimler C# `UserName` / `Email` / `Password` ile camelCase.
+
+```31:44:ReactBattleArena/ReactBattleArena.Api/Controllers/AuthController.cs
+    [AllowAnonymous]//Böylece ileride global [Authorize] eklesek bile login/register çalışır.
+    [HttpPost("register")]
+    [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<Guid>> Register(
+        [FromBody] RegisterRequest body,
+        CancellationToken cancellationToken = default)
+    {
+        var id = await _mediator.Send(
+            new RegisterCommand(body.UserName, body.Email, body.DisplayName, body.Password),
+            cancellationToken);
+
+        return Created($"/api/users/{id}", id);
+    }
+```
+
+`[AllowAnonymous]` global `[Authorize]` gelse bile kayıt açılsın diye (yorum satırı controller’da duruyor). Duplicate username/email 400 (bölüm 7); frontend hepsini tek cümlede toplar, `ValidationProblemDetails` ayrıştırmaz — kaba, o gün yeterli.
+
+Login’den kayıt linki bugün URL:
+
+```89:91:web/src/LoginPage.tsx
+      <p>
+        <Link to="/register">Kayıt ol</Link>
+      </p>
+```
+
+30 Temmuz’da `Link` yoktu. `LoginPage` `onGoRegister` alıyordu; `type="button"` “Kayıt ol” `setAuthView('register')` — `type="submit"` olsa form login’i de tetiklerdi. `RegisterPage` altındaki “Girişe dön” de `type="button"` + `onBack`. `authView` bir string state’ti, adres çubuğu değişmezdi. 3 Ağustos’ta `/register` gerçek route oldu (bölüm 15).
+
+#### 31 Temmuz — create formu ve `load`’un dışarı çıkması
+
+O gün form `CharactersPage.tsx` içindeydi: liste + “Yeni karakter (Admin)” aynı return. `load` `useEffect` içinden **component gövdesine** alındı; effect yalnızca `load()` çağırdı. Gerekçe: POST 201’den sonra aynı fonksiyonu `await load()` ile tekrar koşturmak. Effect içinde tanımlı fonksiyon dışarıdan çağrılamaz.
+
+Bugün aynı POST `CharacterCreatePage`’de. Liste ayrı route; create sonrası `loadPreview()` + `navigate('/characters')`.
+
+```99:137:web/src/CharacterCreatePage.tsx
+      const response = await apiFetch('/api/characters', {
+        method: 'POST',
+        body: {
+          name,
+          universe,
+          biography: biography || null,
+          rarity,
+          baseAttack,
+          baseDefense,
+          baseSpeed,
+          imageUrl: imageUrl || null,
+        },
+      })
+
+      if (response.status === 403) {
+        setFormError('Yetkin yok')
+        return
+      }
+
+      if (!response.ok) {
+        const problem = await response.json().catch(() => null)
+        const messages = problem?.errors
+            ? Object.values(problem.errors).flat().join(' | ')
+            : problem?.title ?? `Hata ${response.status}`
+        setFormError(String(messages))
+        return
+        }
+
+      setFormSuccess('Karakter eklendi')
+      setName('')
+      setUniverse('')
+      setBiography('')
+      setImageUrl('')
+      await loadPreview()
+      navigate('/characters')
+    } catch {
+      setFormError('API’ye ulaşılamadı')
+    }
+  }
+```
+
+31 Temmuz’da `apiFetch` yoktu: `fetch('https://localhost:7275/api/characters', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: \`Bearer ${token}\` }, body: JSON.stringify({...}) })`. 403 mesajı açıkça “Yetkin yok (Admin gerekli)”. Validation tek cümleydi (`Karakter eklenemedi`); `problem.errors` ayrıştırması sonra. Navigate yoktu — aynı sayfada `await load()`, `<ul>` yeni satırı gösterirdi. `rarity` / attack alanları `type="number"` + `Number(e.target.value)`: input her zaman string verir; C# `int` bekler, string kalırsa binder 400.
+
+```46:66:ReactBattleArena/ReactBattleArena.Api/Controllers/CharactersController.cs
+    [HasPermission(PermissionCodes.CharactersCreate)]  // POST
+    [HttpPost]
+    [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<Guid>> Create(
+        [FromBody] CreateCharacterRequest body,
+        CancellationToken cancellationToken = default)
+    {
+        var id = await _mediator.Send(
+            new CreateCharacterCommand(
+                body.Name,
+                body.Universe,
+                body.Biography,
+                body.Rarity,
+                body.BaseAttack,
+                body.BaseDefense,
+                body.BaseSpeed,
+                body.ImageUrl),
+            cancellationToken);
+
+        return Created($"/api/characters/{id}", id);
+    }
+```
+
+31 Temmuz’da attribute `[Authorize(Roles = Roles.Admin)]` idi (bölüm 9). Ağustos RBAC ile `HasPermission(CharactersCreate)` oldu (bölüm 26). Davranış Player için aynı: token geçerli, fiil yok → **403**. **401** = tanımıyorum (token yok/bozuk). **403** = tanıdım, bu POST’u yapamazsın. `fetch` 403’te throw etmez; `response.ok` false, `status === 403` ayrı dal.
+
+Test o gün: Admin login → Ekle → listede satır. Player token ile aynı form → 403. Rol değişince Local Storage `token` sil + yeniden login — eski JWT’de hâlâ eski `role` claim’i vardı.
+
+#### Bu kodu kim tetikliyor?
+
+Kayıt: 5173 form → `POST /api/auth/register` → `RegisterCommand` → 201 + Guid veya 400. Sonra login (bölüm 12). Ekleme: Admin Bearer → `POST /api/characters` → `CreateCharacterCommand` → 201; Player aynı body → 403. GET liste hâlâ herkese açık.
+
+#### Bu adımda yapılan / kalan iz
+
+Register: boş `displayName`’i `null` yapmamak. `type="submit"` ile “Girişe dön” — yanlış POST. Kayıt 201’de token bekleyip `data.token` okumak — cevap Guid. Create: `load`’u effect içinde bırakıp “ekledim ama liste duruyor”. Player ile denerken Admin token’ının durması — 201 gelir, 403 testi yalan olur. `Number(...)` unutunca rarity string gider. Formu gizlemeden Player’a göstermek o gün kasıtlıydı: 403’ü görmek için. UI gizleme ≠ yetki; asıl kapı API (bölüm 28’de link gizlenecek).
+
+#### Sonuçta ne kazandık
+
+Kayıt tarayıcıdan; Admin karakter ekliyor, Player 403 yiyor, başarıda liste yenileniyor. URL’li sayfalar ve Logout henüz yok (3 Ağustos, bölüm 15).
+
+---
+
+### 15. 03 Ağustos — react-router: `BrowserRouter`, `Routes`, `Link`, `useNavigate`, Logout
+
+**Commit:** `be629dd` (3 Ağustos).
+
+Bu adımda dosyaları şu sırayla değiştirdik. Önce `web` içinde `npm install react-router-dom` — URL’yi React’in dinlemesi için paket lazımdı. Sonra `main.tsx`’te `BrowserRouter` ile `App` sarıldı, çünkü `Routes` ancak bu sargının altında çalışır. Sonra `App.tsx`: `isLoggedIn` ve `authView` silindi, path → sayfa tablosu geldi (`/login`, `/register`, `/characters`). Login/Register props’larını (`onLogin`, `onGoRegister`, `onRegistered`) kaldırıp `useNavigate` + `Link` koyduk. `CharactersPage` token yoksa `<Navigate to="/login" />`, Çıkış token silip `/login`’e götürdü. Nested `AppLayout` / `<Outlet />` o gün yoktu (9 Ağustos, bölüm 20); çıkış butonu o yüzden önce liste sayfasındaydı.
+
+#### Neden router?
+
+30 Temmuz’da adres çubuğu hep `/` idi. Login mi Register mı `authView` state’i biliyordu; F5 veya link kopyalamak mümkün değildi. ASP.NET’te `MapControllers` + `[Route("api/[controller]")]` zaten path ile action seçer. SPA’de HTML tek (`index.html`); “hangi ekran”ı tarayıcı path’ine biz bağlarız. `authView` geçici bir `if` idi; router kalıcı adres.
+
+#### `BrowserRouter` — URL’yi kim dinler
+
+```7:13:web/src/main.tsx
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </StrictMode>,
+)
+```
+
+`BrowserRouter` görünmeyen kabuk: adres çubuğunu dinler, `App` içindeki `Routes`’a “şu an path bu” der. Tam sayfa yenilemez. Eşleme: Kestrel `UseRouting` + endpoint eşlemesi sunucuda olur; burada eşleme **5173’te, zaten yüklenmiş JS içinde**. F5 `/characters`’a basınca Vite yine `index.html` verir, React baştan ayağa kalkar, router path’i okur, `CharactersPage`’i seçer. Api’ye “HTML sayfası ver” demez; Api hâlâ JSON.
+
+Paket `web/package.json` içinde `react-router-dom`. O gün `npm install`; bugün `^7.18.2`.
+
+#### `Routes` — path tablosu
+
+```10:27:web/src/App.tsx
+function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+
+      <Route element={<AppLayout />}>
+        <Route path="/characters" element={<CharactersPage />} />
+        <Route path="/characters/new" element={<CharacterCreatePage />} />
+        <Route path="/characters/:id/edit" element={<CharacterEditPage />} />
+        <Route path="/characters/:id" element={<CharacterDetailPage />} />
+      </Route>
+
+      <Route path="/" element={<Navigate to="/characters" replace />} />
+      <Route path="*" element={<Navigate to="/characters" replace />} />
+    </Routes>
+  )
+}
+```
+
+3 Ağustos’ta `AppLayout`, create, detail, edit yoktu. Tablo şuydu: `/login`, `/register`, `/characters`, `/` ve `*` → `/characters`. `element={...}` o path eşleşince çizilecek bileşen. `Navigate` `replace` ile history’de `/` birikmesin diye; tarayıcı geri tuşu boş `/`’ye takılmaz.
+
+`*` bilinmeyen path (yazım hatası, eski yer imi). ASP.NET’te olmayan route genelde 404; burada kasıtlı olarak listeye düşürdük — ürün kararı, framework zorunluluğu değil.
+
+`AppLayout` sargısı 9 Ağustos: login/register layout’suz kalsın, karakter sayfaları ortak header alsın (bölüm 20). 3 Ağustos’ta `/characters` doğrudan `CharactersPage` idi.
+
+#### `Link` ve `useNavigate`
+
+```89:91:web/src/LoginPage.tsx
+      <p>
+        <Link to="/register">Kayıt ol</Link>
+      </p>
+```
+
+`<a href="/register">` tam belge ister (Vite `index.html` + React sıfırdan). `Link` aynı path değişimini **JS ile** yapar: form state gerekmez, login’deki yazdığın silinmez çünkü Login unmount olur ama SPA çökmez. Register’daki “Girişe dön” aynı şekilde `Link to="/login"`. 30 Temmuz’da bunlar `onGoRegister` / `onBack` callback’ti.
+
+```6:7:web/src/LoginPage.tsx
+function LoginPage() {
+  const navigate = useNavigate()
+```
+
+```54:57:web/src/LoginPage.tsx
+      const data = await response.json()
+      setToken(data.token)
+      setRefreshToken(data.refreshToken)
+      navigate('/characters')
+```
+
+`useNavigate` programatik geçiş: submit handler içinde “git”. `onLogin()` kalktı; parent’a sinyal yok, adres değişir, `Routes` `CharactersPage`’i seçer. `setRefreshToken` 29 Ağustos (bölüm 33); 3 Ağustos’ta yalnız token + `navigate`. Register başarıda `navigate('/login')` — hâlâ token yok.
+
+Hook kuralı: `useNavigate` fonksiyon bileşeninin gövdesinde, `if` dönüşünden **önce**. Router sargısı dışında çağırırsan patlar — bu yüzden `BrowserRouter` `main`’de en dışta.
+
+#### Logout — token sil, adresi login yap
+
+3 Ağustos’ta çıkış `CharactersPage` içindeydi: `localStorage.removeItem('token')` + `navigate('/login')`. Token yoksa aynı sayfada `return <Navigate to="/login" replace />`. Bugün her ikisi `AppLayout`’ta (liste, ekle, detay, edit ortak).
+
+```11:14:web/src/api.ts
+export function clearToken() {
+  localStorage.removeItem('token')
+  localStorage.removeItem('refreshToken')
+}
+```
+
+```52:55:web/src/AppLayout.tsx
+  function handleLogout() {
+    clearToken()
+    navigate('/login')
+  }
+```
+
+```69:75:web/src/AppLayout.tsx
+              <button
+                type="button"
+                className="app-header__logout"
+                onClick={handleLogout}
+              >
+                Çıkış
+              </button>
+```
+
+`type="button"` — header’da form yok ama alışkanlık: submit tetikleme. `clearToken` hem access hem refresh siler (refresh 29 Ağustos). 3 Ağustos’ta tek `removeItem('token')`.
+
+Eşleme: MVC’de `SignOut` cookie’yi düşürür. Burada sunucu session tablosu yok (JWT, bölüm 8). Token’ı tarayıcıdan silmek **yeni isteklerin** Bearer taşımamasıdır; eski JWT imzası süre dolana kadar teoride hâlâ geçerlidir — çalınmış token ayrı konu. Çıkış = çekmeceyi boşalt + `/login` çiz.
+
+```39:41:web/src/AppLayout.tsx
+  if (!token) {
+    return <Navigate to="/login" replace />
+  }
+```
+
+Guard: `/characters` açıldı, token yok → login. `replace` ile korumalı sayfa history’de kalmasın (geri tuşu yine boş listeye düşmesin). 3 Ağustos’ta bu `if` `CharactersPage`’in başındaydı; create/detail henüz yoktu.
+
+#### Bu kodu kim tetikliyor?
+
+Adres `/login` → `LoginPage` (Api yok). Giriş 200 → `navigate('/characters')` → GET liste (bölüm 13). `/register` → Register POST (bölüm 14). Çıkış → localStorage boş, `/login`. Backend’de yeni endpoint yok; değişen yalnızca 5173’ün hangi bileşeni çizdiği.
+
+#### Bu adımda yapılan / kalan iz
+
+Sık düşülen hata: `BrowserRouter`’ı unutup `useNavigate` — runtime hata. Bir diğeri: `Link` yerine `<a>` — F5 gibi yenilenir, yavaş ve state gider. Bir diğeri: `authView`’i silmeden router eklemek — iki kaynak, hangisi doğru belirsiz. Logout’ta token silmeden sadece `navigate('/login')` — F5’tе initializer yine listeye atardı (3 Ağustos’ta `isLoggedIn` kalkmıştı ama token duruyordu). Form hâlâ listeyle aynı sayfadaydı; URL `/characters` tek ekrandı.
+
+#### Sonuçta ne kazandık
+
+Login, kayıt, liste gerçek URL. Çıkış token’ı siler. Ertesi gün liste ile ekleme ayrıldı, kart grid geldi (bölüm 16).
+
+---
+
+### 16. 04 Ağustos — `CharacterCard`, CSS Grid, liste / ekle sayfası ayrımı
+
+**Commit:** `2aa6734` (4 Ağustos).
+
+Bu adımda dosyaları şu sırayla ekledik. Önce `CharacterCard.tsx` — listedeki `<li>` tekrarı kart olsun, props ile tek görünüm. Sonra `CharactersPage.css` içinde `.characters-grid` (`display: grid`); mega Grid component yok, yalnız Characters. Sonra form `CharactersPage`’den çıktı: `CharacterCreatePage.tsx` + route `/characters/new`. Liste sayfasında `Link` “Karakter ekle”; create’te form + altta aynı kartlarla önizleme, başarıda `navigate('/characters')`. `App.tsx`’e bir `Route` eklendi. Detay `/characters/:id` ertesi gün (bölüm 17); o yüzden kart o gün henüz `Link` değildi.
+
+#### Neden liste ve create ayrılsın?
+
+31 Temmuz’da form listenin üstündeydi: uzun, Player 403 görmek için oradaydı, ekran kalabalıktı. CRUD’da liste GET, create POST — iki iş, iki adres. ASP.NET’te de `GET /api/characters` ile `POST /api/characters` ayrı action; Scalar’da ayrı. Arayüzde `/characters` ve `/characters/new` aynı ayrım. “Tek mega Grid her listeye” yapmadık: Users tablosu ≠ karakter kartı; erken abstraction props cehennemi (öğrenim notundaki karar).
+
+#### `CharacterCard` — props ile tek görünüm
+
+```1:26:web/src/CharacterCard.tsx
+import { Link } from 'react-router-dom'
+
+interface CharacterCardProps {
+  id: string
+  name: string
+  universe: string
+  rarity: number
+  imageUrl?: string | null
+}
+
+function CharacterCard({ id, name, universe, rarity, imageUrl }: CharacterCardProps) {
+  return (
+      <Link to={`/characters/${id}`} className="character-card-link">
+        <article className="character-card">
+              {imageUrl ? (
+                <img src={imageUrl} alt={name} className="character-card__image" />
+              ) : (
+                <div className="character-card__placeholder">No image</div>
+              )}
+              <h3 className="character-card__name">{name}</h3>
+              <p className="character-card__meta">{universe}</p>
+              <p className="character-card__meta">Rarity {rarity}</p>
+            </article>
+      </Link>
+  )
+}
+```
+
+4 Ağustos’ta `id` ve `Link` yoktu: yalnız `name`, `universe`, `rarity`, `imageUrl`; kök `<article>`. 5 Ağustos’ta detay route gelince `id` zorunlu oldu, kart tıklanınca `/characters/${id}` (bölüm 17). `CharacterCreatePage` map’ine `id={c.id}` eklenmezse TS 2741 — o gün unutulursa derleme kızar.
+
+`imageUrl ? <img> : <div>No image</div>`: DTO `string?`; boşsa kırık resim ikonu yerine placeholder. `{condition ? A : B}` `&&` değil — iki taraftan biri mutlaka çizilir.
+
+Props = parent’ın verdiği parametre (Faz 0). Eşleme: Razor partial `_CharacterCard.cshtml` + model. Kartın kendisi `fetch` atmaz; `items`’ı sayfa yükler, kart sadece çizer.
+
+```105:116:web/src/CharactersPage.tsx
+      <div className="characters-grid">
+        {items.map((c) => (
+          <CharacterCard
+            key={c.id}
+            id= {c.id}
+            name={c.name}
+            universe={c.universe}
+            rarity={c.rarity}
+            imageUrl={c.imageUrl}
+          />
+        ))}
+      </div>
+```
+
+`key` hâlâ `c.id` (bölüm 13). Liste sayfasında form yok; header’da ekle linki:
+
+```90:97:web/src/CharactersPage.tsx
+  return (
+    <div className="characters-page">
+      <div className="characters-page__header">
+        <h1>Karakterler</h1>
+        <div className="characters-page__actions">
+          {hasPermission(permissions, PERMISSIONS.charactersCreate) && (
+            <Link to="/characters/new">Karakter ekle</Link>
+          )}
+```
+
+4 Ağustos’ta `hasPermission` yoktu; link herkese görünürdü, Player forma girip POST’ta 403 yerdi (bölüm 14’teki kasıt). Link gizleme 24 Ağustos (bölüm 28).
+
+#### CSS Grid — sütun sayısı ekrana göre
+
+```97:104:web/src/CharactersPage.css
+.characters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+```
+
+`display: grid` çocukları ızgaraya dizer. `minmax(180px, 1fr)`: sütun en az 180px, kalan boşluğu paylaş (`1fr`). `auto-fill` geniş ekranda daha çok sütun, daralınca az. Bootstrap/`DataGrid` şart değil. `CharactersPage.css` hem liste hem create tarafından `import` edilir — aynı class, iki sayfa.
+
+#### `/characters/new` — form taşındı
+
+```16:18:web/src/App.tsx
+      <Route element={<AppLayout />}>
+        <Route path="/characters" element={<CharactersPage />} />
+        <Route path="/characters/new" element={<CharacterCreatePage />} />
+```
+
+4 Ağustos’ta `AppLayout` yoktu; `/characters/new` düz `Route` idi, `/characters` ile kardeş. POST gövdesi bölüm 14’teki `handleCreate`; başarıda artık `await load()` yetmez çünkü liste başka sayfada — `navigate('/characters')` (bugün `loadPreview` + navigate).
+
+```151:156:web/src/CharacterCreatePage.tsx
+  return (
+    <div className="characters-page">
+      <div className="characters-page__header">
+        <h1>Karakter ekle</h1>
+        <Link to="/characters">Listeye dön</Link>
+      </div>
+```
+
+```238:253:web/src/CharacterCreatePage.tsx
+      <h2>Mevcut karakterler</h2>
+      <p className="characters-hint">
+        Şimdilik önizleme (sık kullanılanlar backend sonra). Aynı kart grid.
+      </p>
+      <div className="characters-grid">
+        {items.map((c) => (
+          <CharacterCard
+            key={c.id}
+            id={c.id}
+            name={c.name}
+            universe={c.universe}
+            rarity={c.rarity}
+            imageUrl={c.imageUrl}
+          />
+        ))}
+      </div>
+```
+
+Alt grid kasıtlı önizleme: “sık kullanılan” backend’i yoktu, mevcut sayfa 1 listesi duruyor. Aynı `CharacterCard` — iki yerde aynı görünüm görünce ortak component çıkarma kuralına uyduk (2. tekrar).
+
+`/characters/new` statik path. Yarın `/characters/:id` eklenince **sıra** önemli: `new` `:id`’den önce durmazsa React `id = "new"` sanır, Guid parse patlar (bölüm 17). 4 Ağustos’ta `:id` olmadığı için bu tuzak henüz yoktu.
+
+#### Bu kodu kim tetikliyor?
+
+`/characters` → GET liste → kart grid. `/characters/new` → (token guard) form; Ekle → `POST /api/characters` (bölüm 14) → 201 veya 403 → listeye dön. Backend’e yeni action yok; yeni olan 5173 route ve CSS.
+
+#### Bu adımda yapılan / kalan iz
+
+Sık düşülen hata: grid’i `CharactersPage.css`’e yazıp create sayfasında `import` unutmak — kartlar alt alta. Bir diğeri: `map`’te `CharacterCard`’a `key` vermek ama `id` prop’unu unutmak (detay günü). Bir diğeri: form state’ini liste sayfasında bırakıp route eklemek — iki kaynak. 400’de `errors` (Name/Universe, Rarity 1–5, ImageUrl max 500) create sayfasında gösterilmeye başlandı; 31 Temmuz’daki tek cümleden netleşti.
+
+#### Sonuçta ne kazandık
+
+Katalog kart grid; ekleme ayrı URL. Sonraki gün detay `/characters/:id` + `useParams` (bölüm 17).
+
+---
+
+### 17. 05 Ağustos — Detay `/characters/:id`, `useParams`, `&&` ile koşullu render
+
+**Commit:** `fd511ca` (5 Ağustos).
+
+Bu adımda dosyaları şu sırayla ekledik. Önce `CharacterDetailPage.tsx` — listede yalnız özet vardı (`CharacterRow`); biyografi, stat, `createdAtUtc` `GET /api/characters/{id}` ile geliyor (`CharacterDetailDto`, bölüm 4). Sonra `App.tsx`’e `/characters/:id`. `new` route **üstte** durdu; yoksa `id` değeri `"new"` olur, Guid parse / 404. `CharacterCard` `id` prop + `Link` aldı; liste ve create `map`’ine `id={c.id}` (TS 2741). JSX’te `{loading && …}` / `{error && …}` / `{character && (…)}` aynı gün oturdu. Sil ve Düzenle ertesi gün (bölüm 18).
+
+#### `useParams` — URL’deki delik
+
+```22:23:web/src/CharacterDetailPage.tsx
+function CharacterDetailPage() {
+  const { id } = useParams<{ id: string }>()
+```
+
+`App`’te path `/characters/:id`. `:id` şablon deliği; gerçek adres `/characters/3fa8…` ise `id` o string. Eşleme: `[HttpGet("{id:guid}")] GetById(Guid id)` — sunucu route’tan Guid bağlar. React tarafında parametre **her zaman string** (veya yoksa `undefined`); Guid’e çevirmeyiz, URL’ye olduğu gibi basarız. `useParams<{ id: string }>()` TypeScript’e “bu key bekleniyor” der; runtime hâlâ router’ın verdiği nesne.
+
+```35:44:ReactBattleArena/ReactBattleArena.Api/Controllers/CharactersController.cs
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType(typeof(CharacterDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<CharacterDetailDto>> GetById(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(new GetCharacterByIdQuery(id), cancellationToken);
+        return result is null ? NotFound() : Ok(result);
+    }
+```
+
+`{id:guid}` constraint: `"new"` Guid değil → ASP.NET bu action’a düşmez (404). Asıl koruma yine React tarafında `/characters/new`’in ayrı route olması: Detail hiç mount olmasın.
+
+```5:15:ReactBattleArena/ReactBattleArena.Application/Characters/Queries/GetCharacterByIdQuery.cs
+public sealed record GetCharacterByIdQuery(Guid Id) : IRequest<CharacterDetailDto?>;
+public sealed record CharacterDetailDto(
+    Guid Id,
+    string Name,
+    string Universe,
+    string? Biography,
+    int Rarity,
+    int BaseAttack,
+    int BaseDefense,
+    int BaseSpeed,
+    string? ImageUrl,
+    DateTime CreatedAtUtc);
+```
+
+Liste DTO’su (`CharacterRowDto`) özet; detayda `Biography` + `CreatedAtUtc`. JSON’da `createdAtUtc` string (ISO). Handler `FirstOrDefaultAsync` → yoksa `null` → 404.
+
+#### Route sırası — `new` `:id`’den önce
+
+```16:21:web/src/App.tsx
+      <Route element={<AppLayout />}>
+        <Route path="/characters" element={<CharactersPage />} />
+        <Route path="/characters/new" element={<CharacterCreatePage />} />
+        <Route path="/characters/:id/edit" element={<CharacterEditPage />} />
+        <Route path="/characters/:id" element={<CharacterDetailPage />} />
+      </Route>
+```
+
+5 Ağustos’ta `AppLayout` ve `:id/edit` yoktu: `/characters`, `/characters/new`, `/characters/:id`. Statik `new`, dinamik `:id`’den önce yazıldı. Router çoğu sürümde daha spesifik path’i zaten öne alır; yine de `new`’i üstte tutmak alışkanlık. `:id/edit` 6 Ağustos; bugün `:id`’den **önce** (bölüm 18).
+
+#### Kart tıklanınca detay
+
+```11:13:web/src/CharacterCard.tsx
+function CharacterCard({ id, name, universe, rarity, imageUrl }: CharacterCardProps) {
+  return (
+      <Link to={`/characters/${id}`} className="character-card-link">
+```
+
+4 Ağustos’ta kart `Link` değildi (bölüm 16). Template string: `` `/characters/${id}` `` — C# `$"/characters/{id}"`. Liste `GET` paging; detay ayrı `GET` by id. Kart `fetch` atmaz.
+
+```9:20:web/src/CharacterDetailPage.tsx
+interface CharacterDetail {
+  id: string
+  name: string
+  universe: string
+  biography?: string | null
+  rarity: number
+  baseAttack: number
+  baseDefense: number
+  baseSpeed: number
+  imageUrl?: string | null
+  createdAtUtc: string
+}
+```
+
+`useState<CharacterDetail | null>(null)`: daha gelmedi veya 404. `loading` başlangıç `true` — ilk karede boş kart yok, “Yükleniyor…”.
+
+```56:72:web/src/CharacterDetailPage.tsx
+        const response = await apiFetch(`/api/characters/${id}`)
+
+        if (response.status === 404) {
+          setError('Karakter bulunamadı')
+          setCharacter(null)
+          setLoading(false)
+          return
+        }
+
+        if (!response.ok) {
+          setError('Karakter alınamadı')
+          setLoading(false)
+          return
+        }
+
+        const data = await response.json()
+        setCharacter(data)
+```
+
+5 Ağustos’ta ham `fetch` + Bearer + tam URL. 404’ü genel `!ok`’dan ayırmak: silinmiş / yanlış Guid ayrı cümle. `setCharacter(data)` — liste gibi `data.items` yok; gövde tek nesne.
+
+```87:88:web/src/CharacterDetailPage.tsx
+    load()
+  }, [id, token])
+```
+
+Liste `[]` idi (bölüm 13): sayfa bir kez. Burada `id` değişince (başka karta tıklamak, SPA unmount olmayabilir) yeni GET. `token` da: login sonrası. Derinlemesine bağımlılık dizisi bölüm 19.
+
+#### `&&` — koşul doğruysa sağdakini çiz
+
+```160:164:web/src/CharacterDetailPage.tsx
+      {loading && <p>Yükleniyor…</p>}
+      {error && <p>{error}</p>}
+      {deleteError && <p>{deleteError}</p>}
+
+      {character && (
+```
+
+JSX `{…}` içi JavaScript ifadesi. `A && B`: A falsy ise sonuç A (React `false` / `""` / `null` çizmez); A truthy ise sonuç B. `{error && <p>{error}</p>}` — boş string falsy, paragraf yok; doluysa kırmızı cümle. `{character && ( <article>…` — `null` iken article yok; gelince detay. Login’deki `{error && …}` aynı kalıp (bölüm 11).
+
+`deleteError` 6 Ağustos (bölüm 18); 5 Ağustos’ta yoktu.
+
+```182:182:web/src/CharacterDetailPage.tsx
+          {character.biography && <p>{character.biography}</p>}
+```
+
+Biyografi `null`/boşsa o `<p>` hiç yok. Resim `? :` (bölüm 16): iki taraftan biri mutlaka (img veya placeholder). `&&` “yoksa hiçbir şey”; ternary “ya bu ya şu”.
+
+`if (character) { return <article> }` de olurdu; `&&` aynı işi JSX içinde, erken `return` olmadan.
+
+#### Bu kodu kim tetikliyor?
+
+Kart `Link` → `/characters/{guid}` → `CharacterDetailPage` mount → effect → `GET /api/characters/{id}` → `GetById` → `GetCharacterByIdQueryHandler` → 200 DTO veya 404. Backend 5 Ağustos’ta yeni yazılmadı; endpoint Temmuz’dan beri vardı (bölüm 4).
+
+#### Bu adımda yapılan / kalan iz
+
+Sık düşülen hata: `/characters/:id`’yi `new`’in **üstüne** koymak — create sayfası detay sanılır, `id === "new"`, API 404. Bir diğeri: `data.items` beklemek — detay dizi değil. Bir diğeri: `{character.name}` demek `character` hâlâ `null` iken — `&&` veya optional chaining olmadan patlar. `key` var `id` prop yok → TS 2741 create map’te; 6 Ağustos commit’inde create’e `id={c.id}` eklendi.
+
+#### Sonuçta ne kazandık
+
+Kart → detay URL → tek karakter GET. `useParams` ve `&&` duruyor. Ertesi gün PUT / DELETE aynı `id` üzerinden (bölüm 18).
+
+---
+
+### 18. 06 Ağustos — Edit (PUT 204) ve Delete (`confirm`), `useState` başlangıç değerleri
+
+**Commit:** `c917f83` (6 Ağustos).
+
+Bu adımda dosyaları şu sırayla ekledik. Önce `CharacterEditPage.tsx`: aynı `id` ile **önce GET** (formu doldur), Kaydet’te **PUT**, 204’te `response.json()` yok, `navigate` detaya. `App.tsx` `/characters/:id/edit`. Detay header’a “Düzenle” `Link` + “Sil” (`window.confirm` → `DELETE` → 204 → liste). `CharacterCreatePage` map’ine `id={c.id}` (dün kart `id` zorunlu olmuştu). `useState(10)` / `useState(1)` “üzerine yazar mı?” aynı gün netleşti: hayır, GET `setBaseAttack(data.baseAttack)` yazar. Yetki kapısı (`hasPermission` + Navigate) Ağustos sonu (bölüm 29); o gün form herkese, API 403.
+
+#### Edit route — daha spesifik olan önce
+
+```19:20:web/src/App.tsx
+        <Route path="/characters/:id/edit" element={<CharacterEditPage />} />
+        <Route path="/characters/:id" element={<CharacterDetailPage />} />
+```
+
+6 Ağustos commit’inde sıra tersineydi (`:id` sonra `:id/edit`). Segment sayısı farklı olduğu için ikisi de çalışır; yine de `…/edit` üstte alışkanlık. `useParams` edit’te de aynı `id`.
+
+Detaydan geçiş: `Link to={\`/characters/${id}/edit\`}`. Bugün `hasPermission(..., charactersUpdate)` ile gizlenir (bölüm 28); 6 Ağustos’ta link herkese görünürdü.
+
+#### `useState(10)` iskelet, GET asıl değer
+
+```15:22:web/src/CharacterEditPage.tsx
+  const [name, setName] = useState('')
+  const [universe, setUniverse] = useState('')
+  const [biography, setBiography] = useState('')
+  const [rarity, setRarity] = useState(1)
+  const [baseAttack, setBaseAttack] = useState(10)
+  const [baseDefense, setBaseDefense] = useState(10)
+  const [baseSpeed, setBaseSpeed] = useState(10)
+  const [imageUrl, setImageUrl] = useState('')
+```
+
+`useState(10)` **yalnız ilk render**. “Kayıtlı attack 100 ise 10 mu kalır?” Hayır. Effect GET bitince setter’lar gerçek DTO’yu koyar. Create’te GET yok; oradaki 10/1 kullanıcının başlangıç rakamı, kasıtlı default.
+
+```67:75:web/src/CharacterEditPage.tsx
+        const data = await response.json()
+        setName(data.name)
+        setUniverse(data.universe)
+        setBiography(data.biography ?? '')
+        setRarity(data.rarity)
+        setBaseAttack(data.baseAttack)
+        setBaseDefense(data.baseDefense)
+        setBaseSpeed(data.baseSpeed)
+        setImageUrl(data.imageUrl ?? '')
+```
+
+`?? ''`: `biography` / `imageUrl` null ise controlled input `value={null}` olmasın diye boş string. Aynı GET detaydaki `GetById`; edit **ikinci** bir istek atar, liste state’ini paylaşmaz (Context yoktu).
+
+```181:182:web/src/CharacterEditPage.tsx
+      {!loading && !loadError && (
+        <form className="characters-form" onSubmit={handleSubmit}>
+```
+
+Form yüklenene kadar gizli: kullanıcı 10’u bir kare bile görmez. `loading` true iken üstte ayrıca erken `return <p>Yükleniyor…</p>` var (164–166) — iki katman; ikincisi (`{loading &&` satır 178) pratikte o early return yüzünden pek görünmez. 6 Ağustos’ta kapı sırası sade load/error/form’du; `hasPermission` Navigate sonradan eklendi (bölüm 29).
+
+```161:169:web/src/CharacterEditPage.tsx
+  if (!token) {
+  return <Navigate to="/login" replace />
+  }
+  if (loading) {
+    return <p>Yükleniyor…</p>
+  }
+  if (!hasPermission(permissions, PERMISSIONS.charactersUpdate)) {
+    return <Navigate to="/characters" replace />
+  }
+```
+
+Hook’lar (`useEffect`, `useState`) bu `if`’lerden **önce** — kurallar. 6 Ağustos’ta permission `if`’i yoktu.
+
+#### PUT 204 — body yok, `json()` çağırma
+
+```116:128:web/src/CharacterEditPage.tsx
+      const response = await apiFetch(`/api/characters/${id}`, {
+        method: 'PUT',
+        body: {
+          name,
+          universe,
+          biography: biography || null,
+          rarity,
+          baseAttack,
+          baseDefense,
+          baseSpeed,
+          imageUrl: imageUrl || null,
+        },
+      })
+```
+
+Gövde `CreateCharacterRequest` ile aynı şekil (bölüm 5). 6 Ağustos’ta `JSON.stringify` + `Content-Type` + Bearer elle.
+
+```130:155:web/src/CharacterEditPage.tsx
+      if (response.status === 401) {
+        setFormError('Oturum yok — tekrar giriş yap')
+        return
+      }
+
+      if (response.status === 403) {
+        setFormError('Yetkin yok')
+        return
+      }
+
+      if (response.status === 404) {
+        setFormError('Karakter bulunamadı')
+        return
+      }
+
+      if (!response.ok) {
+        const problem = await response.json().catch(() => null)
+        const messages = problem?.errors
+          ? Object.values(problem.errors).flat().join(' | ')
+          : problem?.title ?? `Hata ${response.status}`
+        setFormError(String(messages))
+        return
+      }
+
+      // 204 No Content — body yok; json() çağırma
+      navigate(`/characters/${id}`)
+```
+
+**204** = başarı, gövde boş. `response.json()` boş body’de throw / parse hatası. Create 201 Guid döner, `json()` vardır; update’de yoktur. Eşleme: `NoContent()`.
+
+```69:93:ReactBattleArena/ReactBattleArena.Api/Controllers/CharactersController.cs
+    [HasPermission(PermissionCodes.CharactersUpdate)]  // PUT
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Update(
+    Guid id,
+    [FromBody] CreateCharacterRequest body,
+    CancellationToken cancellationToken = default)
+    {
+        var updated = await _mediator.Send(
+            new UpdateCharacterCommand(
+                id,
+                body.Name,
+                body.Universe,
+                body.Biography,
+                body.Rarity,
+                body.BaseAttack,
+                body.BaseDefense,
+                body.BaseSpeed,
+                body.ImageUrl),
+            cancellationToken);
+
+        return updated ? NoContent() : NotFound();
+    }
+```
+
+6 Ağustos’ta `[Authorize(Roles = Admin)]`. Handler `false` → 404 (id yok). Validation 400 → `errors` birleştirilir. Player PUT → 403.
+
+`handleSubmit` `useEffect` içinde değil: Kaydet tıklanınca. Effect yalnız load (bölüm 19 ile karıştırma).
+
+#### Delete — `confirm`, sonra DELETE
+
+```94:98:web/src/CharacterDetailPage.tsx
+  async function handleDelete() {
+    if (!id || !token) return
+
+    const ok = window.confirm('Bu karakteri silmek istediğine emin misin?')
+    if (!ok) return
+```
+
+`confirm` iptalde `false` — istek yok. `handleDelete` sayfa fonksiyonunun **içinde**; ayrı dosya / `useEffect` değil. Bugün tanım, token yoksa `Navigate` **sonrasında** — o render’da Sil butonu zaten çizilmez.
+
+```113:137:web/src/CharacterDetailPage.tsx
+      const response = await apiFetch(`/api/characters/${id}`, {
+        method: 'DELETE',
+      })
+
+      if (response.status === 401) {
+        setDeleteError('Oturum yok — tekrar giriş yap')
+        return
+      }
+
+      if (response.status === 403) {
+        setDeleteError('Yetkin yok (Admin gerekli)')
+        return
+      }
+
+      if (response.status === 404) {
+        setDeleteError('Karakter bulunamadı')
+        return
+      }
+
+      if (!response.ok) {
+        setDeleteError(`Silinemedi (${response.status})`)
+        return
+      }
+
+      navigate('/characters')
+```
+
+204 → liste. 401/403/404 ayrı `deleteError`; detay `error` (GET) ile karışmasın. Sil butonu `type="button"` — form yok ama alışkanlık.
+
+```95:107:ReactBattleArena/ReactBattleArena.Api/Controllers/CharactersController.cs
+    [HasPermission(PermissionCodes.CharactersDelete)]  // DELETE
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        // Controller command'ı Send ile yollar → MediatR tipine bakar → IRequestHandler'ı DI'dan alır → Handle çalıştırır.
+        // Gelen tip: DeleteCharacterCommand → aranan: IRequestHandler<DeleteCharacterCommand, bool> → bulunan: DeleteCharacterCommandHandler
+        var deleted = await _mediator.Send(new DeleteCharacterCommand(id), cancellationToken);
+        return deleted ? NoContent() : NotFound();
+    }
+```
+
+Yine Temmuz’daki komut (bölüm 5); 6 Ağustos’ta arayüz bağlandı. Attribute o gün Role, bugün permission.
+
+Frontend CRUD o gün kapandı: liste, create, detay, edit, sil.
+
+#### Bu kodu kim tetikliyor?
+
+Düzenle: `/characters/{id}/edit` → GET detay DTO → form state → PUT → `UpdateCharacterCommand` → 204 veya 400/403/404 → `navigate` detaya. Sil: confirm → DELETE → `DeleteCharacterCommand` → 204 → `/characters`.
+
+#### Bu adımda yapılan / kalan iz
+
+Sık düşülen hata: PUT 204’te `await response.json()`. Bir diğeri: `useState(10)`’un “kalıcı default” sanılması. Bir diğeri: `biography` null iken `value={biography}` — React uyarısı; `?? ''`. Player ile Kaydet/Sil 403 — beklenen. `handleSubmit`’i effect’e koymak — her id değişiminde PUT. Create map’te `id` unutulursa kart derlenmez.
+
+#### Sonuçta ne kazandık
+
+Katalog tam CRUD arayüzde: GET by id, PUT 204, DELETE + confirm. `useEffect` bağımlılık dizisi ve StrictMode bir sonraki not (bölüm 19).
+
+---
+
+### 19. 06 Ağustos sonrası — `useState` / `useEffect` derinlemesine: bağımlılık dizisi, StrictMode, `setLoading`
+
+**Commit yok** (6 Ağustos CRUD notlarının devamı; yeni dosya eklenmedi).
+
+Bu adımda kod yazmadık; 17–18’deki `CharacterDetailPage` / `CharacterEditPage` kalıbını durup parçaladık. Sıra şöyleydi. Önce `useState(true)` + `setLoading`: React mi biz mi, `loading` diye sihirli bir kelime var mı. Sonra `useEffect` gövdesi: render UI üretir, GET **çizimden sonra**. Sonra ikinci argüman `[id, token]` versus listenin `[]`. Sonra “`load()` kendini mi çağırıyor?” ve `handleSubmit`’in effect’te olmaması. En sonda `main.tsx` `StrictMode`: geliştirmede effect iki kez. Bugünkü kod `apiFetch` ve `getToken`; 6 Ağustos’ta sayfalar hâlâ ham `fetch` + `localStorage.getItem('token')` idi. Davranış aynı.
+
+#### `loading` / `setLoading` — kim ne üretir
+
+```29:32:web/src/CharacterDetailPage.tsx
+  const [character, setCharacter] = useState<CharacterDetail | null>(null)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [deleteError, setDeleteError] = useState('')
+```
+
+```24:26:web/src/CharacterEditPage.tsx
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [formError, setFormError] = useState('')
+```
+
+`useState` React’ten gelir (`import { useState } from 'react'`). `loading` bizim seçtiğimiz **değişken adı** — `isLoading` de olurdu; React “loading” diye bir kavram dayatmaz. `setLoading` React’in ürettiği setter; isim kuralı `set` + state adı. `true` bizim başlangıç: ilk boyada “Yükleniyor…” görülsün, boş kart/form bir kare parlamasın.
+
+`setLoading` otomatik çağrılmaz. GET başında `setLoading(true)`, bitince `false` **biz** deriz. ASP.NET’te de `ViewBag` / Razor “yükleniyor” bayrağı framework doldurmaz; sen koyarsın. `fetch`’in kendisi `loading` state’i yok.
+
+Edit’te `useState(10)` iskeleti bölüm 18’de kaldı: ilk render, GET `setBaseAttack(data.baseAttack)` üzerine yazar. Create’te GET yok; 10 orada kullanıcı default’u.
+
+#### `useEffect` — çizimden sonra yan etki
+
+```35:45:web/src/CharacterDetailPage.tsx
+  useEffect(() => {
+    async function load() {
+      if (!token || !id) {
+        setError('Id veya token yok')
+        setLoading(false)
+        return
+      }
+
+      setLoading(true)
+      setError('')
+```
+
+```80:88:web/src/CharacterDetailPage.tsx
+      } catch {
+        setError('API’ye ulaşılamadı')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    load()
+  }, [id, token])
+```
+
+Bileşen fonksiyonu her render’da çalışır ve JSX üretir. `useEffect`’e verdiğin fonksiyon **boya bittikten sonra** çalışır. Tek benzetme: kurye, paket (HTML) kapıya dayandıktan sonra yola çıkar — GET, abonelik, `document.title`. Render’ın işi ekranı tarif etmek; “gidip 7275’ten JSON al” yan etkidir, gövdeye çıplak yazılırsa her `setCharacter` yeni render + yeni GET döngüsü.
+
+ASP.NET karşılığı Razor Page `OnGetAsync` / controller action: orada sayfa isteği **zaten** o GET’tir; HTML sunucuda üretilir. Burada Vite `index.html` + JS çoktan geldi; ikinci bir `fetch` Api’ye gider. Blazor `OnInitializedAsync` zamansal olarak daha yakın: bileşen durdu, sonra veri.
+
+`async function load()` effect **içinde** yardımcı. Recursive değil: `load` kendini çağırmaz. Akış: effect çalıştı → `load` tanımlandı → `load()` bir kez → bitti. `finally` hem 200 hem catch’te `setLoading(false)` — 404 dallarında ayrıca `false` var; çift çağrı zararsız.
+
+```86:88:web/src/CharactersPage.tsx
+  useEffect(() => {
+    load()
+  }, [])
+```
+
+Liste `[]`: bağımlılık yok, yalnız **ilk mount**. Detay/edit `[id, token]`: ilk mount **ve** `id` veya `token` değişince. Aynı `CharacterDetailPage` açıkken karttan başka Guid’e `Link` (SPA bazen sayfayı unmount etmeden param değiştirir) yeni GET ister. `[]` kalsaydı URL değişir, ekran eski karakterde kalırdı.
+
+`handleSubmit` / `handleDelete` effect’te değil. Kaydet ve Sil tıklanınca çalışır (`onSubmit` / `onClick`). Effect otomatik load; submit kullanıcı kapısı. İkisini karıştırmak: her `id` değişiminde PUT.
+
+#### StrictMode — geliştirmede iki kez
+
+```7:12:web/src/main.tsx
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </StrictMode>,
+```
+
+`<StrictMode>` production davranışı değil; geliştirmede effect’i **mount → cleanup → tekrar mount** eder. Network’te aynı `GET /api/characters/{id}` iki satır görürsün. Bug değil. Production build’de tek. Kapatma: gerçek cleanup hatalarını (abonelik sızması) gizlemek olur. 9 Ağustos notunda listenin 3–4 sn gelmesi şüphelilerinden biri çift fetch’ti; asıl soğuk Api / sertifika ayrı konu.
+
+eslint `react-hooks/exhaustive-deps`: `[id, token]` içinde kullanılan değerler diziye yazılsın. `id`’yi unutup `[]` bırakmak “bazen eski detay” bug’ıdır. `load`’u diziye koymak ayrı tartışma; 6 Ağustos’ta dizi yalnız `id` ve `token`.
+
+#### Bu kodu kim tetikliyor?
+
+Detay veya edit açılınca React boyar (`loading === true`) → effect → `GET /api/characters/{id}` (bölüm 17–18). `id` değişince effect yeniden. Kaydet hâlâ `handleSubmit` → PUT. Backend’e yeni endpoint yok.
+
+#### Bu adımda yapılan / kalan iz
+
+Sık düşülen hata: `load()`’u JSX gövdesinde çağırmak — sonsuz istek. Bir diğeri: `useEffect`’in `async` olması (`useEffect(async () => …)` React istemez; içeride `async function load`). Bir diğeri: StrictMode iki Network satırını bug sanıp StrictMode’u silmek. Bir diğeri: `setLoading`’i React’in otomatik sandığı için `finally` unutmak — “Yükleniyor…” sonsuz (kapı hatası bölüm 29’da `meLoaded` ile tekrar çıkacak).
+
+#### Sonuçta ne kazandık
+
+`useState` isimleri bizim, setter React’in; `useEffect` çizimden sonra; `[]` ≠ `[id, token]`; StrictMode çift GET normal. 9 Ağustos’ta ortak kabuk: `AppLayout` + `<Outlet />` (bölüm 20).
+
+---
+
+### 20. 09 Ağustos — `AppLayout`, nested routes, `<Outlet />`, path’siz parent
+
+**Commit:** `4fcc8af` (9 Ağustos).
+
+Bu adımda dosyaları şu sırayla ekledik. Önce `AppLayout.tsx` + `AppLayout.css`: üst menü (brand, Karakterler, Çıkış), token yoksa login, `Outlet` boşluğu. Sonra asıl kilit `App.tsx` — layout dosyası tek başına çizilmez; çocuk route’lar parent’ın **altında** olmalı. İlk denemede layout yazılıp `App.tsx` düz route’ta kalınca menü hiç görünmedi. Sonra `CharactersPage`’den token guard ve Çıkış silindi; koruma layout’a taşındı. Login/Register parent **dışında** kaldı — üst menüsüz form. `PermissionContext`, `/me`, `meLoaded` o gün yoktu (26–27 Ağustos, bölüm 30–31); bugünkü `AppLayout` onları da taşıyor.
+
+#### Neden ortak kabuk?
+
+Liste, ekle, detay, edit hepsinde aynı marka + Çıkış vardı veya olmalıydı. Dördüne kopyalamak DRY değil; birini unutunca o sayfada çıkış yok. ASP.NET’te `_Layout.cshtml` + `@RenderBody()` aynı iş: iskelet sabit, orta değişken. React Router’da iskelet parent `element`, orta `<Outlet />`.
+
+Karar: üst menü, sol sidebar yok, dropdown yok. Grid tam genişlik kalsın diye dikey değil yatay header. Ekle linki listede kaldı (yetki sonrası gizlenecek, bölüm 28).
+
+#### Path’siz parent ve çocuk tablosu
+
+```10:27:web/src/App.tsx
+function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+
+      <Route element={<AppLayout />}>
+        <Route path="/characters" element={<CharactersPage />} />
+        <Route path="/characters/new" element={<CharacterCreatePage />} />
+        <Route path="/characters/:id/edit" element={<CharacterEditPage />} />
+        <Route path="/characters/:id" element={<CharacterDetailPage />} />
+      </Route>
+
+      <Route path="/" element={<Navigate to="/characters" replace />} />
+      <Route path="*" element={<Navigate to="/characters" replace />} />
+    </Routes>
+  )
+}
+```
+
+`<Route element={<AppLayout />}>` **path yok**. “Şu çocukları sarmala” der; URL’yi çocuklar taşır (`/characters`, `/characters/new`, …). Parent’a `path="/characters"` yazsaydın iç içe göreli path matematiği ayrı konu — biz absolute child path kullandık.
+
+`/login` ve `/register` bu bloğun **kardeşi**. Kullanıcı kayıt formunda “Karakterler / Çıkış” görmesin; token zaten yok. Layout child’ına girmeden login çizilir.
+
+`/` ve `*` hâlâ listeye `Navigate`. Token yoksa layout kendi içinde login’e atar: `/` → `/characters` → `AppLayout` → token yok → `/login`.
+
+#### `<Outlet />` — RenderBody
+
+```57:81:web/src/AppLayout.tsx
+  return (
+    <PermissionContext.Provider value={{ permissions }}>
+      <div className="app-shell">
+        <header className="app-header">
+              <div className="app-header__left">
+                  <Link to="/characters" className="app-header__brand">
+                  ReactBattleArena
+                  </Link>
+                  <nav className="app-header__nav">
+                  <Link to="/characters">Karakterler</Link>
+                  </nav>
+              </div>
+              <button
+                type="button"
+                className="app-header__logout"
+                onClick={handleLogout}
+              >
+                Çıkış
+              </button>
+          </header>
+        <main className="app-main">
+          <Outlet />
+        </main>
+    </div>
+    </PermissionContext.Provider>
+```
+
+9 Ağustos’ta `PermissionContext.Provider` yoktu; kök doğrudan `<div className="app-shell">`. Header + `<main><Outlet /></main>` aynıydı. Router `/characters` deyince: (1) parent `AppLayout` çizilir, (2) uyan child `CharactersPage`, (3) child **Outlet’in olduğu yere** konur. `/characters/:id` → aynı header, Outlet içinde detay. Sayfa değişince header unmount olmaz; yalnız Outlet içeriği değişir. `_Layout.cshtml` + `@RenderBody()`: layout bir, body action’a göre.
+
+```1:6:web/src/AppLayout.css
+.app-shell {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  background: var(--bg);
+```
+
+Kabuk dikey flex: header üstte, `app-main` kalan yükseklik. Renk kilidi yarın (bölüm 21); o gün `var(--bg)` henüz palet notu yoktu, class isimleri duruyordu.
+
+#### Token guard ve Çıkış — tek yer
+
+```10:13:web/src/AppLayout.tsx
+function AppLayout() {
+  const navigate = useNavigate()
+  // const token = localStorage.getItem('token') ortak auth
+  const token = getToken()
+```
+
+```39:45:web/src/AppLayout.tsx
+  if (!token) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (!meLoaded) {
+  return <p>Yükleniyor…</p>
+}
+```
+
+9 Ağustos’ta `meLoaded` yoktu: token yok → login, varsa hemen header + Outlet. `getToken()` 11 Ağustos `api.ts` (bölüm 22); o gün `localStorage.getItem('token')`. `Navigate replace`: korumalı URL history’de birikmesin.
+
+```17:36:web/src/AppLayout.tsx
+  useEffect(() => {
+  if (!token) {
+    return
+  }
+
+  async function loadMe() {
+    try {
+      const meResponse = await apiFetch('/api/auth/me')
+      if (meResponse.ok) {
+        const me = await meResponse.json()
+        setPermissions(me.permissions ?? [])
+      }
+    } catch {
+      // /me gelmese de meLoaded bitsin; yoksa sonsuz Yükleniyor
+    }
+    setMeLoaded(true)
+  }
+
+  loadMe()
+}, [token])
+```
+
+Bu blok 26–27 Ağustos (bölüm 30–31). 9 Ağustos layout’unda `/me` yoktu. Bugün tek `/me` burada; çocuk sayfalar `usePermissions` okur. `meLoaded` bitmeden Outlet yok — sonsuz “Yükleniyor” tuzağı bölüm 29.
+
+```52:55:web/src/AppLayout.tsx
+  function handleLogout() {
+    clearToken()
+    navigate('/login')
+  }
+```
+
+3 Ağustos’ta Çıkış `CharactersPage`’deydi (bölüm 15). 9 Ağustos’ta `localStorage.removeItem('token')` + `navigate`. Bugün `clearToken()` refresh’i de siler (bölüm 33). `CharactersPage` yorum satırlarında o günkü taşıma duruyor: Navigate ve logout “AppLayout’dan yapılacağı için sildik.”
+
+#### Bu kodu kim tetikliyor?
+
+`/characters` (ve new/edit/detay) → `AppLayout` mount → (bugün `/me`) → Outlet’te ilgili sayfa. `/login` layout’suz `LoginPage`. Backend’e 9 Ağustos’ta yeni endpoint yok.
+
+#### Bu adımda yapılan / kalan iz
+
+Sık düşülen hata: `AppLayout.tsx` yazıp `App.tsx`’te hâlâ düz `<Route path="/characters" element={<CharactersPage />} />` bırakmak — menü hiç çizilmez. Bir diğeri: Login’i parent’ın **içine** almak — formun üstünde Çıkış, token yokken garip döngü. Bir diğeri: her child’da token `Navigate` kopyası bırakmak — layout zaten atıyor. Outlet’i unutup `{children}` beklemek — nested `Route` `children` prop vermez, `Outlet` şart.
+
+#### Sonuçta ne kazandık
+
+Korumalı sayfalar ortak üst menü + tek Çıkış; login/kayıt çıplak. Sonraki kısa bölüm palet kilidi (bölüm 21).
+
+---
+
+### 21. 10 Ağustos — 60-30-10 renk kararı ve palet kilidi
+
+**Commit:** `b3ff9a8` (10 Ağustos). Plan bunu kısa tutar: CSS dersi değil, **rol kilidi**.
+
+Bu adımda dosyaları şu sırayla değiştirdik. Önce `index.css` `:root` — hex’ler dağınık class’larda durmasın, isimlendirilmiş değişken olsun (`--bg`, `--surface`, `--accent`). Sonra `CharactersPage.css` ve `AppLayout.css` aynı değişkenleri kullandı: kart/header yüzey, buton vurgu. `palettes-reference.css` import edilmez; teal ve reddedilen açık temalar yedek kopya. Teal denemesi (`#00ADB5`) iyi durmuştu; aynı 60-30-10 iskeleti **mor hue** ile kilitlendi. Beyaz kartlı deneme (HH12) paletten kopuk “sırıtıyordu”, reddedildi.
+
+#### 60-30-10 — oran değil, iş
+
+Üç sayı bir yasa değil; hiyerarşi: büyük kısım zemin (göz dinlenir), orta kısım yüzey (kart, header, form — zeminden ayrılır, bağırmaz), az kısım vurgu (buton, “tıkla”). Comics color script aynı fikir: atmosfer çok, kostüm orta, neon az. Anime’de resmi kanun yok; stüdyo aynı mantığı kullanır.
+
+Eşleme: `appsettings.json`’da connection string’i her controller’a gömmezsin; bir key, her yer okur. `var(--accent)` aynı: hex bir yerde, butonlar onu tüketir. Bir yerde `#b39bc9` yazıp başka yerde rastgele mor = iki kaynak.
+
+```1:29:web/src/index.css
+/* Ayni tema iskeleti (teal gibi), hue = mor
+   60% koyu mor zemin | 30% acik mor kart | 10% kontrast buton
+*/
+
+:root {
+  --bg: #1e1a24;
+  --surface: #2e2838;
+  --muted: #262030;
+  --border: #3d364a;
+  --text: #d8d2e3;
+  --text-h: #f3eef8;
+
+  --primary: #b39bc9;
+  --primary-hover: #c9b6db;
+  --secondary: #2e2838;
+
+  --accent: #b39bc9;
+  --accent-hover: #c9b6db;
+  --danger: #e57373;
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.35);
+
+  --sans: "Segoe UI", system-ui, sans-serif;
+  --heading: "Segoe UI", system-ui, sans-serif;
+
+  font: 16px/1.45 var(--sans);
+  color: var(--text);
+  background: var(--bg);
+  color-scheme: dark;
+```
+
+`#1e1a24` sayfa arkası (%60). `#2e2838` header / kart / form (%30). `#b39bc9` açık lavanta vurgu (%10) — koyu zeminde kontrast. Yazı `#f3eef8` / `#d8d2e3`. `color-scheme: dark` tarayıcı form kontrollerini koyu varsayar.
+
+```27:35:web/src/CharactersPage.css
+.characters-page__actions a,
+.characters-page__actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--accent);
+```
+
+Buton hex ezmez; `--accent` yer. Header yüzey:
+
+```9:17:web/src/AppLayout.css
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+```
+
+```1:4:web/src/palettes-reference.css
+/*
+  Bu dosya IMPORT EDILMEZ — sadece kopyala-yapistir referansi.
+  B/C/D denemek: ilgili :root icindeki degiskenleri index.css :root ile degistir.
+  (Yorum icine baska yorum yazma — CSS'te star-slash erken kapanir.)
+*/
+```
+
+Eski teal ve açık B/C denemeleri burada. Aktif tema `index.css`. Yorum içine `/* */` yazmak yorumu erken kapatır — dosya başındaki uyarı o yüzden.
+
+#### Bu kodu kim tetikliyor?
+
+Hiçbir API. `index.css` `main.tsx` ile yüklenir; `:root` tüm 5173 ağacına iner. Backend palet bilmez.
+
+#### Bu adımda yapılan / kalan iz
+
+Sık düşülen hata: her yere beyaz kart — %30 rolü var ama seçilen `--surface` değil, paletten kopuk. Secondary ile accent birbirine çok yakın (iki soluk mor) → %10 kaybolur. Üçü de kapkara → yazı okunmaz. Dribbble’dan hex alıp role map etmemek. Palet yeniden seçilebilir; önce roller, sonra hex. Framework (Tailwind tema paketi) şart değil.
+
+#### Sonuçta ne kazandık
+
+Zemin / yüzey / vurgu kilitli, tek `:root`. Ertesi gün tekrarlayan `fetch` tek dosyaya indi (bölüm 22).
+
+---
+
+### 22. 11 Ağustos — `api.ts` / `apiFetch`, TypeScript tipleri, sayfa migrasyonu
+
+**Commit:** `cede43b` (11 Ağustos).
+
+Layout ve palet duruyordu; her sayfa hâlâ `https://localhost:7275` + `Authorization: Bearer` + `JSON.stringify` kopyalıyordu. Bu adımda önce `web/src/api.ts` yazıldı: `API_BASE`, `getToken` / `setToken` / `clearToken`, `apiFetch`. Sonra Login, Register, liste, create, detail, edit, `AppLayout` aynı helper’a geçti. Eski `fetch` blokları yorumda kaldı (öğrenim). TypeScript dili aynı gün: `type`, `Promise<Response>`, `Record<string, string>`, `auth: false`. Refresh token helper’ları 29 Ağustos (bölüm 33); 11 Ağustos’ta `clearToken` yalnız `token` siliyordu.
+
+#### Neden tek helper?
+
+DRY: URL veya header bir yerde yanlışsa yedi dosyada ararsın. C# tarafında `HttpClient` + `BaseAddress` + `DefaultRequestHeaders.Authorization` aynı fikir. `apiFetch` `Response` döner; 401’i sayfa yorumlar — 11 Ağustos’ta henüz sessiz yenileme yok (bölüm 34).
+
+```1:9:web/src/api.ts
+export const API_BASE = 'https://localhost:7275'
+
+export function getToken(): string | null {
+  return localStorage.getItem('token')
+}
+
+export function setToken(token: string) {
+  localStorage.setItem('token', token)
+}
+```
+
+```11:14:web/src/api.ts
+export function clearToken() {
+  localStorage.removeItem('token')
+  localStorage.removeItem('refreshToken')
+}
+```
+
+11 Ağustos’ta `clearToken` yalnızca `token` kaldırıyordu. `getRefreshToken` / `setRefreshToken` satır 16–21 sonra eklendi.
+
+#### `type` C# `class` değil
+
+```23:28:web/src/api.ts
+type ApiFetchOptions = {
+  method?: string
+  body?: unknown
+  /** false = login/register (Bearer yok). Varsayılan true. */
+  auth?: boolean
+}
+```
+
+Runtime’da nesne üretmez; derleme zamanı şekil tarifi. C# `record` / DTO `class`’ın *şekline* yakın, `new ApiFetchOptions()` yok. `?` opsiyonel alan. `unknown` = “bir şey gelebilir, önce daralt” — `object`’ten daha sıkı niyet. `interface` de olurdu; burada `type` seçildi.
+
+#### `Promise<Response>` ve varsayılan options
+
+```30:54:web/src/api.ts
+export async function apiFetch(
+  path: string,
+  options: ApiFetchOptions = {},
+): Promise<Response> {
+  const { method = 'GET', body, auth = true } = options
+
+  const headers: Record<string, string> = {}
+
+  if (body !== undefined) {
+    headers['Content-Type'] = 'application/json'
+  }
+
+  if (auth) {
+    const token = getToken()
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+  }
+
+  return fetch(`${API_BASE}${path}`, {
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+}
+```
+
+`async` her zaman Promise döner. `Promise<Response>` = bitince tarayıcı `fetch` cevabı; `.ok`, `.status`, `.json()`. C# kabaca `Task<HttpResponseMessage>`. `options = {}`: ikinci argüman yoksa boş obje — `apiFetch('/api/characters')` GET + `auth: true`.
+
+`const { method = 'GET', body, auth = true } = options` destructuring: alan yoksa sağdaki default. `Record<string, string>` C# `record` **değil**; anahtarı string, değeri string sözlük (`Dictionary<string, string>`). `headers['Content-Type']` veya `headers.Authorization` aynı map.
+
+`body !== undefined` iken `JSON.stringify` burada — sayfa `[object Object]` gönderemez (bölüm 12’deki hata). `path` göreli (`/api/...`); `API_BASE` öne eklenir.
+
+#### `auth: false` — login/register
+
+```40:47:web/src/LoginPage.tsx
+      const response = await apiFetch('/api/auth/login',{
+        method: 'POST',
+        auth: false,
+        body: {
+          userNameOrEmail,
+          password
+        },
+      })
+```
+
+`auth === false` → `if (auth)` çalışmaz → Bearer yok. Login’de henüz token yok; varsayılan `true` eski/boş token’ı yanlışlıkla basmasın. Register aynı `auth: false`. Liste/create/detay/edit `auth` vermez → `true` → Bearer.
+
+Akış: path + base → method/body/auth ayıkla → headers → body varsa JSON → auth ve token varsa Bearer → `fetch` → `Response`. Sayfa `ok` / `status` yorumlar.
+
+| Durum | `fetch` | Sayfa |
+|--------|---------|--------|
+| Ağ, SSL, Api kapalı | **throw** | `catch` → “API’ye ulaşılamadı” |
+| 401 / 400 / 403 | throw **etmez** | `response.ok === false` |
+
+Helper bozuk sanma; çoğu “ulaşılamadı” backend kapalı veya 7275 sertifikası.
+
+#### Hangi sayfa taşındı
+
+Login `setToken`; Register POST; `CharactersPage` GET liste; create GET preview + POST; detail GET + DELETE; edit GET + PUT; `AppLayout` `getToken` + logout `clearToken`. Tek canlı `fetch` `api.ts` içinde. Link `to={...}` hâlâ router path; Api’ye gitmek `apiFetch` ister (bölüm 23 eşlemesi).
+
+#### Bu kodu kim tetikliyor?
+
+Önceki bölümlerdeki aynı endpoint’ler: `POST /api/auth/login`, `GET /api/characters`, PUT/DELETE by id. Değişen 5173’ün `HttpClient` tek kapı. Backend 11 Ağustos’ta yeni action yok.
+
+#### Bu adımda yapılan / kalan iz
+
+Sık düşülen hata: `auth: false` unutup login’e Bearer. Bir diğeri: `apiFetch`’in 401’de otomatik login sandırmak — o gün (ve bugün, 34 yazılana kadar) sayfa `ok` bakar. Bir diğeri: `Record`’ı C# `record` sanmak. Path’e tam URL yazmak → `https://localhost:7275https://...`. Login hâlâ `setRefreshToken` (29 Ağu); 11 Ağustos’ta yalnız `setToken`.
+
+#### Sonuçta ne kazandık
+
+URL, JSON, Bearer tek dosyada. Sonraki bölüm Blok A ile Blok B’yi satır satır bağlar: hangi `apiFetch` hangi controller metoduna gider (bölüm 23).
+
+---
+
+### 23. 13 Ağustos — Tekrar: hangi frontend çağrısı hangi backend metoda gider
+
+**Commit:** `e02f0e2` (13 Ağustos). Kod eklenmedi; `REACT-OGRENIM.md`’e test soruları yazıldı. Bu V2 bölümü aynı soruları **bugünkü** koda bağlar. Blok A (Temmuz API) ile Blok B (Ağustos React) burada birleşir. 13 Ağustos’ta PUT hâlâ `[Authorize(Roles = Admin)]` idi; bugün `HasPermission` (bölüm 26). Router path ile API path o gün karışıyordu — asıl konu o.
+
+#### İki farklı “yol”
+
+React Router path = adres çubuğu → hangi **sayfa**. API HTTP path = `apiFetch` → hangi **controller action**. İkisi `characters` ve `id` kelimelerini paylaşır, aynı şey değildir. `<Link to={...}>` neredeyse her zaman router. Backend için sayfa içinde `apiFetch`. “Edit” yazdık diye C#’ta `Edit` metodu arama: bizde `Update`, HTTP `PUT`.
+
+```40:47:web/src/LoginPage.tsx
+      const response = await apiFetch('/api/auth/login',{
+        method: 'POST',
+        auth: false,
+        body: {
+          userNameOrEmail,
+          password
+        },
+      })
+```
+
+Bu `POST /api/auth/login` → `AuthController.Login` → `LoginCommand` (bölüm 8). `Link to="/register"` ise yalnız `RegisterPage` açar; register POST ayrı `apiFetch` (bölüm 14).
+
+#### Liste GET → `GetPaged` (isim URL’de yok)
+
+```62:64:web/src/CharactersPage.tsx
+  async function load() {
+    try{
+      const response = await apiFetch('/api/characters?page=1&pageSize=20')
+```
+
+```12:32:ReactBattleArena/ReactBattleArena.Api/Controllers/CharactersController.cs
+[ApiController]//Otomatik model binding + 400 davranışı
+[Route("api/[controller]")]
+public sealed class CharactersController : ControllerBase
+{
+    private readonly IMediator _mediator;
+    //HTTP → MediatR köprüsü; controller iş mantığı bilmez
+
+    public CharactersController(IMediator mediator)
+    {
+        _mediator = mediator;
+    }
+
+    [HttpGet]
+    [ProducesResponseType(typeof(PagedCharacterRowsResult), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PagedCharacterRowsResult>> GetPaged(
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 20,
+    CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(new GetCharactersQuery(page, pageSize), cancellationToken);
+        return Ok(result);
+```
+
+ASP.NET **HTTP yöntemi + route şablonu** ile eşler. `GetPaged` Scalar’da görünür; fetch’te yazılmaz. `[controller]` → `Characters` → `/api/characters`. Query `page` / `pageSize` model bind. `Send(GetCharactersQuery)` → handler → `{ items, totalCount }` JSON camelCase. React `setItems(data.items)`. MVC View action adı gibi URL’ye gömülmez.
+
+#### `Clamp` 200 ve `Skip` — koruma ve 0 tabanlı ofset
+
+```21:32:ReactBattleArena/ReactBattleArena.Application/Characters/Queries/GetCharactersQueryHandler.cs
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Clamp(request.PageSize, 1, 200);
+
+        var query = _db.Characters
+            .AsNoTracking()
+            .OrderByDescending(c => c.CreatedAtUtc);
+
+        var total = await query.CountAsync(cancellationToken);
+
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+```
+
+`Math.Max(1, page)`: `page=0` yine 1. `Clamp(..., 1, 200)`: **200 varsayılan sayfa boyutu değil**, sunucu tavanı; `pageSize=5000` DB’yi kilitlemesin. Frontend sabit 20 ister, 20 gelir. `AsNoTracking` salt okuma. `OrderByDescending` Skip’ten **önce** — yoksa dilim rastgele kayar.
+
+`(page - 1) * pageSize`: UI 1. sayfa der, SQL ofset 0’dan sayar (dizi indeksi gibi). Sayfa 1 → Skip 0; sayfa 2 → Skip 20. `Take` dilim uzunluğu. `CountAsync` toplam (ileride “1/5”).
+
+#### Karttaki `Link` GetById çağırmaz
+
+```11:13:web/src/CharacterCard.tsx
+function CharacterCard({ id, name, universe, rarity, imageUrl }: CharacterCardProps) {
+  return (
+      <Link to={`/characters/${id}`} className="character-card-link">
+```
+
+Bu satır API atmaz. Router `/characters/{guid}` → `CharacterDetailPage`. Orada `useParams` + `apiFetch(\`/api/characters/${id}\`)` → `[HttpGet("{id:guid}")] GetById` → `GetCharacterByIdQuery`. Liste DTO’sunda stats vardır (`CharacterRowDto.BaseAttack` …); kart **göstermez** — unutulmuş API değil, UI tercihi. Arena’da ATK satırı ileride ürün kararı.
+
+SPA “tüm veriyi bir kez çek” demez: tam HTML reload olmadan ekran değişir; veri hâlâ HTTP. Liste kendi GET’i, detay **yeni** GetById, edit **yine yeni** GetById. Liste state’i props ile taşınmaz. Avantaj: başka admin güncellediyse taze satır. Dezavantaj: ekstra istek.
+
+#### `/characters` açılınca sıra
+
+Adres `/characters` (veya `/` → Navigate). `AppLayout` + Outlet → `CharactersPage` mount. İlk render `items = []`, grid boş. `useEffect(..., [])` → `load` → GetPaged → `setItems` → `map` → `CharacterCard`. Effect derinliği bölüm 19’da kaldı.
+
+#### Detay → Edit: Link router, Kaydet PUT
+
+```148:149:web/src/CharacterDetailPage.tsx
+          {hasPermission(permissions, PERMISSIONS.charactersUpdate) && (
+            <Link to={`/characters/${id}/edit`}>Düzenle</Link>
+```
+
+13 Ağustos’ta `hasPermission` yoktu; link herkese görünürdü. Asıl kapı yine API. `Link` → `/characters/:id/edit` (route `:id`’den önce, bölüm 18). Edit kendi GET’i (yine GetById) → `setName(data.name)` … Kaydet:
+
+```116:118:web/src/CharacterEditPage.tsx
+      const response = await apiFetch(`/api/characters/${id}`, {
+        method: 'PUT',
+        body: {
+```
+
+Backend `[HttpPut("{id:guid}")] Update`. 13 Ağustos’ta `[Authorize(Roles = Admin)]`; bugün `HasPermission(CharactersUpdate)`. 204 → `json()` yok → `navigate` detaya. Detaydaki `character` state edit’e geçmez. Player PUT → 403.
+
+#### `App.tsx` veri koymaz
+
+```16:21:web/src/App.tsx
+      <Route element={<AppLayout />}>
+        <Route path="/characters" element={<CharactersPage />} />
+        <Route path="/characters/new" element={<CharacterCreatePage />} />
+        <Route path="/characters/:id/edit" element={<CharacterEditPage />} />
+        <Route path="/characters/:id" element={<CharacterDetailPage />} />
+      </Route>
+```
+
+Harita: URL → component. JSON her sayfanın `apiFetch` + `useState` işi. `Outlet` child’ı ortada (bölüm 20). ASP.NET endpoint routing’e benzer fikir; burada UI ekranı seçersin, JSON endpoint değil.
+
+#### Bu kodu kim tetikliyor?
+
+Aynı Temmuz controller’ları, Ağustos sayfaları. Yeni backend yok. Tablo (13 Ağu kafasındaki hali, bugün permission id’leri aynı path):
+
+Login POST `/api/auth/login` → `Login`. Register POST `/api/auth/register` → `Register`. Liste GET query → `GetPaged`. Kart tıklanınca router; detay GET `{id}` → `GetById`. Create POST `/api/characters` → `Create`. Edit PUT → `Update`. Sil DELETE → `Delete`.
+
+#### Bu adımda yapılan / kalan iz
+
+Sık düşülen hata: `GetPaged`’i URL’ye yazmak. `Link`’i GetById sanmak. Edit state’inin detaydan geldiğini sanmak. 204’te `json()`. “SPA = cache” — her ekran kendi GET’i.
+
+#### Sonuçta ne kazandık
+
+İki yol ayrıldı: 5173 sayfa, 7275 action. Katalog CRUD iki taraftan okunur. Yetki hâlâ “Admin string”; 20 Ağustos’ta fiil tablolarına geçildi (Blok C, bölüm 24).
+
+---
+
+## Blok C — Backend'e dönüş: RBAC (20–24 Ağustos)
+
+React CRUD ve `apiFetch` duruyordu. `Users.Role` + `[Authorize(Roles = Admin)]` ShopOwner veya “Player yarın create etsin” deyince her attribute’u elle değiştirmek demekti. Bu blokta yetki **permission koduna** bağlanır; frontend 24 Ağustos’ta UI gizlemeye geçer. Refresh token ayrı (Blok E).
+
+---
+
+### 24. 20 Ağustos — `Role`, `Permission`, `UserRole`, `RolePermission`, composite PK
+
+**Commit:** `eaa0c81` (20 Ağustos).
+
+Bu adımda dosyaları şu sırayla ekledik. Önce Domain `Role` ve `Permission` — fiil ve çanta isim nesneleri, henüz HTTP yok. Sonra join entity’ler `UserRole` ve `RolePermission` (ara tablo; `User` üzerinde `ICollection` yazmadık). Sonra Infrastructure configuration: tablo adı, unique `Name`/`Code`, **composite PK**. `IApplicationDbContext` + `ApplicationDbContext` `DbSet`’leri. **Migration yoktu** — tablo 21 Ağustos’ta `AddRbacTables` (bölüm 25). `Users.Role` string kolonu duruyordu (bugün de duruyor); JWT claim hâlâ o string. `[HasPermission]` 22 Ağustos (bölüm 26).
+
+#### Neden `User.Role` tek kolon yetmez?
+
+```22:23:ReactBattleArena/ReactBattleArena.Domain/Users/User.cs
+    public string Role { get; private set; } = null!;
+    //= null!; = “derleyiciye: başlangıçta null görünebilir ama runtime’da asla null kalmayacak” demek.
+```
+
+```5:9:ReactBattleArena/ReactBattleArena.Domain/Authorization/Roles.cs
+public static class Roles
+{
+    public const string Admin = "Admin";
+    public const string Player = "Player";
+    public const string ShopOwner = "ShopOwner";
+```
+
+Bölüm 9: JWT `ClaimTypes.Role`, karakter yazma `[Authorize(Roles = Admin)]`. İş kuralı **rol ismine gömülü**. ShopOwner eklemek = her Admin kontrolünü ve her butonu tek tek düşünmek. Player yarın karakter eklesin = controller’ı yeniden yazmak. Hedef cümle: “Admin mi?” değil, “`characters.create` var mı?”
+
+AuthN: kimsin (login, BCrypt, JWT) — 401. AuthZ: ne yapabilirsin — 403. Frontend buton gizlemek yetki değildir; API yine 403 (bölüm 28).
+
+`User.RoleId` tek FK de yetmez: one-to-many, bir kişinin **tek** rolü. “Player + ShopOwner” imkânsız (veya virgüllü string, kırılır).
+
+#### Role ve Permission — çanta ve fiil
+
+```3:21:ReactBattleArena/ReactBattleArena.Domain/Authorization/Role.cs
+public sealed class Role
+{
+    private Role()
+    {
+    }
+
+    public Guid Id { get; private set; }
+
+    public string Name { get; private set; } = null!;
+
+    public static Role Create(string name)
+    {
+        return new Role
+        {
+            Id = Guid.NewGuid(),
+            Name = name
+        };
+    }
+}
+```
+
+```3:21:ReactBattleArena/ReactBattleArena.Domain/Authorization/Permission.cs
+public sealed class Permission
+{
+    private Permission()
+    {
+    }
+
+    public Guid Id { get; private set; }
+
+    public string Code { get; private set; } = null!;
+
+    public static Permission Create(string code)
+    {
+        return new Permission
+        {
+            Id = Guid.NewGuid(),
+            Code = code
+        };
+    }
+}
+```
+
+Role = isim çantası (`Admin`, `Player`). Tek başına endpoint korumaz. Permission = somut fiil string: `characters.create` / `update` / `delete`, `shop.items.create` (shop ekranı yok, kod kayıt için). Private constructor + `Create` factory, Character/User ile aynı DDD kalıbı (bölüm 1). `Roles.ShopOwner` sabiti 9 Ağustos yorumundan kalma; çanta satırı seed’de gelecek (bölüm 25).
+
+#### Ara tablolar — many-to-many
+
+```1:20:ReactBattleArena/ReactBattleArena.Domain/Authorization/UserRole.cs
+namespace ReactBattleArena .Domain.Authorization;
+
+public sealed class UserRole
+{
+    private UserRole()
+    {
+
+    }
+    public Guid UserId { get; private set; }
+    public Guid RoleId { get; private set; }
+
+    public static UserRole Create(Guid userId, Guid roleId)
+    {
+        return new UserRole
+        {
+            UserId = userId,
+            RoleId = roleId
+        };
+    }
+}
+```
+
+Dosyada namespace’te bir boşluk var (`ReactBattleArena .Domain`) — 20 Ağustos’tan kalan yazım; derleyici aynı assembly içinde yine bu tipi görür. `UserRole`: kim hangi çantaya üye. İki satır = iki rol (Mehmet Player **ve** ShopOwner).
+
+```3:21:ReactBattleArena/ReactBattleArena.Domain/Authorization/RolePermission.cs
+public sealed class RolePermission
+{
+    private RolePermission()
+    {
+    }
+
+    public Guid RoleId { get; private set; }
+
+    public Guid PermissionId { get; private set; }
+
+    public static RolePermission Create(Guid roleId, Guid permissionId)
+    {
+        return new RolePermission
+        {
+            RoleId = roleId,
+            PermissionId = permissionId
+        };
+    }
+}
+```
+
+`RolePermission`: bu çanta bu fiili yapabilir. Player’a create vermek = buraya satır; `Create` action aynı kalır. Login’de iki rolün yetkileri **birleşir** (union). Mehmet figür ekler (shop permission), karakter ekleyemez (`characters.create` hiçbir rolünde yoksa).
+
+Eşleme: SQL join `Users`–`UserRoles`–`Roles`; Identity’de `AspNetUserRoles` aynı fikir. EF `HasMany` + join entity; `User` sınıfına `ICollection<UserRole>` yazmadık, ilişki configuration’da durur.
+
+#### Composite PK ve silme davranışı
+
+```13:26:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/UserRoleConfiguration.cs
+        builder.ToTable("UserRoles");
+        builder.HasKey(x => new { x.UserId, x.RoleId });
+
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+        //Cascade (User): kullanıcı silinince o kullanıcının UserRoles satırları da silinsin.
+
+        builder.HasOne<Role>()
+            .WithMany()
+            .HasForeignKey(x => x.RoleId)
+            .OnDelete(DeleteBehavior.Restrict);
+        // Restrict(Role): rol hâlâ birine bağlıysa rolü silemezsin.
+```
+
+İki kolon birlikte birincil anahtar: aynı kullanıcı-rol çifti iki kez yazılamaz, ayrı `Id` Guid’i yok. `WithMany()` boş: navigation collection yok, FK yine var. User silinince üyelikler gitsin (Cascade). Rol silinmesin, hâlâ üye varken (Restrict).
+
+```11:22:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/RolePermissionConfiguration.cs
+        builder.ToTable("RolePermissions");
+        builder.HasKey(x => new { x.RoleId, x.PermissionId });
+
+        builder.HasOne<Role>()
+            .WithMany()
+            .HasForeignKey(x => x.RoleId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Permission>()
+            .WithMany()
+            .HasForeignKey(x => x.PermissionId)
+            .OnDelete(DeleteBehavior.Restrict);
+```
+
+Her iki FK Restrict: fiil veya rol hâlâ bağlıyken silme. `Roles.Name` ve `Permissions.Code` unique (configuration dosyaları).
+
+```12:16:ReactBattleArena/ReactBattleArena.Application/Abstractions/IApplicationDbContext.cs
+    DbSet<Role> Roles { get; }
+    DbSet<Permission> Permissions { get; }
+    DbSet<UserRole> UserRoles { get; }
+    DbSet<RolePermission> RolePermissions { get; }
+    DbSet<RefreshToken> RefreshTokens { get; }
+```
+
+20 Ağustos’ta `RefreshTokens` yoktu (bölüm 32). `DbSet` handler’ın tabloya uzanması; Application Infrastructure class’ını görmez (bölüm 1).
+
+#### Bu kodu kim tetikliyor?
+
+20 Ağustos’ta **hiçbir HTTP**. Tablolar henüz migration’sız; login hâlâ `Users.Role` string + JWT. Frontend aynı `apiFetch`. Seed ve `dotnet ef` ertesi gün (bölüm 25).
+
+#### Bu adımda yapılan / kalan iz
+
+Sık düşülen hata: `User.Role`’ü silip JWT’yi unutmak — kolon duruyor, claim hâlâ oradan (login handler değişmedi). Join’e `Id` Guid koyup aynı çifti iki kez eklemek. `ICollection` yazmadan ilişkinin “yok” sanılması. Permission’ı JWT’ye gömmek — o gün bilinçli olarak DB’de bırakıldı (bölüm 26: her istekte join).
+
+#### Sonuçta ne kazandık
+
+Çanta ve fiil nesneleri + ara tablolar modelde. SQL ve seed yok; endpoint hâlâ Admin string. 21 Ağustos’ta tablo + seeder (bölüm 25).
+
+---
+
+### 25. 21 Ağustos — `AddRbacTables`, `PermissionCodes`, `AuthSeeder`, `CreateScope`
+
+**Commit:** `de5d782` (21 Ağustos).
+
+Bu adımda dosyaları şu sırayla ekledik. Önce `PermissionCodes` — fiil string’leri sihirli metin olmasın, C# sabiti olsun (`characters.create`). `Roles.ShopOwner` sabiti aynı gün netleşti. Sonra `dotnet ef migrations add AddRbacTables`: dünün configuration’ı SQL’e döküldü (`Users.Role` kolonuna dokunulmadı). Sonra `AuthSeeder` — katalog satırları (rol, fiil, RolePermission, eski `Users.Role` → `UserRoles`); idempotent, “yoksa ekle”. En sonda `Program.cs` `CreateScope` + `SeedAsync`: DbContext scoped, `Program` istek değil. `[HasPermission]` yoktu (bölüm 26); login hâlâ JWT’ye `Users.Role` yazar. Register hâlâ yalnız string `Player` yazar; `UserRoles` satırı bir sonraki API açılışında seed’den gelir (bölüm 27’de Register doğrudan yazacak).
+
+#### `PermissionCodes` — fiil adı tek yerde
+
+```1:9:ReactBattleArena/ReactBattleArena.Domain/Authorization/PermissionCodes.cs
+namespace ReactBattleArena.Domain.Authorization;
+
+public static class PermissionCodes
+{
+    public const string CharactersCreate = "characters.create";
+    public const string CharactersUpdate = "characters.update";
+    public const string CharactersDelete = "characters.delete";
+    public const string ShopItemsCreate = "shop.items.create";
+}
+```
+
+Noktalı string DB `Permissions.Code` ile aynı. Attribute ve seeder bu sabitleri kullanır; `"characters.create"`’i üç dosyada elle yazmak typo üretir. `ShopItemsCreate` shop ekranı yokken kayıt — RolePermission’da ShopOwner’a bağlanacak. Eşleme: C#’ta `Roles.Admin` sabiti (bölüm 9); burada fiil, rol adı değil.
+
+#### Migration — dört tablo, `Users.Role` duruyor
+
+`AddRbacTables` `Up` configuration ile hizalı. Designer/snapshot alıntılanmaz. `Permissions` örneği:
+
+```14:24:ReactBattleArena/ReactBattleArena.Infrastructure/Migrations/20260821102302_AddRbacTables.cs
+            migrationBuilder.CreateTable(
+                name: "Permissions",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Code = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Permissions", x => x.Id);
+                });
+```
+
+`Roles` aynı fikir, `Name` max 50. Ara tablo composite PK + Restrict/Cascade:
+
+```70:83:ReactBattleArena/ReactBattleArena.Infrastructure/Migrations/20260821102302_AddRbacTables.cs
+                    table.PrimaryKey("PK_UserRoles", x => new { x.UserId, x.RoleId });
+                    table.ForeignKey(
+                        name: "FK_UserRoles_Roles_RoleId",
+                        column: x => x.RoleId,
+                        principalTable: "Roles",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_UserRoles_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+```
+
+FK bağ tablosunda: `Users`’ta `RoleId` yok. Unique index `IX_Permissions_Code`, `IX_Roles_Name`. `Down` dört tabloyu düşürür; `Users`’a dokunmaz. Komut: Api startup proje, Infrastructure migration projesi (bölüm 1’deki `ef` alışkanlığı).
+
+#### `AuthSeeder` — yoksa ekle, string rolü join’e çevir
+
+```9:29:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/AuthSeeder.cs
+    public static async Task SeedAsync(ApplicationDbContext db, CancellationToken cancellationToken = default)
+    {
+        await EnsureRoleAsync(db, Roles.Admin, cancellationToken);
+        await EnsureRoleAsync(db, Roles.Player, cancellationToken);
+        await EnsureRoleAsync(db, Roles.ShopOwner, cancellationToken);
+
+        await EnsurePermissionAsync(db, PermissionCodes.CharactersCreate, cancellationToken);
+        await EnsurePermissionAsync(db, PermissionCodes.CharactersUpdate, cancellationToken);
+        await EnsurePermissionAsync(db, PermissionCodes.CharactersDelete, cancellationToken);
+        await EnsurePermissionAsync(db, PermissionCodes.ShopItemsCreate, cancellationToken);
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.CharactersCreate, cancellationToken);
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.CharactersUpdate, cancellationToken);
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.CharactersDelete, cancellationToken);
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.ShopItemsCreate, cancellationToken);
+
+        await EnsureRolePermissionAsync(db, Roles.ShopOwner, PermissionCodes.ShopItemsCreate, cancellationToken);
+
+        await db.SaveChangesAsync(cancellationToken);
+```
+
+İlk `SaveChanges` rol ve fiil Id’lerinin oluşması için: `RolePermission` Guid ister, henüz insert olmamış satırda Id yok. Admin dört fiili alır; ShopOwner yalnız shop; Player’a `RolePermission` yok — katalog GET zaten açık, yazma 403 kalır (kapı hâlâ Role attribute, yarın permission).
+
+```59:75:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/AuthSeeder.cs
+    private static async Task EnsureRoleAsync(
+        ApplicationDbContext db,
+        string name,
+        CancellationToken cancellationToken)
+    {
+        if (!await db.Roles.AnyAsync(r => r.Name == name, cancellationToken))
+            db.Roles.Add(Role.Create(name));
+    }
+
+    private static async Task EnsurePermissionAsync(
+        ApplicationDbContext db,
+        string code,
+        CancellationToken cancellationToken)
+    {
+        if (!await db.Permissions.AnyAsync(p => p.Code == code, cancellationToken))
+            db.Permissions.Add(Permission.Create(code));
+    }
+```
+
+Idempotent: ikinci `dotnet run` aynı `Admin` satırını çoğaltmaz (`Name` unique de patlardı). `EnsureRolePermissionAsync` `(RoleId, PermissionId)` var mı diye bakar.
+
+```31:56:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/AuthSeeder.cs
+        var rolesByName = await db.Roles.ToDictionaryAsync(r => r.Name, cancellationToken);
+        var users = await db.Users.ToListAsync(cancellationToken);
+
+        // Composite PK çiftleri — "bu kullanıcıya bu rol zaten verilmiş mi?"
+        var existingPairs = (await db.UserRoles.ToListAsync(cancellationToken))
+            .Select(x => (x.UserId, x.RoleId))
+            .ToHashSet();
+
+        foreach (var user in users)
+        {
+            // Eski kolon Users.Role (string) → yeni UserRoles satırı
+            var roleName = string.IsNullOrWhiteSpace(user.Role) ? Roles.Player : user.Role;
+            if (!rolesByName.TryGetValue(roleName, out var role))
+                role = rolesByName[Roles.Player];
+
+            if (existingPairs.Contains((user.Id, role.Id)))
+                continue;
+
+            db.UserRoles.Add(UserRole.Create(user.Id, role.Id));
+            existingPairs.Add((user.Id, role.Id)); // aynı kullanıcı döngüde iki kez eklenmesin
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+```
+
+`ToDictionaryAsync(r => r.Name)` tek değer değil: Key `"Admin"` → o `Role` satırı (Guid). Döngüde her user için tekrar `Roles` sorgusu yok. SSMS’te `Role = Admin` yapılmış kullanıcı `UserRoles`’a Admin Guid’i alır. Bilinmeyen string → Player. HashSet aynı çifti ikinci kez eklemesin (composite PK ihlali).
+
+Bu seed **katalog**: her açılışta şema dolsun. Geçici test datası değil. Frontend bu gün değişmedi.
+
+#### `CreateScope` — kökten scoped alınmaz
+
+```68:74:ReactBattleArena/ReactBattleArena.Api/Program.cs
+// DbContext scoped (istek ömrü). Program kökü request değil → CreateScope ile kısa ömürlü kapsül;
+// using bitince context Dispose. Yoksa root provider'dan scoped alınamaz.
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await AuthSeeder.SeedAsync(db);
+}
+```
+
+`ApplicationDbContext` DI’da scoped: bir HTTP isteği boyunca bir instance. `Program.cs` istek değil; `app.Services` kök provider. Kökten scoped çekmek runtime hatası. `CreateScope()` kısa ömürlü kapsül (IHostedService / console’daki `IServiceScope` ile aynı fikir): seed bitince `using` Dispose. Bugünkü `Program.cs` üstte `PermissionPolicyProvider` kayıtları var (bölüm 26); 21 Ağustos’ta yalnız bu `using` bloğu eklendi.
+
+#### Bu kodu kim tetikliyor?
+
+`dotnet ef database update` (veya Api açılışında migrate politikası neyse) tabloları kurar. Her `dotnet run` → seed. Tarayıcı 5173 bu gün yeni endpoint görmez: POST karakter hâlâ `[Authorize(Roles = Admin)]`. Scalar’da Roles/Permissions tabloları dolu; JWT claim hâlâ string `role`.
+
+#### Bu adımda yapılan / kalan iz
+
+Sık düşülen hata: `SaveChanges`’i RolePermission’dan **önce** unutmak — FK Guid boş. Migration’sız seed → tablo yok. Seed’i controller’a gömmek. Register olup Api’yi kapatmadan `UserRoles` beklemek — 21 Ağustos’ta Register join yazmıyor; Robin API açıkken kaydolduysa satır bir sonraki restart’ta gelir (bölüm 27’de kapanacak). `Users.Role`’ü drop etmek — JWT bozulur, o kolon kasıtlı durdu.
+
+#### Sonuçta ne kazandık
+
+Dört tablo SQL’de, fiil kodları sabit, her açılışta idempotent katalog + eski string roller join’e kopyalanıyor. Endpoint hâlâ “Admin mi?”; yarın her istekte DB join (bölüm 26).
+
+---
+
+### 26. 22 Ağustos — `HasPermission`, policy provider, yetki JWT’de değil DB’de
+
+**Commit:** `441ae01` (22 Ağustos).
+
+Bu adımda dosyaları şu sırayla ekledik. Önce Application’da `IUserPermissionService`, Infrastructure’da `UserPermissionService` — join `UserRoles` → `RolePermissions` → `Permission.Code`; `UserPermission` tablosu yok. Sonra Api `PermissionRequirement`, `HasPermissionAttribute` (`Policy = "Permission:" + kod`), `PermissionPolicyProvider` (bilmediği adı default’a devreder), `PermissionAuthorizationHandler` (token’dan id, DB’den kod listesi). `Program.cs`: `AddAuthorization()`, provider Singleton, handler Scoped. `CharactersController` Create/Update/Delete `[Authorize(Roles = Admin)]` yerine üç ayrı `[HasPermission]`. GET liste/detay açık kaldı. JWT’ye permission claim yazılmadı: canlıda satır ekleyince aynı token 201 olsun diye.
+
+#### Join servisi — fiil kullanıcı satırında değil
+
+```3:6:ReactBattleArena/ReactBattleArena.Application/Abstractions/IUserPermissionService.cs
+public interface IUserPermissionService
+{
+    Task<IReadOnlyList<string>> GetCodesAsync(Guid userId, CancellationToken cancellationToken = default);
+}
+```
+
+```15:26:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/UserPermissionService.cs
+    public async Task<IReadOnlyList<string>> GetCodesAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await (
+            from ur in _db.UserRoles
+            join rp in _db.RolePermissions on ur.RoleId equals rp.RoleId
+            join p in _db.Permissions on rp.PermissionId equals p.Id
+            where ur.UserId == userId
+            select p.Code
+        ).Distinct().ToListAsync(cancellationToken);
+    }
+```
+
+`Users.Role` string’i bu sorguda **yok**. Robin’in `Role = Player` kolonu yetmez; `UserRoles` satırı şart (bölüm 25 seed / 27 Register). `Distinct`: iki rol aynı fiili verse bir kez. Klasik RBAC: kullanıcıya rol, role fiil; kullanıcıya doğrudan fiil tablosu (ACL istisnası) yok — “yapmayalım diye atlanmadı”, bu ürün için doğru model.
+
+```30:30:ReactBattleArena/ReactBattleArena.Infrastructure/DependencyInjection.cs
+        services.AddScoped<IUserPermissionService, UserPermissionService>();
+```
+
+Interface Application, implement Infrastructure (DbContext gibi, bölüm 1). Scoped: istek başına bir servis, handler ile aynı ömür. Satırın üstündeki `IRefreshTokenGenerator` 29 Ağustos (bölüm 33); 22 Ağustos’ta yoktu.
+
+JWT’ye permission gömmek ayrı okul (stateless access). Burada **anında kes/ver**: SSMS’te `RolePermissions` satırı, yeniden login yok. Token yalnız kimlik (`sub` / `NameIdentifier`).
+
+#### Policy adı nasıl üretilir
+
+```5:11:ReactBattleArena/ReactBattleArena.Api/Authorization/HasPermissionAttribute.cs
+public sealed class HasPermissionAttribute : AuthorizeAttribute
+{
+    public HasPermissionAttribute(string permission)
+    {
+        Policy = "Permission:" + permission;
+    }
+}
+```
+
+`[HasPermission(PermissionCodes.CharactersCreate)]` aslında `[Authorize(Policy = "Permission:characters.create")]`. Framework policy adını DI’daki tek `IAuthorizationPolicyProvider`’a sorar.
+
+```6:37:ReactBattleArena/ReactBattleArena.Api/Authorization/PermissionPolicyProvider.cs
+public sealed class PermissionPolicyProvider : IAuthorizationPolicyProvider
+{
+    private const string Prefix = "Permission:";
+    private readonly DefaultAuthorizationPolicyProvider _fallback;
+
+    public PermissionPolicyProvider(IOptions<AuthorizationOptions> options)
+    {
+        _fallback = new DefaultAuthorizationPolicyProvider(options);
+    }
+
+    public Task<AuthorizationPolicy> GetDefaultPolicyAsync()
+        => _fallback.GetDefaultPolicyAsync();
+
+    public Task<AuthorizationPolicy?> GetFallbackPolicyAsync()
+        => _fallback.GetFallbackPolicyAsync();
+
+    public Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
+    {
+        if (policyName.StartsWith(Prefix, StringComparison.Ordinal))
+        {
+            var code = policyName[Prefix.Length..];
+            var policy = new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .AddRequirements(new PermissionRequirement(code))
+                .Build();
+
+            return Task.FromResult<AuthorizationPolicy?>(policy);
+        }
+
+        return _fallback.GetPolicyAsync(policyName);
+    }
+}
+```
+
+Kendi provider’ı kaydedince **default’un yerini alırız**. `[Authorize]` (`/me`, bölüm 27) ve named policy’ler hâlâ default’un işi. `_fallback = new DefaultAuthorizationPolicyProvider(options)`: yerini aldığımız sınıfın kopyasını yanında taşı, `Permission:` değilse ona sor. `GetDefaultPolicyAsync` / `GetFallbackPolicyAsync` da fallback’e — boş `[Authorize]` bozulmasın. `DefaultAuthorizationPolicyProvider` zaten public; gizlilik için `new` etmiyoruz, yerini doldurduğumuz için davranışı biz sürdürüyoruz.
+
+Tek görünmeyen zincir: attribute bir **isim** yazar (`Permission:characters.create`); provider o ismi `PermissionRequirement` + “önce login ol” kuralına çevirir; handler isimdeki kodu DB listesinde arar.
+
+```5:12:ReactBattleArena/ReactBattleArena.Api/Authorization/PermissionRequirement.cs
+public sealed class PermissionRequirement : IAuthorizationRequirement
+{
+    public string Code { get; }
+    public PermissionRequirement(string code)
+    {
+        Code = code;
+    }
+}
+```
+
+```7:28:ReactBattleArena/ReactBattleArena.Api/Authorization/PermissionAuthorizationHandler.cs
+public sealed class PermissionAuthorizationHandler : AuthorizationHandler<PermissionRequirement>
+{
+    private readonly IUserPermissionService _permissions;
+
+    public PermissionAuthorizationHandler(IUserPermissionService permissions)
+    {
+        _permissions = permissions;
+    }
+
+    protected override async Task HandleRequirementAsync(
+        AuthorizationHandlerContext context,
+        PermissionRequirement requirement)
+    {
+        var idValue = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(idValue, out var userId))
+            return;
+
+        var codes = await _permissions.GetCodesAsync(userId);
+        if (codes.Contains(requirement.Code))
+            context.Succeed(requirement);
+    }
+}
+```
+
+`return` Succeed etmeden = başarısız (auth yoksa 401, user tanındı fiil yoksa 403). Token’da permission claim **aranmaz**. `RequireAuthenticatedUser` policy’de: Bearer yok → 401, Bearer var create yok → 403.
+
+```21:23:ReactBattleArena/ReactBattleArena.Api/Program.cs
+builder.Services.AddAuthorization();
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
+```
+
+`UseAuthorization()` zaten vardı (bölüm 8); **silinmez** — middleware. `AddAuthorization()` DI: `IOptions<AuthorizationOptions>` provider constructor’ına lazım. Biri servis, biri boru hattı. Provider Singleton (stateless çevirmen); handler Scoped (DbContext kullanır). JwtBearer + `[Authorize(Roles=…)]` eskiden dolaylı authorization ile çalışırdı; kendi provider kaydınca `AddAuthorization()` açık yazılır.
+
+#### Üç kapı, class’ta tek attribute yok
+
+```46:47:ReactBattleArena/ReactBattleArena.Api/Controllers/CharactersController.cs
+    [HasPermission(PermissionCodes.CharactersCreate)]  // POST
+    [HttpPost]
+```
+
+```69:70:ReactBattleArena/ReactBattleArena.Api/Controllers/CharactersController.cs
+    [HasPermission(PermissionCodes.CharactersUpdate)]  // PUT
+    [HttpPut("{id:guid}")]
+```
+
+```95:96:ReactBattleArena/ReactBattleArena.Api/Controllers/CharactersController.cs
+    [HasPermission(PermissionCodes.CharactersDelete)]  // DELETE
+    [HttpDelete("{id:guid}")]
+```
+
+Class’a tek `[HasPermission(CharactersCreate)]` koymuyoruz: (1) GET liste/detay da kapanır veya her GET’e `[AllowAnonymous]` yağar. (2) Create / Update / Delete farklı kodlar — “düzenler ama silemez” üç kapı. Üçünü aynı metoda yığmak AND: Player’a yalnız create verirsen PUT yine 403.
+
+GET `GetPaged` / `GetById` attribute’siz — tokensız 200 (bölüm 4, 13).
+
+Test: Admin Bearer POST → 201. Player aynı POST → 403. SSMS `RolePermissions` Player + `characters.create`, **aynı token** POST → 201 (yeniden login yok). Satırı sil → 403. ShopOwner `shop.items.create` var, karakter yok. JWT decode’da permission arama.
+
+#### Bu kodu kim tetikliyor?
+
+React `apiFetch` POST/PUT/DELETE (bölüm 14, 18) aynı URL. Değişen kapı. 22 Ağustos’ta Register hâlâ `UserRoles` yazmıyordu: RolePermissions dolu, UserRoles boş → 403 (bölüm 25 seed / restart veya 27). Frontend buton gizleme yok (bölüm 28).
+
+#### Bu adımda yapılan / kalan iz
+
+Sık düşülen hata: karakter JSON’unu `POST /api/auth/register`e göndermek. Join’in `Users.Role` string’ine bakacağını sanmak. Policy provider yazıp `AddAuthorization()` unutmak. `UseAuthorization` silmek. Class-level HasPermission. Permission’ı JWT’ye ekleyip SSMS değişince eski token’ın yetkisini taşımak.
+
+#### Sonuçta ne kazandık
+
+Yazma fiilleri DB join; JWT kimlik. `/me` listesi ve Register `UserRoles` 24 Ağustos (bölüm 27).
+
+---
+
+### 27. 24 Ağustos — `GET /api/auth/me` ve Register `UserRoles`
+
+**Commit:** `c7ff318` (24 Ağustos).
+
+22 Ağustos testi: Player rolüne fiil yazılmış, robin yine 403 — `UserRoles` boştu çünkü Register yalnız `Users.Role = Player` yazıyordu, seed Api **açılışında** dolduruyordu. Bu adımda önce `RegisterCommandHandler` ikinci `SaveChanges`: Player rolünün Guid’ine `UserRole`. `Roles`’ta Player yoksa `SingleAsync` patlar (seed çalışmamış; yutma). Sonra `AuthController.Me`: `[Authorize]`, token’dan id, aynı `GetCodesAsync`, JSON `permissions`. React henüz `/me` çağırmaz (bölüm 28); Scalar ve ertesi gün UI bu listeyi kullanacak.
+
+#### Register — iki satır, seed’i bekleme
+
+```42:60:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/RegisterCommandHandler.cs
+        var entity = User.Create(
+            request.UserName,
+            request.Email,
+            request.DisplayName,
+            passwordHash,
+            Roles.Player,
+            DateTime.UtcNow);
+
+        _db.Users.Add(entity);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        var playerRole = await _db.Roles.SingleAsync(
+            r => r.Name == Roles.Player, cancellationToken);
+        //Rol yoksa (seed çalışmamış) sessizce geçme, patlat ki fark edesin.
+
+        _db.UserRoles.Add(UserRole.Create(entity.Id, playerRole.Id));
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return entity.Id;
+```
+
+İlk `SaveChanges` `entity.Id`’nin DB’de durması için (FK). `Users.Role` string hâlâ `Player` — JWT claim (bölüm 8) o kolondan; HasPermission join’e bakar. Yeni kullanıcı kaydolur olmaz POST create 403 (Player’da create yok) ama join **çalışır**; restart gerekmez. Seed default Player’a CUD vermez; elle `RolePermissions` eklediysen aynı oturumda 201.
+
+`RegisterPage` `apiFetch` `auth: false` aynı (bölüm 14, 22); değişen backend.
+
+#### `/me` — o anki join, token’da liste yok
+
+```62:84:ReactBattleArena/ReactBattleArena.Api/Controllers/AuthController.cs
+    [Authorize]
+    [HttpGet("me")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Me(CancellationToken cancellationToken)
+    {
+        var idValue = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue("sub");
+
+        if (!Guid.TryParse(idValue, out var userId))
+            return Unauthorized();
+
+        var codes = await _permissions.GetCodesAsync(userId, cancellationToken);
+
+        return Ok(new
+        {
+            id = userId,// out var daki userId
+            userName = User.Identity?.Name,
+            email = User.FindFirst(ClaimTypes.Email)?.Value
+                ?? User.FindFirst("email")?.Value,
+            permissions = codes
+        });
+    }
+```
+
+Bearer yok/bozuk → 401 (`[Authorize]`, policy provider fallback). Id parse olmazsa 401. `permissions` string dizisi; Admin seed’de dört kod (`characters.*` + `shop.items.create`), düz Player boş dizi (katalog GET ayrı, açık). SSMS `RolePermissions` değişince **sonraki** `/me` güncellenir, yeni login şart değil.
+
+Controller’a `IUserPermissionService` ctor’dan girer (handler’daki aynı scoped servis). Anonymous `new { … }` DTO sınıfı yok — o gün yeterli.
+
+Frontend 24 Ağustos’ta bu endpoint’i henüz bağlamadı. 5173 hâlâ 403’ü formdan görür; link gizleme ertesi oturum (bölüm 28).
+
+#### Bu kodu kim tetikliyor?
+
+Kayıt: `POST /api/auth/register` → `Users` + `UserRoles` Player. `/me`: `GET /api/auth/me` + Bearer → join. Create POST hâlâ `HasPermission` (bölüm 26).
+
+#### Bu adımda yapılan / kalan iz
+
+Sık düşülen hata: `/me`’nin JWT içindeki eski listeyi döndüğünü sanmak. Register’da `UserRoles`’u seed’e bırakmak (22 Ağu 403). Player yokken `SingleAsync`’i try/catch ile yutmak. `/me`’ye `[AllowAnonymous]`. React’te her sayfanın kendi `/me`’si — o henüz yok, 28–31’de gelecek.
+
+#### Sonuçta ne kazandık
+
+Yeni kullanıcı join’de görünür; `/me` o anki fiilleri söyler. UI gizleme ve sayfa kapıları Blok D (bölüm 28).
+
+---
+
+## Blok D — Frontend yetki (24–27 Ağustos)
+
+Backend `HasPermission` + `/me` duruyordu; 5173 hâlâ herkese “Karakter ekle” gösteriyordu. Player forma girip 403 yerdi. Bu blokta önce link gizleme (UX), sonra URL kapısı (`Navigate`), sonra tek `/me` (Context). Asıl kapı API’de kalır.
+
+---
+
+### 28. 24 Ağustos — `permissions.ts`, `hasPermission`, `&&` ile link gizleme
+
+**Commit:** `8a19f75` (24 Ağustos, `/me` backend’i ile **aynı gün** ama sonra; bölüm 27 API, bu bölüm 5173).
+
+Bu adımda dosyaları şu sırayla ekledik. Önce `permissions.ts` — `"characters.create"` üç sayfada elle yazılmasın, `PERMISSIONS` sabiti + `hasPermission` (`includes`). Sonra `CharactersPage` `load` içinde `GET /api/auth/me`, `setPermissions(me.permissions ?? [])`. Header’da `{hasPermission(...) && <Link to="/characters/new">}`. `CharacterDetailPage` aynı diziyle Düzenle / Sil. Liste ve detay **ayrı** `/me` atıyordu; Context yoktu (bölüm 30). Bugün `usePermissions()` layout’tan okur; `load` içindeki `/me` yorumda.
+
+#### Sabit ve `includes`
+
+```1:9:web/src/permissions.ts
+export const PERMISSIONS = {
+  charactersCreate: 'characters.create',
+  charactersUpdate: 'characters.update',
+  charactersDelete: 'characters.delete',
+} as const
+
+export function hasPermission(permissions: string[], code: string): boolean {
+  return permissions.includes(code)
+}
+```
+
+`as const` değerleri literal string kilitler; yanlışlıkla `PERMISSIONS.charactersCreate = 'x'` derleme hatası. Kodlar `PermissionCodes` ile aynı (bölüm 25). `hasPermission` React hook **değil** — düz fonksiyon, C# `codes.Contains("characters.create")`. Dizi + kod → true/false. “Cüzdan nerede?” ayrı iş (`usePermissions`, bölüm 30).
+
+```95:97:web/src/CharactersPage.tsx
+          {hasPermission(permissions, PERMISSIONS.charactersCreate) && (
+            <Link to="/characters/new">Karakter ekle</Link>
+          )}
+```
+
+`&&` soldaki koşul, sağdaki Link değil (bölüm 17). False ise React hiçbir şey çizmez. Razor `@if (hasCreate) { <a>…</a> }`. Üç fiil ayrı: robin’de yalnız create varsa Ekle görünür, Düzenle/Sil görünmez.
+
+```148:156:web/src/CharacterDetailPage.tsx
+          {hasPermission(permissions, PERMISSIONS.charactersUpdate) && (
+            <Link to={`/characters/${id}/edit`}>Düzenle</Link>
+          )}
+          {hasPermission(permissions, PERMISSIONS.charactersDelete) && (
+            <button type="button" onClick={handleDelete}>
+              Sil
+            </button>
+          )}
+          <Link to="/characters">Listeye dön</Link>
+```
+
+24 Ağustos’ta detay kendi `load`’unda `/me` atmazsa `permissions` `[]` kalır — **zoro dahil** butonlar gizlenir. Liste `setPermissions` şarttı. Bugün ikisi de Context; unutulan sayfa `/me` tuzağı bölüm 31’de kapanır.
+
+```74:78:web/src/CharactersPage.tsx
+      // const meResponse = await apiFetch('/api/auth/me')
+      // if(meResponse.ok){
+      //   const me = await meResponse.json()
+      //   setPermissions(me.permissions ?? [])
+      // }  
+```
+
+24 Ağustos’ta bu yorum **çalışan** koddu. `?? []`: `permissions` yoksa boş dizi, `.includes` patlamasın.
+
+#### UI gizleme ≠ yetki
+
+Link yok diye Player `/characters/new` yazamaz sanmak yanlış. Adres durur; sayfa açılır. Asıl kapı `POST /api/characters` + `[HasPermission]` (bölüm 26) — 403. Gizleme UX: yetkisiz kişi formu doldurmasın. ASP.NET’te butonu Razor’da gizlesen action attribute durur. 25 Ağustos’ta URL’ye ikinci kapı eklendi (bölüm 29).
+
+#### Bu kodu kim tetikliyor?
+
+Liste mount → (o gün) GetPaged + `/me` → `permissions` → `&&` Link. Detay kendi GET + (o gün kendi) `/me`. Backend yeni değil.
+
+#### Bu adımda yapılan / kalan iz
+
+Sık düşülen hata: `me.permission` (tekil) — API `permissions`; `undefined ?? []` → herkes yetkisiz. Detayda `/me` unutmak. Link gizleyince API’nin kapandığını sanmak. `hasPermission`’ı hook sanmak.
+
+#### Sonuçta ne kazandık
+
+Player’da Ekle yok, Admin’de var; POST hâlâ 403 ile duruyor. URL kapısı ve `meLoaded` ertesi gün (bölüm 29).
+
+---
+
+### 29. 25–26 Ağustos — Create/Edit sayfa kapıları, `meLoaded`, sonsuz Yükleniyor, Guid URL
+
+**Commit’ler:** `32723d4` (25 Ağustos, Create), `92cd0d9` (26 Ağustos, Edit kapısı; aynı commit’te Context de var — o bölüm 30).
+
+Link gizlenince `/characters/new` hâlâ `CharacterCreatePage` açıyordu. `AppLayout` yalnız token’a bakıyordu (kimsin). İkinci kapı **fiil**: create yoksa forma girme. `Navigate replace` geçmişe `new` yazmaz. Güvenlik hâlâ POST; kapı UX. Edit aynı iskelet, `characters.update`. Bugün `meLoaded` Create’de yok — layout’ta (bölüm 30); yorum satırları 25 Ağustos’u anlatır.
+
+#### Neden `/me` bitmeden atılmaz?
+
+`useState<string[]>([])` ilk anda boş. Gelmeden `hasPermission` false → Admin bir kare yetkisiz görünür, `Navigate` ile listeye düşer. C# `await GetCodesAsync` bitmeden 403 basmaz. React: `meLoaded === false` iken form yok, Navigate yok; “Yükleniyor…”. Geldikten sonra fiil yoksa `Navigate to="/characters"`.
+
+```139:149:web/src/CharacterCreatePage.tsx
+   if (!token) {
+    return <Navigate to="/login" replace />
+  }
+
+  // if (!meLoaded){
+  //   return <p>Yükleniyor...</p>
+  // }  bunları kaldırdık çünkü artık ortak permission ekledik
+
+  if (!hasPermission(permissions, PERMISSIONS.charactersCreate)){
+    return <Navigate to="/characters" replace />
+  }
+```
+
+25 Ağustos’ta `meLoaded` yorum değil, canlıydı; `permissions` sayfa `useState`’iydi; `loadPreview` hem liste hem `/me` atıyordu, `setMeLoaded(true)` try/catch **dışında** (hata olsa da bitsin). Bugün `usePermissions()`; layout `/me` bitmeden Outlet yok.
+
+#### Hook sırası — sonsuz Yükleniyor
+
+`if (!meLoaded) return <p>Yükleniyor` `useEffect`’ten **önce** durursa: ilk çizimde `meLoaded` zaten false → effect hiç kayıt olmaz → `loadPreview` çalışmaz → `setMeLoaded(true)` hiç gelmez → sonsuz Yükleniyor. Token `if`’i eskiden de effect üstündeydi; token varsa geçiliyordu. `meLoaded` herkese false başladığı için bu sefer **herkesi** kesti.
+
+Doğru sıra: state → `loadPreview` tanımı → `useEffect` → `handleCreate` → üç `if` (token, meLoaded, hasPermission) → form. Hook’lar bitti, **sonra** kapı. Razor’da `OnGet` bitmeden `Redirect` yok.
+
+İkinci yazım: `if (!response.ok) return` preview 500’de fonksiyonu keser; alttaki `setMeLoaded(true)` çalışmaz. Yetki listesine bağlı olmamalı; preview hata olsa da `/me` devam. 25 Ağustos düzeltmesi: `!ok` dalında return yok, `else` ile `setItems`.
+
+`me.permission` (tekil) Create’de yazılırsa `?? []` → zoro da listeye atılır. Liste/detay çoğul `permissions` kullanıyordu.
+
+#### Edit — `loading` yeter, ikinci `meLoaded` yok
+
+```161:169:web/src/CharacterEditPage.tsx
+  if (!token) {
+  return <Navigate to="/login" replace />
+  }
+  if (loading) {
+    return <p>Yükleniyor…</p>
+  }
+  if (!hasPermission(permissions, PERMISSIONS.charactersUpdate)) {
+    return <Navigate to="/characters" replace />
+  }
+```
+
+26 Ağustos’ta Edit karakter GET için zaten `loading` tutuyordu. `/me` `load()` içinde, karakter `apiFetch`’inden **önce** (404 `return` `/me`’yi atlamasın). `setLoading(false)` `finally`. Kapı `useEffect` ve `handleSubmit` **sonra**. Player’da update yok: adres çubuğundan `.../edit` → liste. Create’de kalması çelişki değil — testte Player’a `characters.create` elle verilmişti, `update` yok.
+
+Bugün Edit de Context; yorumdaki `/me` o günkü yer.
+
+#### Guid URL
+
+`:id` Guid. `/characters/Franky/edit` → `GET /api/characters/Franky` → ASP.NET `{id:guid}` eşleşmez / 404 → “Karakter bulunamadı”. Update’i olan kullanıcı kapıdan geçer, 404 görür. Form için karttaki Düzenle linki Guid yazar (`/characters/44AEDA65-…/edit`).
+
+Katalog vs takım: `POST /api/characters` katalog kartı üretmek; her Player’ın takıma karakter alması ayrı fiil (yok). New kapısı katalog yazma.
+
+#### Bu kodu kim tetikliyor?
+
+`/characters/new` → (o gün sayfa `/me`) → create yoksa Navigate, varsa form → POST hâlâ 403/201. `/characters/:id/edit` → GET detay + (o gün) `/me` → update yoksa liste. Backend attribute değişmedi.
+
+#### Bu adımda yapılan / kalan iz
+
+Sık düşülen hata: `meLoaded` `if`’ini `useEffect` üstüne koymak. Preview `!ok`’da `return`. `permission` tekil. Link gizleyince URL’nin kapanacağını sanmak. `/characters/Franky/edit`. Dört sayfanın ayrı `/me`’si — aynı gün Context’e geçiş başladı, liste bağlandı; Create/Edit/Detail bölüm 31.
+
+#### Sonuçta ne kazandık
+
+Yetkisiz form açılmaz; hook sırası ve Guid net. Tek `/me` kutusu bölüm 30.
+
+---
+
+### 30. 26 Ağustos — `PermissionContext`, `Provider`, `usePermissions`
+
+**Commit:** `92cd0d9` (26 Ağustos; aynı commit Edit kapısını da taşıdı — kapı bölüm 29, bu bölüm kutu).
+
+Dört sayfa ayrı `GET /api/auth/me` = aynı join dört kez. Nested route’ta `AppLayout` kalır, `Outlet` değişir: `/me`’yi layout’ta bir kez at, çocuklar diziyi okusun. Bu adımda önce `PermissionContext.tsx` (`createContext`, `usePermissions`). Sonra `AppLayout` `permissions` + `meLoaded`, effect’te `/me`, `setMeLoaded(true)` try/catch dışı, hook’lar `if (!token)` **üstünde**. Provider `Outlet`’i sarar; `/me` bitmeden Outlet yok. Liste `usePermissions`’a geçti; Create/Edit/Detail hâlâ kendi `/me` (bölüm 31). Layout `hasPermission` import etmez — cüzdanı doldurur, kapı sayfada kalır.
+
+#### Context — görünmeyen kutu
+
+```1:17:web/src/PermissionContext.tsx
+import { createContext, useContext } from 'react'
+
+type PermissionContextValue = {
+    permissions: string[]
+}
+
+const PermissionContext = createContext<PermissionContextValue | null>(null)
+
+export function usePermissions(): string[] {
+    const ctx = useContext(PermissionContext)
+    if(!ctx){
+        throw new Error('usePermissions yalnızca AppLayout içinde')
+    }
+    return ctx.permissions
+}
+
+export { PermissionContext }
+```
+
+Tek benzetme: `permissions` dizisi bir **cüzdan**. Provider cüzdanı ağaca asar; altındaki sayfalar `usePermissions` ile aynı cüzdanı okur, prop deliğiyle taşımaz. `createContext(null)` boş kanca: Login/Register `AppLayout` dışında, Provider yok. `usePermissions` Login’de çağrılırsa throw — sessiz `[]` herkesi yetkisiz gösterir, hatayı gizler.
+
+`usePermissions` “şu fiil var mı?” demez; yalnız diziyi verir. `hasPermission(permissions, PERMISSIONS.charactersCreate)` ayrı düz fonksiyon (bölüm 28). C# kabaca: istekte bir kez `GetCodesAsync`, sonucu `HttpContext.Items`’a koy, action’lar oradan okusun. Hâlâ DB; JWT’ye permission yazılmıyor.
+
+#### Layout doldurur, Outlet okur
+
+```14:45:web/src/AppLayout.tsx
+  const [permissions, setPermissions] = useState<string[]>([])
+  const [meLoaded, setMeLoaded] = useState(false)
+
+  useEffect(() => {
+  if (!token) {
+    return
+  }
+
+  async function loadMe() {
+    try {
+      const meResponse = await apiFetch('/api/auth/me')
+      if (meResponse.ok) {
+        const me = await meResponse.json()
+        setPermissions(me.permissions ?? [])
+      }
+    } catch {
+      // /me gelmese de meLoaded bitsin; yoksa sonsuz Yükleniyor
+    }
+    setMeLoaded(true)
+  }
+
+  loadMe()
+}, [token])
+  
+
+  if (!token) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (!meLoaded) {
+  return <p>Yükleniyor…</p>
+}
+```
+
+Hook’lar erken `return`’den önce (bölüm 29 tuzağı). Token yoksa effect `/me` atmaz. `meLoaded` false iken Provider/Outlet yok: çocuk boş diziyle “yetkin yok” deyip `Navigate` etmesin. `?? []` ve catch sonrası `setMeLoaded(true)` 25 Ağustos dersi.
+
+```57:81:web/src/AppLayout.tsx
+  return (
+    <PermissionContext.Provider value={{ permissions }}>
+      <div className="app-shell">
+        <header className="app-header">
+              <div className="app-header__left">
+                  <Link to="/characters" className="app-header__brand">
+                  ReactBattleArena
+                  </Link>
+                  <nav className="app-header__nav">
+                  <Link to="/characters">Karakterler</Link>
+                  </nav>
+              </div>
+              <button
+                type="button"
+                className="app-header__logout"
+                onClick={handleLogout}
+              >
+                Çıkış
+              </button>
+          </header>
+        <main className="app-main">
+          <Outlet />
+        </main>
+    </div>
+    </PermissionContext.Provider>
+```
+
+`value={{ permissions }}` her `setPermissions`’ta yeni obje; alt `usePermissions` güncellenir. Listeye dönüşte layout unmount olmaz → `/me` tekrar atılmaz. Doğru.
+
+```18:19:web/src/CharactersPage.tsx
+function CharactersPage() {
+  const permissions = usePermissions()
+```
+
+26 Ağustos kanıtı: Sanji’de Ekle, Network’te listenin kendi `/me`’si yok, yalnız layout’unki. Create’e basınca o gün hâlâ sayfa `/me`’si — üç sayfayı aynı anda taşımak hangi 403’ün kimin isteği karışırdı.
+
+```7:12:web/src/main.tsx
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </StrictMode>,
+)
+```
+
+İlk açılışta 2 `/me`: StrictMode development’ta effect’i iki kez (bölüm 19). Production’da tek. Üçüncü satır HMR / eski Network. StrictMode kapatılmaz.
+
+#### Bu kodu kim tetikliyor?
+
+`/characters` → `AppLayout` mount → `GET /api/auth/me` (bölüm 27) → Provider → `CharactersPage` `usePermissions` → `hasPermission && Link`. Backend join aynı.
+
+#### Bu adımda yapılan / kalan iz
+
+Sık düşülen hata: Login’de `usePermissions`. Provider’ı `Outlet`’in **içine** koymak — çocuk context görmez. `meLoaded` bitmeden Outlet. Context’i `[]` default ile yaratıp throw’u kaldırmak — Login sessiz yetkisiz. Layout’ta `hasPermission` ile link gizleyip sayfanın cüzdanı boş sanması.
+
+#### Sonuçta ne kazandık
+
+Liste tek `/me` okuyor. Create/Edit/Detail ertesi gün bağlandı (bölüm 31).
+
+---
+
+### 31. 27 Ağustos — Create / Edit / Detail Context’e geçti, tek `/me`
+
+**Commit:** `a839ea9` (27 Ağustos).
+
+Layout cüzdanı veriyordu; üç sayfa hâlâ kendi `/me`’sini atıyordu. Bu adımda `CharacterCreatePage`, `CharacterEditPage`, `CharacterDetailPage` `usePermissions()` aldı, sayfa `/me` + `meLoaded` / `setPermissions` silindi (yorumda duruyor). Kapı `if`’leri aynı (`hasPermission` + `Navigate`). Network’te korumalı gezinti: bir layout `/me` (+ StrictMode’da ikinci), sayfa `characters` GET/PUT/DELETE — ikinci `/me` yok.
+
+```19:21:web/src/CharacterCreatePage.tsx
+  const navigate = useNavigate()
+  const token = getToken()
+  const permissions = usePermissions()
+```
+
+```12:13:web/src/CharacterEditPage.tsx
+  const token = getToken()
+  const permissions = usePermissions()
+```
+
+```26:27:web/src/CharacterDetailPage.tsx
+  const token = getToken()
+  const permissions = usePermissions()
+```
+
+`usePermissions` hook olduğu için koşulsuz, fonksiyon gövdesinin üstünde — `if (!token) return` **önce**. Aksi halde React hook sırası bozulur (bölüm 29). Dizi layout’tan; `hasPermission(..., PERMISSIONS.charactersCreate)` Create’de, `charactersUpdate` Edit’te, update/delete Detay’da aynı kaldı.
+
+Yoruma alınan `/me` blokları “o gün sayfa atıyordu” belgesi; tekrar açmak çift istek üretir. `meLoaded` Create’de yok: layout Outlet’i geciktiriyor.
+
+Liste → new → detay → edit → liste: `AppLayout` ayakta, cüzdan aynı, SSMS’te `RolePermissions` değişince **yeni** `/me` yok (layout unmount olmadı). Anında kes/ver için sayfa yenile veya token değişince effect (`[token]`). Refresh token ayrı kapı (Blok E); permission “ne yapabilirim”, refresh “oturum ne kadar açık”.
+
+#### Bu kodu kim tetikliyor?
+
+Aynı `/me` + aynı `HasPermission` POST/PUT/DELETE. Değişen 5173’ün kaç kez join sorması. Backend 27 Ağustos’ta yeni endpoint yok.
+
+#### Bu adımda yapılan / kalan iz
+
+Sık düşülen hata: üç sayfadan birinde `/me`’yi unutup silmemek — Network’te fazladan `me`. `usePermissions`’ı `if (!token)` altına almak. Context’i prop ile tekrar geçirmek. Logout `clearToken` + `/login` layout’u unmount eder; tekrar girişte yeni `/me` — doğru.
+
+#### Sonuçta ne kazandık
+
+Korumalı ağaçta tek cüzdan, tek `/me`. Blok D bitti. 28 Ağustos’ta `RefreshToken` tablosu (henüz login yazmıyor) — bölüm 32.
+
+---
+
+## Blok E — Refresh token (28 Ağustos – 8 Eylül)
+
+Permission “ne yapabilirim” (DB join, her istek, JWT’ye gömülmez). Access JWT “kimsin, kısa”. Arena’da 60 dakikada 401 + tekrar şifre rahatsız. Bu blok oturumu **şifresiz uzatır**; yetki modeline dokunmaz. Frontend Context durur. 28 Ağustos’ta yalnız tablo; 29 Ağustos’ta login hash + ham JSON; 8 Eylül’de `POST /api/auth/refresh` + `api.ts` 401 (bölüm 34).
+
+---
+
+### 32. 28 Ağustos — `RefreshToken` entity, EF, `AddRefreshTokens` (tablo boş)
+
+**Commit:** `661d306` (28 Ağustos).
+
+Access JWT zaten vardı (bölüm 8): login bir imzalı string üretir, tabloda satır yok, `ExpireMinutes` 60, bitince 401. Permission ayrı kapı (Blok C–D). Arena için 60 dk kısa geldi; yeni access’i şifresiz basmak için **ikinci bir sır** lazım ve o sır DB’de ham durmamalı. Bu adımda önce Domain `RefreshToken` (`User` kalıbı: private ctor, `Create`, `Revoke`). Sonra `RefreshTokenConfiguration` (tablo adı, `TokenHash` 64 unique, User `Cascade`). `IApplicationDbContext` + `ApplicationDbContext` `DbSet`. En sonda migration `AddRefreshTokens` + `database update`. Login, generator, React yok — SSMS’te tablo **boş**.
+
+Tek benzetme: iki **saat**. Access JWT kısa saat (sunucu onu kaydetmez, süre token’ın içinde). Refresh uzun saat (satır DB’de; ham metin yok, hash var). İkisini tek JWT claim’ine sıkıştırmak “yetki + oturum aynı kapı”ya döner; o yüzden ayrı tablo.
+
+#### Domain — satır, ham token değil
+
+```1:43:ReactBattleArena/ReactBattleArena.Domain/Authentication/RefreshToken.cs
+namespace ReactBattleArena.Domain.Authentication;
+
+public sealed class RefreshToken
+{
+    private RefreshToken()
+    {
+    }
+
+    public Guid Id { get; private set; }
+
+    public Guid UserId { get; private set; }
+
+    public string TokenHash { get; private set; } = null!;
+
+    public DateTime ExpiresAtUtc { get; private set; }
+
+    public DateTime CreatedAtUtc { get; private set; }
+
+    public DateTime? RevokedAtUtc { get; private set; }
+
+    public static RefreshToken Create(
+        Guid userId,
+        string tokenHash,
+        DateTime expiresAtUtc,
+        DateTime utcNow)
+    {
+        return new RefreshToken
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            TokenHash = tokenHash,
+            ExpiresAtUtc = expiresAtUtc,
+            CreatedAtUtc = utcNow
+        };
+    }
+
+    public void Revoke(DateTime utcNow)
+    {
+        if (RevokedAtUtc is not null)
+            return;
+
+        RevokedAtUtc = utcNow;
+    }
+}
+```
+
+`User` ile aynı iskelet (bölüm 6): EF’nin boş ctor’u, `private set`, factory `Create`. Klasör `Domain/Authentication/` — `Authorization` (Role/Permission) değil; bu satır “oturum uzatma sırrı”, fiil listesi değil.
+
+`TokenHash` adında **Hash** var: Create ham string almaz. Şifre gibi (bölüm 7): sızıntıda ham refresh = yeni access basma hakkı. `PasswordHash` BCrypt’tir; bu hash’in algoritması 29 Ağustos’ta SHA256 (bölüm 33). 28 Ağustos’ta yalnız kolon.
+
+Kendi `Id`: bir kullanıcının zaman içinde **çok** satırı olur (yeniden login, ileride cihaz). `UserRole` çift PK `(UserId, RoleId)` idi — üyelik tektir. Refresh üyelik değil, oturum fişi.
+
+`Revoke` satırı silmez, `RevokedAtUtc` yazar. Çıkış / rotation (bölüm 34) eski fişi öldürür; `is not null` ikinci kez çağrıyı no-op yapar. 28 Ağustos’ta kimse `Revoke` çağırmaz.
+
+`ExpiresAtUtc` uzun saatin bitişi; `CreatedAtUtc` ne zaman basıldığı. JWT `exp` claim’i tabloda yok — access zaten token’ın kendi içinde ölür.
+
+#### EF — `Persistence`, unique 64, Cascade
+
+```1:24:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/RefreshTokenConfiguration.cs
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using ReactBattleArena.Domain.Authentication;
+using ReactBattleArena.Domain.Users;
+
+namespace ReactBattleArena.Infrastructure.Persistence;
+
+public sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
+{
+    public void Configure(EntityTypeBuilder<RefreshToken> builder)
+    {
+        builder.ToTable("RefreshTokens");
+        builder.HasKey(x => x.Id);
+
+        builder.Property(x => x.TokenHash).IsRequired().HasMaxLength(64);
+        builder.HasIndex(x => x.TokenHash).IsUnique();
+
+        builder.HasIndex(x => x.UserId);
+
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
+```
+
+`ApplyConfigurationsFromAssembly` (bölüm 1) bu sınıfı kendiliğinden alır; `OnModelCreating`’e tek tek yazılmaz. Namespace `Persistence` — `Persistance` yazımı derlenmez, `dotnet ef` de bulamaz.
+
+`HasMaxLength(64)` SHA256 hex (32 byte → 64 karakter). Unique: aynı hash iki satır olmasın; 29 Ağustos’ta “bu ham token’ın satırı hangisi?” araması bu index’ten gidecek. `UserId` index: “bu kullanıcının fişleri” (ileride hepsini kapat).
+
+`HasOne<User>().WithMany()` — `User` üzerinde `ICollection<RefreshToken>` yok (Role’de de collection yazmamıştık). FK yine durur. `Cascade`: kullanıcı silinince fişleri de silinir; yetim hash kalmaz.
+
+`OnDelete(...)` satırının sonundaki noktalı virgül şart. Unutulursa CS1002, migration da üretilmez.
+
+```8:18:ReactBattleArena/ReactBattleArena.Application/Abstractions/IApplicationDbContext.cs
+public interface IApplicationDbContext
+{
+    DbSet<Character> Characters { get; }
+    DbSet<User> Users { get; }
+    DbSet<Role> Roles { get; }
+    DbSet<Permission> Permissions { get; }
+    DbSet<UserRole> UserRoles { get; }
+    DbSet<RolePermission> RolePermissions { get; }
+    DbSet<RefreshToken> RefreshTokens { get; }
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+```
+
+```24:24:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/ApplicationDbContext.cs
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+```
+
+Handler Infrastructure class’ını görmez (bölüm 1). 20 Ağustos’ta bu `DbSet` yoktu; 28 Ağustos’ta eklendi. Login handler ertesi gün `Add` edecek (bölüm 33); o gün kimse set’i kullanmıyordu.
+
+#### Migration — şema var, satır yok
+
+```14:45:ReactBattleArena/ReactBattleArena.Infrastructure/Migrations/20260828163543_AddRefreshTokens.cs
+            migrationBuilder.CreateTable(
+                name: "RefreshTokens",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    TokenHash = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    ExpiresAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    RevokedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RefreshTokens", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_RefreshTokens_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefreshTokens_TokenHash",
+                table: "RefreshTokens",
+                column: "TokenHash",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefreshTokens_UserId",
+                table: "RefreshTokens",
+                column: "UserId");
+```
+
+`InitialCreate`’e kolon yapıştırmadık (bölüm 1 kuralı). `Down` tabloyu düşürür. `*.Designer.cs` ve snapshot otomatik; onlardan alıntı yok. `dotnet ef database update` sonrası SSMS’te `RefreshTokens` görünür, **sıfır satır** — login henüz `Add` etmiyor.
+
+`dotnet-ef` araç sürümü runtime’dan eski olabilir (ör. 10.0.5 vs 10.0.9): uyarı, başarısızlık değil. `dotnet tool update --global dotnet-ef` isteğe bağlı. Bu uyarı yüzünden JwtBearer paketini güncelleme.
+
+#### Bu kodu kim tetikliyor?
+
+Uygulama içinden **kimse**. `POST /api/auth/login` hâlâ yalnız access JWT basar (bölüm 8); 5173 aynı. Tetikleyen `dotnet ef migrations add AddRefreshTokens` ve `database update`. Frontend ertesi gün `refreshToken` alanını okuyacak (bölüm 33). `POST /api/auth/refresh` yok — o bölüm 34, kod yazılınca.
+
+#### Bu adımda yapılan / kalan iz
+
+Sık düşülen hata: namespace `Persistance`. `OnDelete` noktalı virgül unutmak. Refresh’i `Users`’a kolon yapmak (bir kişi bir fiş; cihaz/yeniden login kırılır). `UserRole` gibi composite PK. Ham token’ı `nvarchar` saklamak. `InitialCreate`’i düzenlemek. EF araç uyarısını paket güncellemesi sanmak. Tabloyu görüp “login artık yeniliyor” sanmak — satır yok.
+
+#### Sonuçta ne kazandık
+
+Uzun saat için tablo ve hash kolonu var; kısa saat hâlâ JWT. Login ertesi gün yazdı (bölüm 33).
+
+---
+
+### 33. 29 Ağustos — generator, login hash DB / ham JSON, `localStorage`
+
+**Commit:** `e45172e` (29 Ağustos).
+
+Tablo boş duruyordu; login hâlâ yalnız access basıyordu. Bu adımda önce `JwtOptions.RefreshExpireDays` (varsayılan 7; `appsettings` `Jwt` bölümünde aynı isim — Key satırını notlara kopyalamıyorum). Sonra `IRefreshTokenGenerator` + `RefreshTokenGenerator` (rastgele ham, SHA256 hex, süre) ve DI `AddSingleton`. `LoginResult`’a `RefreshToken`; handler hash’i `RefreshTokens`’a yazar, hamı JSON’a koyar. Controller yeni action yok — 200 body’si bir alan şişer. `api.ts` `getRefreshToken` / `setRefreshToken`, `clearToken` ikisini siler. `LoginPage` `data.refreshToken` kaydeder. `POST /api/auth/refresh` ve 401’de sessiz yenileme **yok**; tarayıcı ikinci anahtarı tutar, henüz kullanmaz.
+
+#### Süre config’de, üretim Infrastructure’da
+
+```13:14:ReactBattleArena/ReactBattleArena.Infrastructure/Security/JwtOptions.cs
+    public int ExpireMinutes { get; set; } = 60;
+    public int RefreshExpireDays { get; set; } = 7;
+```
+
+22 Temmuz’da yalnız `ExpireMinutes` vardı. Kısa saat dakika, uzun saat gün — aynı `Jwt` section, iki sayı. `Configure<JwtOptions>` zaten duruyordu; yeni property bind olur.
+
+```1:7:ReactBattleArena/ReactBattleArena.Application/Abstractions/IRefreshTokenGenerator.cs
+namespace ReactBattleArena.Abstractions;
+
+public interface IRefreshTokenGenerator
+{
+    (string Raw, string Hash, DateTime ExpiresAtUtc) Create(DateTime utcNow);
+    // Yukarıdaki Create üç değeri birden döndürüyor. Buna tuple (demet) denir.
+}
+```
+
+Dosya Application katmanında (handler Infrastructure class’ını görmesin). Namespace `ReactBattleArena.Abstractions` — `IApplicationDbContext` ise `ReactBattleArena.Application.Abstractions`; tutarsız ama gerçek. Dönüş **tuple**: üç `out` parametresi veya küçük DTO yerine bir `Create` üç değer.
+
+```9:28:ReactBattleArena/ReactBattleArena.Infrastructure/Security/RefreshTokenGenerator.cs
+public sealed class RefreshTokenGenerator : IRefreshTokenGenerator
+{
+    private readonly JwtOptions _options;
+
+    public RefreshTokenGenerator(IOptions<JwtOptions> options)
+    {
+        _options = options.Value;
+    }
+
+    public (string Raw, string Hash, DateTime ExpiresAtUtc) Create(DateTime utcNow)
+    {
+        var bytes = RandomNumberGenerator.GetBytes(32);
+        var raw = Convert.ToBase64String(bytes);
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw)));
+        var expires = utcNow.AddDays(_options.RefreshExpireDays);
+        return (raw, hash, expires);
+        // Şifre hasher’ını (BCrypt) kullanma. BCrypt her seferinde farklı tuz üretir; TokenHash unique index ile arama bozulur. 
+    }
+
+}
+```
+
+32 rastgele byte → Base64 **ham** (cevapta bir kez). SHA256(UTF8(ham)) → hex; `Convert.ToHexString` 64 karakter, kolon `nvarchar(64)` ile örtüşür. `expires` `RefreshExpireDays` kadar ilerisi.
+
+BCrypt **bilinçli yok**. Parolada amaç “aynı şifreyi doğrula, hash’i arama anahtarı yapma”: her `Hash` farklı tuz, `Verify` yeterli. Refresh’te amaç “istemcinin gönderdiği hamı SHA256’le, unique index’ten satırı bul”. BCrypt her seferinde başka string üretir; `WHERE TokenHash = @x` tutmaz. Paralel: parola BCrypt (bölüm 7), fiş SHA256.
+
+```27:29:ReactBattleArena/ReactBattleArena.Infrastructure/DependencyInjection.cs
+        services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
+        services.AddSingleton<IJwtTokenService, JwtTokenService>();
+        services.AddSingleton<IRefreshTokenGenerator, RefreshTokenGenerator>();
+```
+
+22 Ağustos’ta bu satır yoktu. Singleton: istek state’i yok, hasher / JWT servisi gibi. Scoped da çalışırdı; mevcut güvenlik servisleriyle aynı ömür seçildi.
+
+#### Login artık satır yazar
+
+```8:13:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/LoginCommand.cs
+public sealed record LoginResult(
+    Guid UserId,
+    string UserName,
+    string Email,
+    string Token,
+    string RefreshToken);
+```
+
+22 Temmuz’da dördüncü alan `Token` ile bitiyordu. ASP.NET JSON camelCase: `refreshToken`. Controller imzası aynı `Ok(result)` — yeni endpoint değil, body’se bir property.
+
+```41:51:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/LoginCommandHandler.cs
+        var token = _jwtTokenService.CreateToken(user);
+
+        var utcNow = DateTime.UtcNow;
+        var (rawRefresh, hash, expires) = _refreshTokens.Create(utcNow);
+        _db.RefreshTokens.Add(
+            RefreshToken.Create(user.Id, hash, expires, utcNow));
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+
+        return new LoginResult(user.Id, user.UserName, user.Email, token, rawRefresh);
+```
+
+22 Temmuz’da `CreateToken` sonrası `return new LoginResult(..., token)` — **SaveChanges yoktu**, JWT tabloda durmaz. Bugün tek `SaveChanges` refresh satırını basar; access hâlâ yalnızca cevapta.
+
+Tuple açılımı: `rawRefresh` JSON, `hash` kolon. SSMS’te `TokenHash` ile F12 `refreshToken` **aynı string değildir**. Aynı olması = hamı DB’ye yazmışsın.
+
+`Revoke` hâlâ çağrılmaz. Her login **yeni** satır; eskiler `RevokedAtUtc` null kalır (rotation bölüm 34). Kullanıcı yok / şifre yanlış yine `null` → 401, satır yok.
+
+```46:60:ReactBattleArena/ReactBattleArena.Api/Controllers/AuthController.cs
+    [AllowAnonymous]//Böylece ileride global [Authorize] eklesek bile login/register çalışır.
+    [HttpPost("login")]
+    [ProducesResponseType(typeof(LoginResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<LoginResult>> Login(
+    [FromBody] LoginRequest body,
+    CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(
+            new LoginCommand(body.UserNameOrEmail, body.Password),
+            cancellationToken);
+
+        return result is null ? Unauthorized() : Ok(result);
+    }
+```
+
+Action 22 Temmuz’dan beri bu. 200’de artık `refreshToken` de var. `POST /api/auth/refresh` yok.
+
+#### React — ikinci anahtar, henüz kullanılmıyor
+
+```3:21:web/src/api.ts
+export function getToken(): string | null {
+  return localStorage.getItem('token')
+}
+
+export function setToken(token: string) {
+  localStorage.setItem('token', token)
+}
+
+export function clearToken() {
+  localStorage.removeItem('token')
+  localStorage.removeItem('refreshToken')
+}
+
+export function getRefreshToken(): string | null {
+  return localStorage.getItem('refreshToken')
+}
+export function setRefreshToken(token: string) {
+  localStorage.setItem('refreshToken', token)
+}
+```
+
+11 Ağustos’ta `clearToken` yalnız `token` siliyordu. Anahtar adı JSON’daki `refreshToken` (camelCase). `apiFetch` 401 görünce **login’e atmıyor**, yenileme de yok; sayfa `ok` bakar. `getRefreshToken` bu commit’te kayıt için durur.
+
+```54:57:web/src/LoginPage.tsx
+      const data = await response.json()
+      setToken(data.token)
+      setRefreshToken(data.refreshToken)
+      navigate('/characters')
+```
+
+30 Temmuz / 11 Ağustos’ta yalnız `setToken`. `auth: false` aynı (login’de Bearer yok). Çıkış `AppLayout` `clearToken()` — ikisi birden gider; yalnız `token` silinirse fiş localStorage’da kalır, 34 gelince yanlışlıkla kullanılır.
+
+#### Bu kodu kim tetikliyor?
+
+`LoginPage` → `POST /api/auth/login` → handler JWT + refresh satırı + 200 `{ token, refreshToken, ... }`. Network’te access 60 dk, refresh 7 gün ayrı. Karakter GET hâlâ Bearer access; 401 olursa bugün sessiz yenileme yok, kullanıcı tekrar login. 403 permission’dır, refresh 403’ü düzeltmez.
+
+#### Bu adımda yapılan / kalan iz
+
+Sık düşülen hata: refresh hash’ini BCrypt yapmak. Hamı `TokenHash` kolonuna yazmak (SSMS = localStorage). Refresh’i JWT claim’ine gömmek. `data.RefreshToken` (Pascal) — JSON camelCase, `undefined` → `setItem` `"undefined"` string. `clearToken`’dan `refreshToken`’ı unutmak. 403’te yenileme beklemek. `apiFetch`’in 401’de zaten yenilediğini sanmak.
+
+#### Sonuçta ne kazandık
+
+Login fişi basıyor: hash DB, ham tarayıcı. Kullanılacak yer `POST /api/auth/refresh` + `api.ts` 401 (bölüm 34).
+
+---
+
+### 34. 8 Eylül — `POST /api/auth/refresh` + `api.ts` 401’de sessiz yenileme
+
+**Hedef not:** Bu kodu sen VS Code’da sırayla yazacaksın; working tree’de `POST /api/auth/refresh` henüz yok. 29 Ağustos’ta fiş basılıyordu, **kullanılmıyordu**. Aşağıdaki bloklar yazınca duracağın hâl.
+
+Access 60 dk bitince karakter GET 401, kullanıcı şifreyi yeniden yazıyordu. `localStorage`’daki `refreshToken` duruyordu. Bu adımda önce `IRefreshTokenGenerator.Hash` — login ve refresh aynı SHA256, BCrypt değil. Sonra `RefreshCommand` + validator + handler: hamı hash’le, satırı bul, iptal/süre dolmuşsa `null` (401), `Revoke` + yeni çift (**rotation**). `RefreshRequest` + `AuthController` `POST refresh`, `[AllowAnonymous]`, cevap yine `LoginResult`. En sonda `api.ts`: 401’de `refreshSession`, yeni Bearer ile **bir kez** tekrar; refresh’in kendisi `fetch` (döngü yok). Sayfalar değişmedi — `apiFetch` içeride halleder.
+
+Tek benzetme: **tek gişe**. İki istek aynı anda 401 olursa ikisi de aynı fişi harcamasın diye `refreshInFlight` tek Promise; ikinci gişeye gitmez, birincinin sonucunu bekler. ASP.NET’te buna yakın şey bir lock / tek seferlik rotate; tarayıcıdaki paralel `fetch`’ler ayrı `HttpContext`, o yüzden Promise modül kapsamında.
+
+#### Aynı hash, ayrı metot
+
+```1:10:ReactBattleArena/ReactBattleArena.Application/Abstractions/IRefreshTokenGenerator.cs
+namespace ReactBattleArena.Abstractions;
+
+public interface IRefreshTokenGenerator
+{
+    (string Raw, string Hash, DateTime ExpiresAtUtc) Create(DateTime utcNow);
+    // Yukarıdaki Create üç değeri birden döndürüyor. Buna tuple (demet) denir.
+
+    string Hash(string raw);
+    // Login ve refresh aynı SHA256’yi kullansın. BCrypt değil — tuz her seferinde değişir, unique index araması bozulur.
+}
+```
+
+29 Ağustos’ta `Hash` yoktu; `Create` içinde inline SHA256 vardı. Bugün `Create` `Hash(raw)` çağırır — formül kaymasın.
+
+```17:28:ReactBattleArena/ReactBattleArena.Infrastructure/Security/RefreshTokenGenerator.cs
+    public string Hash(string raw)
+    {
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw)));
+    }
+
+    public (string Raw, string Hash, DateTime ExpiresAtUtc) Create(DateTime utcNow)
+    {
+        var bytes = RandomNumberGenerator.GetBytes(32);
+        var raw = Convert.ToBase64String(bytes);
+        var hash = Hash(raw);
+        var expires = utcNow.AddDays(_options.RefreshExpireDays);
+        return (raw, hash, expires);
+```
+
+İstemci hamı gönderir; sunucu `Hash` ile `TokenHash` unique index’ten bakar. BCrypt `Verify` burada yok: amaç “bu string’in satırı hangisi?”, “şifre doğru mu?” değil.
+
+#### Rotation — eski fiş ölür, yeni çift doğar
+
+```1:6:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/RefreshCommand.cs
+using MediatR;
+
+namespace ReactBattleArena.Application.Authentication.Commands;
+
+public sealed record RefreshCommand(string RefreshToken) : IRequest<LoginResult?>;
+//null → fiş yok / iptal / süresi bitmiş → controller 401.
+```
+
+Login ile aynı `LoginResult?`: yeni `token` + yeni `refreshToken`. Şifre yok. Boş gövde validator’da 400 (`NotEmpty`), 401 değil.
+
+```5:11:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/RefreshCommandValidator.cs
+public sealed class RefreshCommandValidator : AbstractValidator<RefreshCommand>
+{
+    public RefreshCommandValidator()
+    {
+        RuleFor(x => x.RefreshToken).NotEmpty().MaximumLength(200);
+    }
+}
+```
+
+`AddValidatorsFromAssembly` bu sınıfı alır; `Program.cs`’e yazılmaz (bölüm 2).
+
+```25:58:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/RefreshCommandHandler.cs
+    public async Task<LoginResult?> Handle(RefreshCommand request, CancellationToken cancellationToken)
+    {
+        var utcNow = DateTime.UtcNow;
+        var hash = _refreshTokens.Hash(request.RefreshToken);
+
+        var existing = await _db.RefreshTokens
+            .FirstOrDefaultAsync(t => t.TokenHash == hash, cancellationToken);
+
+        if (existing is null)
+            return null;
+
+        if (existing.RevokedAtUtc is not null)
+            return null;
+
+        if (existing.ExpiresAtUtc <= utcNow)
+            return null;
+
+        var user = await _db.Users
+            .FirstOrDefaultAsync(u => u.Id == existing.UserId, cancellationToken);
+
+        if (user is null)
+            return null;
+
+        existing.Revoke(utcNow);
+
+        var (rawRefresh, newHash, expires) = _refreshTokens.Create(utcNow);
+        _db.RefreshTokens.Add(
+            RefreshToken.Create(user.Id, newHash, expires, utcNow));
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+        var token = _jwtTokenService.CreateToken(user);
+        return new LoginResult(user.Id, user.UserName, user.Email, token, rawRefresh);
+    }
+```
+
+Yok / iptal / süresi dolmuş / kullanıcı yok → aynı `null` → 401. “Bu fiş iptal edilmiş” sızmaz (login’deki email sızdırmazlık, bölüm 8).
+
+`Revoke` 28 Ağustos’ta duruyordu, ilk kez burada çağrılır. Eski satır silinmez; `RevokedAtUtc` dolar. Yeni satır yeni hash. İkinci kez aynı ham gelirse `RevokedAtUtc is not null` → 401. Çalınan fiş bir kez işe yarar; asıl tarayıcı bir sonraki 401’de düşer.
+
+JWT yine tabloda yok; `CreateToken` access’i imzalar. Permission hâlâ `/me` join — refresh yetki listesini JWT’ye yazmaz.
+
+```1:6:ReactBattleArena/ReactBattleArena.Api/Contracts/RefreshRequest.cs
+namespace ReactBattleArena.Api.Contracts;
+
+public sealed class RefreshRequest
+{
+    public string RefreshToken { get; set; } = string.Empty;
+}
+```
+
+```62:76:ReactBattleArena/ReactBattleArena.Api/Controllers/AuthController.cs
+    [AllowAnonymous]
+    [HttpPost("refresh")]
+    [ProducesResponseType(typeof(LoginResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<LoginResult>> Refresh(
+        [FromBody] RefreshRequest body,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(
+            new RefreshCommand(body.RefreshToken),
+            cancellationToken);
+
+        return result is null ? Unauthorized() : Ok(result);
+    }
+```
+
+`[AllowAnonymous]`: access zaten ölmüştür; Bearer şartı 401 döngüsü olur. Login gibi 200 / 401 / 400. Yeni `[HasPermission]` yok — bu oturum kapısı, fiil kapısı değil.
+
+#### `apiFetch` 401 görünce gişeye gider
+
+```30:67:web/src/api.ts
+let refreshInFlight: Promise<boolean> | null = null
+
+async function refreshSession(): Promise<boolean> {
+  if (refreshInFlight) {
+    return refreshInFlight
+  }
+
+  refreshInFlight = (async () => {
+    const refreshToken = getRefreshToken()
+    if (!refreshToken) {
+      return false
+    }
+
+    const response = await fetch(`${API_BASE}/api/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refreshToken }),
+    })
+
+    if (!response.ok) {
+      clearToken()
+      return false
+    }
+
+    const data = await response.json()
+    setToken(data.token)
+    setRefreshToken(data.refreshToken)
+    return true
+  })()
+
+  try {
+    return await refreshInFlight
+  } finally {
+    refreshInFlight = null
+  }
+}
+```
+
+`refreshInFlight` doluysa ikinci 401 aynı Promise’i bekler — tek gişe. Refresh **`apiFetch` değil `fetch`**: `apiFetch` 401’de yine `refreshSession` çağırırdı; gişe kendi kuyruğuna girer, kilitlenirdi.
+
+Başarısızda `clearToken` — hem access hem fiş. `data.refreshToken` yeni ham; eski localStorage değeri çöp (sunucu revoke etti).
+
+```88:113:web/src/api.ts
+  const response = await fetch(`${API_BASE}${path}`, {
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+
+  if (response.status !== 401 || auth === false) {
+    return response
+  }
+
+  const refreshed = await refreshSession()
+  if (!refreshed) {
+    return response
+  }
+
+  const retryHeaders: Record<string, string> = { ...headers }
+  const newToken = getToken()
+  if (newToken) {
+    retryHeaders.Authorization = `Bearer ${newToken}`
+  }
+
+  return fetch(`${API_BASE}${path}`, {
+    method,
+    headers: retryHeaders,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+```
+
+11 Ağustos’ta `apiFetch` 401’i olduğu gibi dönerdi; sayfa `ok` bakardı. Bugün `auth: true` ve 401 ise bir kez yenile + tekrar. Login/register `auth: false` — yanlış şifre 401’de refresh denemez (fiş yok / anlamsız). **403 dokunulmaz**: yetki yok, süre dolmamış; refresh 403’ü 201 yapmaz.
+
+Tekrar istek **yeni** `Authorization`. Eski header’daki ölü JWT kalırsa ikinci 401. Body aynı JSON — PUT yarım kalmaz.
+
+Sayfa kodu (`CharactersPage`, `/me` layout) değişmedi. StrictMode çift `/me` hâlâ iki GET; ikisi 401 olursa tek refresh.
+
+#### Bu kodu kim tetikliyor?
+
+`GET /api/characters` (veya `/me`) + ölü access → JwtBearer 401 → `refreshSession` → `POST /api/auth/refresh` `{ refreshToken }` → handler hash + rotation → 200 yeni çift → aynı path ikinci kez Bearer yeni. 5173’te kullanıcı form görmez. Fiş 7 gün de dolduysa refresh 401, `clearToken`, sayfa gerçek 401 görür (Detay’da “Oturum yok”).
+
+#### Bu adımda yapılan / kalan iz
+
+Sık düşülen hata: refresh’i `apiFetch` ile atmak (döngü). 403’te yenilemek. Login 401’de yenilemek. Rotation’suz eski fişi canlı bırakmak (iki geçerli ham). BCrypt ile aramak. Refresh’e `Authorization: Bearer` koymak. `refreshInFlight` olmadan paralel 401 — ikinci istek revoke edilmiş fişi yollar, bir istek düşer. Yeni `refreshToken`’ı `setRefreshToken` etmemek — bir sonraki 401 eski hamı yollar.
+
+#### Sonuçta ne kazandık
+
+Access bitince şifresiz yeni çift; permission hâlâ DB. Blok E ve V2’nin 34 bölümü kapandı.
