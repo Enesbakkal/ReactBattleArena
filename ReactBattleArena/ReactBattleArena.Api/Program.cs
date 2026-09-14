@@ -62,6 +62,7 @@ builder.Services
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
     });
+//Key yoksa uygulama açılmaz. Issuer/Audience/imza/süre doğrulanır; süresi dolmuş token reddedilir.
 
 var app = builder.Build();
 
@@ -89,6 +90,8 @@ app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+//Sıra zorunlu: önce kimsin (UseAuthentication token’ı HttpContext.User yapar),
+//sonra ne yapabilirsin (UseAuthorization). Tersi: [Authorize] user’ı boş görür, herkes 401.
 
 app.MapControllers();
 

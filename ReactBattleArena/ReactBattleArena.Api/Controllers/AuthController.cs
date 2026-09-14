@@ -1,10 +1,8 @@
 ﻿using MediatR;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration.UserSecrets;
 using ReactBattleArena.Api.Contracts;
-using ReactBattleArena.Application.Abstractions;
 using ReactBattleArena.Application.Abstractions;
 using ReactBattleArena.Application.Authentication.Commands;
 using ReactBattleArena.Domain.Authorization;
@@ -58,6 +56,9 @@ public sealed class AuthController : ControllerBase
 
         return result is null ? Unauthorized() : Ok(result);
     }
+    //Bu kodu kim tetikliyor? Scalar POST /api/auth/login. LoginPage fetch / sonra apiFetch aynı URL,
+    //cevaptaki token saklanır.
+    
 
     [Authorize]
     [HttpGet("me")]

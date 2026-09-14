@@ -38,6 +38,12 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, LoginRes
         if (!_passwordHasher.Verify(request.Password, user.PasswordHash))
             return null;
 
+        // Kullanıcı yok ve şifre yanlış aynı null. “Bu email kayıtlı değil” sızmaz.
+        // Sık düşülen hata: kullanıcı yokta 404, yanlış şifrede 401 — email sızdırır.
+        // Bir diğeri: UseAuthorization’ı UseAuthentication’dan önce yazmak.
+        // Bir diğeri: JWT Key’i git’e kısa string koymak — HMAC zayıf kalır.
+        // Token’ı URL query’de taşımak da log’a sızar; header’da Bearer
+
         var token = _jwtTokenService.CreateToken(user);
 
         var utcNow = DateTime.UtcNow;

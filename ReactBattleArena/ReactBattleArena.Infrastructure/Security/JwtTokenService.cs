@@ -40,4 +40,10 @@ public sealed class JwtTokenService : IJwtTokenService
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
+    //Application User alır, string token döner; JWT kütüphanesini Infrastructure bilir.
+    //Görünmeyen mekanizma imzadır: sunucu token’ı tabloda saklamaz.
+    //Üç parça (header.payload.imza) HMAC-SHA256 ile Key’e bağlanır;
+    //Api gelen token’ı aynı Key ile doğrular. Key sızarsa herkes token basar.
+    // ExpireMinutes (varsayılan 60) expires claim’i. BCrypt hash ≠ JWT imzası:
+    // biri parolayı saklar, öbürü isteği imzalar.
 }

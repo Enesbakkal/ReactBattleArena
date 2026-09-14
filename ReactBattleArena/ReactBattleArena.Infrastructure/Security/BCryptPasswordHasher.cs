@@ -7,6 +7,8 @@ public sealed class BCryptPasswordHasher : IPasswordHasher
     public string Hash(string password)
     {
         return BCrypt.Net.BCrypt.HashPassword(password);
+        // Aynı parola her Hash’te farklı string üretebilir (salt);
+        // bu yüzden DB’de hash saklanır, login’de düz karşılaştırma yapılmaz.
     }
 
     public bool Verify(string password, string passwordHash)

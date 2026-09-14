@@ -23,6 +23,9 @@ internal sealed class BearerSecuritySchemeTransformer
 
         if (!authenticationSchemes.Any(s => s.Name == "Bearer"))
             return;
+        //“JwtBearer eklenmiş mi?” JwtBearer’ın şema adı "Bearer".
+        //Yoksa belgeye kilit yazmanın anlamı yok, fonksiyon çıkar. 
+        //Program.cs’te AddAuthentication(...JwtBearer...) durduğu sürece bu return’e düşmez.
 
         document.Components ??= new OpenApiComponents();
         document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
