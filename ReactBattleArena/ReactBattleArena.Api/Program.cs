@@ -8,6 +8,7 @@ using ReactBattleArena.Application;
 using ReactBattleArena.Infrastructure;
 using ReactBattleArena.Infrastructure.Persistence;
 using Scalar.AspNetCore;
+using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -89,6 +90,7 @@ app.UseHttpsRedirection();
 
 app.UseCors();
 app.UseAuthentication();
+//İstemci Authorization: Bearer eyJ... koyar.UseAuthentication JwtBearer ile bakar.İmza ve süre tutmazsa veya header yoksa kullanıcı boştur.
 app.UseAuthorization();
 //Sıra zorunlu: önce kimsin (UseAuthentication token’ı HttpContext.User yapar),
 //sonra ne yapabilirsin (UseAuthorization). Tersi: [Authorize] user’ı boş görür, herkes 401.

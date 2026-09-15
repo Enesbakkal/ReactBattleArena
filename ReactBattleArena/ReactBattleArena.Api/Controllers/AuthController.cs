@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration.UserSecrets;
 using ReactBattleArena.Api.Contracts;
 using ReactBattleArena.Application.Abstractions;
 using ReactBattleArena.Application.Authentication.Commands;
+using ReactBattleArena.Application.Commands;
 using ReactBattleArena.Domain.Authorization;
 using ReactBattleArena.Domain.Users;
 using System.Security;
@@ -58,7 +59,25 @@ public sealed class AuthController : ControllerBase
     }
     //Bu kodu kim tetikliyor? Scalar POST /api/auth/login. LoginPage fetch / sonra apiFetch aynı URL,
     //cevaptaki token saklanır.
-    
+
+    [AllowAnonymous]
+    //[AllowAnonymous] şart: bu endpoint'e gelindiğinde access token çoktan ölmüş olacak,
+    //[Authorize] koyarsak 401 döngüsüne gireriz. [HasPermission] de yok, çünkü bu bir oturum kapısı, bir fiil kapısı değil.
+    [HttpPost("refresh")]
+    [ProducesResponseType(typeof(LoginResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<LoginResult>> Refresh(
+    [FromBody] RefreshRequest body,
+    CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(
+            new RefreshCommand(body.RefreshToken),
+            cancellationToken);
+
+        return result is null ? Unauthorized() : Ok(result);
+    }
+
 
     [Authorize]
     [HttpGet("me")]
@@ -68,6 +87,9 @@ public sealed class AuthController : ControllerBase
     {
         var idValue = User.FindFirstValue(ClaimTypes.NameIdentifier)
             ?? User.FindFirstValue("sub");
+
+        //Aynı controller’da GET / api / auth / me, [Authorize].Token’daki id’den kim olduğunu döner.
+        //27 Temmuz’da id, userName, email. Bugünkü permissions 24 Ağustos.Sayfa yenilenince login JSON’u uçmuştur; token duruyorsa / me kim olduğunu söyler.
 
         if (!Guid.TryParse(idValue, out var userId))
             return Unauthorized();
