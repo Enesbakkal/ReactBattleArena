@@ -294,8 +294,15 @@ Yapılış sırası (back → back → … → front):
 - [x] `IApplicationDbContext` + `ApplicationDbContext` `RefreshTokens`
 - [x] Migration `AddRefreshTokens` + `database update`
 - [x] Login: ham refresh cevapta, hash satırda
-- [ ] `POST /api/auth/refresh` + rotation
-- [ ] React `api.ts` 401 yenileme
+- [x] `IRefreshTokenGenerator.Hash` + `RefreshTokenGenerator.Hash` — login ve refresh aynı SHA256; `Create` artık aynı metodu çağırıyor (BCrypt değil: tuz değişir, unique index araması bozulur) — 14 Eyl
+- [x] `RefreshCommand` (`LoginResult?`) + `RefreshCommandValidator` (`NotEmpty`, `MaximumLength(200)`; boş gövde 400, 401 değil) — 14 Eyl
+- [x] `RefreshCommandHandler` — hamı hash’le, `TokenHash`’ten satırı bul; yok / `RevokedAtUtc` dolu / süresi bitmiş / user yok hepsi `null` (401 sızdırmaz); geçerliyse `Revoke` + yeni çift = **rotation**. `Revoke` 28 Ağustos’tan beri duruyordu, ilk kez burada çağrıldı — 14 Eyl
+- [x] `RefreshRequest` + `AuthController` `POST /api/auth/refresh` — `[AllowAnonymous]` (access ölmüş olur; `[Authorize]` 401 döngüsü yapar), 200 / 401 / 400 — 15 Eyl
+- [x] `api.ts` sessiz yenileme — `refreshSession` + `refreshInFlight` (paralel 401’ler tek yenileme bekler); `apiFetch` 401’de bir kez yeniler ve **yeni** Bearer ile tekrar atar; refresh’in kendisi düz `fetch` (döngü olmasın); `auth: false` ve 403 dokunulmaz — 15 Eyl
+- [x] Test: `ExpireMinutes` geçici 1 → ölü access ile liste isteği 401 → refresh → 200; kullanıcı login formu görmedi (değer 60’a geri alınacak) — 15 Eyl
+- [ ] `POST /api/auth/logout` — DB satırını `Revoke` (şu an Çıkış yalnız `localStorage` siliyor, satır 7 gün geçerli)
+- [ ] İptal edilmiş token tekrar kullanılırsa kullanıcının tüm satırlarını geçersiz kılma (reuse detection)
+- [ ] Karar bekliyor: refresh `localStorage` → `HttpOnly` cookie (danışmana soruldu; şimdilik `localStorage`)
 
 
 
@@ -314,8 +321,10 @@ Yapılış sırası (back → back → … → front):
 ### Sıradaki
 
 - [x] Login: refresh üret (hash DB, ham JSON)
-- [ ] `POST /api/auth/refresh` (eski revoke, yeni çift)
-- [ ] React: access bitince sessiz yenile (`api.ts`)
+- [x] `POST /api/auth/refresh` (eski revoke, yeni çift)
+- [x] React: access bitince sessiz yenile (`api.ts`)
+- [ ] `ExpireMinutes` 60’a geri al (test için 1’e düşürüldü)
+- [ ] `POST /api/auth/logout` + reuse detection
 - [ ] Liste yükleme 3–4 sn gecikmesi (inceleme)
 - [ ] Login/Register UI’yi kilit palete boyama
 - [ ] Battle Arena backend
@@ -503,6 +512,21 @@ Yapılış sırası (back → back → … → front):
 ### 8 Eylül 2026
 
 - `REACT-OGRENIM-V2` bölüm 32–34 yazıldı. `POST /api/auth/refresh` kodu sıradaki iş (VS Code)
+
+### 14 Eylül 2026
+
+- Durum taraması: AuthN + AuthZ (RBAC) bitmiş; refresh yarım — login üretiyor, endpoint ve 401 yenilemesi yok
+- RBAC açılımı tekrar: Role-Based Access Control; bizde rol → `RolePermissions` → izin kodu zinciri (rol adı controller’da yazılı değil)
+- Karar: refresh saklama **`localStorage` kalıyor**; cookie kararı projenin danışmanına soruldu. Cookie’ye geçilirse yapılacaklar listesi `CHECKPOINT.md`’de duruyor
+- Application katmanı yazıldı: `IRefreshTokenGenerator.Hash`, `RefreshTokenGenerator.Hash`, `RefreshCommand`, `RefreshCommandValidator`, `RefreshCommandHandler` (rotation)
+- Yanında öğrenim yorumları: `Program.cs` middleware sırası, `JwtTokenService` imza mantığı, `BCryptPasswordHasher` tuz, `BearerSecuritySchemeTransformer` şema kontrolü
+
+### 15 Eylül 2026
+
+- `RefreshRequest` + `AuthController` `POST refresh`; `api.ts` `refreshSession` / `refreshInFlight` + `apiFetch` 401 tekrarı yazıldı
+- `ExpireMinutes` 1 ile uçtan uca test: 401 → refresh → 200, kullanıcı formu görmedi
+- Kod kontrolünde bulunanlar: `RefreshCommand.cs` namespace’i `Application.Commands` olmuş (klasörü `Authentication/Commands`) → üç dosyada fazladan `using`; validator’da gereksiz `using static System.Net.WebRequestMethods`; `Program.cs`’te kullanılmayan `System.IdentityModel.Tokens.Jwt`; `ExpireMinutes` 1 kalmış
+- `dotnet build` hatası derleme değil dosya kilidi (Api çalışırken DLL kopyalanamıyor)
 
 ---
 

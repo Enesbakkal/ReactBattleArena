@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 14 Eylül 2026 — AuthN + AuthZ (RBAC) bitti. Refresh yarım: login üretiyor, `POST /api/auth/refresh` ve `api.ts` 401 yenilemesi **hâlâ yok**. Saklama `localStorage` (cookie kararı danışmana soruluyor). Permission hâlâ DB.
+Son güncelleme: 15 Eylül 2026 — AuthN + AuthZ (RBAC) bitti. Refresh **uçtan uca çalışıyor**: `POST /api/auth/refresh` + rotation, `api.ts` 401’de sessiz yenileme (test edildi). Kalan: logout revoke, reuse detection, `ExpireMinutes` 60’a dönüş, küçük namespace/using temizliği. Saklama `localStorage` (cookie kararı danışmanda). Permission hâlâ DB.
 
 ## Yeni chat’e geçerken oku
 
@@ -67,8 +67,12 @@ Detay: `PROJE_MANTIGI.md`
   - [x] `PermissionContext` + AppLayout `/me`; liste + Create/Edit/Detail `usePermissions`
   - [x] RefreshToken Domain + EF + migration `AddRefreshTokens`
   - [x] Login cevabına refresh (hash DB, ham JSON)
-  - [ ] `POST /api/auth/refresh` + rotation
-  - [ ] React: 401’de sessiz yenileme (`api.ts`)
+  - [x] `POST /api/auth/refresh` + rotation (14–15 Eyl) — `Hash` ortak SHA256, `RefreshCommand` + validator + handler, `RefreshRequest`, `[AllowAnonymous]` action
+  - [x] React: 401’de sessiz yenileme (`api.ts`) — `refreshSession` + `refreshInFlight`, yeni Bearer ile tek tekrar, 403 dokunulmaz
+  - [ ] `POST /api/auth/logout` — DB satırını `Revoke` (Çıkış şu an yalnız `localStorage` siliyor)
+  - [ ] Reuse detection: iptal edilmiş fiş tekrar gelirse kullanıcının tüm satırlarını geçersiz kıl
+  - [ ] `ExpireMinutes` 60’a geri al (test için 1’e düşürüldü)
+  - [ ] Temizlik: `RefreshCommand` namespace’i `Authentication.Commands` olsun + 3 fazladan `using`, validator’daki `using static WebRequestMethods`, `Program.cs`’teki kullanılmayan `IdentityModel.Tokens.Jwt`
 - [ ] Battle Arena backend
 
 ## Karar notları
@@ -94,6 +98,8 @@ Detay: `PROJE_MANTIGI.md`
 - **Refresh saklama kararı (14 Eyl):** Şimdilik `localStorage` **kalıyor**; cookie’ye geçilmiyor. Nihai karar projenin danışmanına (Abi) sorulacak — cevap gelmeden mimari değiştirilmeyecek. Not 34 bu hâliyle geçerli: refresh ham token istek gövdesinde, `localStorage`’da saklanıyor.
 - **Cookie’ye geçilirse yapılacaklar (hazır liste, bugün yapılmıyor):** `HttpOnly` + `Secure` + `SameSite=Strict` + `Path=/api/auth/refresh` cookie; access token `localStorage` değil **bellekte** (açılışta bir kez refresh); `Program.cs` CORS’a `AllowCredentials()`; şema farkı (`http:5173` → `https:7275`) cross-site sayıldığı için Vite proxy veya aynı alan adı; `credentials: 'include'`. Gerekçe: XSS’te 7 günlük refresh sızarsa oturum süresiz kaçırılır; `HttpOnly` cookie JS’e okunmaz.
 - **Refresh’in cookie’den bağımsız eksikleri:** `RefreshToken.Revoke` metodu var ama **hiçbir yer çağırmıyor** → rotation yok; gerçek `POST /api/auth/logout` yok (Çıkış sadece `localStorage` siliyor, DB satırı 7 gün geçerli); iptal edilmiş token tekrar kullanılırsa kullanıcının tüm satırlarını geçersiz kılma yok.
+- **Rotation çalışıyor (15 Eyl):** Yukarıdaki maddenin ilk kısmı kapandı — `RefreshCommandHandler` `Revoke` çağırıyor, aynı `SaveChanges` eski satırı iptal edip yeni satırı basıyor. Aynı ham token ikinci kez gelirse 401. Logout revoke ve reuse detection **hâlâ açık**.
+- **Refresh akışı (15 Eyl, ezber):** Ölü access → JwtBearer 401 → `refreshSession` → `POST /api/auth/refresh` `{ refreshToken }` → handler hash + rotation → 200 yeni çift → aynı istek **yeni** Bearer ile bir kez tekrar. Refresh düz `fetch` (yoksa döngü); `refreshInFlight` paralel 401’lerde tek yenileme; 403’e dokunulmaz (yetki, süre değil); fiş de dolmuşsa refresh 401 → `clearToken` → sayfa gerçek 401 görür.
 - **`REACT-OGRENIM` düzeltme yöntemi (26 Ağu kilit):** Tüm dosyayı hikâyeleştir / “toparla” **isteme**. Bir başlık seç; eski metne dokunma; **alta** chat gibi okuma hali ekle. İlk parça hâlâ 26 Ağustos. Temmuz’a dokunma.
 - **Yazım modeli + V2 kararı (29 Ağu):** Anlatım sırası **önce kod bloğu, sonra düz yazı açıklama**; metafor yalnızca görünmeyen mekanizmalar için (Context, ağaç, token akışı, MediatR pipeline, middleware sırası) ve kodda karşılığı gösterildikten sonra. Kurallar: `.cursor/rules/ogrenim-yazim.mdc`. Düzeltilmiş notlar **yeni** `REACT-OGRENIM-V2.md` dosyasına yazılır; eski `REACT-OGRENIM.md` arşiv.
 - **V2 kapsam (29 Ağu):** Sadece React değil, **backend + React**. Bölüm sırası `git log` ile doğrulanmış gerçek kronoloji: Blok A backend temeli (2–28 Tem, 9 bölüm) → Blok B React (29 Tem–13 Ağu, 14 bölüm) → Blok C RBAC backend (20–24 Ağu) → Blok D frontend yetki (24–27 Ağu) → Blok E refresh token (28 Ağu→). Toplam 34 bölüm, turda tek bölüm. Backend notları unutulduğu için backend bölümleri React kadar ayrıntılı; “zaten biliyorsun” varsayımı yok. Blok geçişlerinde neden el değiştirdiğimiz yazılacak.
