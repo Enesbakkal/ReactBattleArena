@@ -8,7 +8,6 @@ using ReactBattleArena.Application;
 using ReactBattleArena.Infrastructure;
 using ReactBattleArena.Infrastructure.Persistence;
 using Scalar.AspNetCore;
-using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);

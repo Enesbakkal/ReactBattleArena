@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 15 Eylül 2026 — AuthN + AuthZ (RBAC) bitti. Refresh **uçtan uca çalışıyor**: `POST /api/auth/refresh` + rotation, `api.ts` 401’de sessiz yenileme (test edildi). Kalan: logout revoke, reuse detection, `ExpireMinutes` 60’a dönüş, küçük namespace/using temizliği. Saklama `localStorage` (cookie kararı danışmanda). Permission hâlâ DB.
+Son güncelleme: 16 Eylül 2026 — AuthN + AuthZ (RBAC) bitti. Refresh + rotation + `POST /api/auth/logout` + `/me` 401’de login’e dönüş **çalışıyor**. Kalan tek auth maddesi: reuse detection. Saklama `localStorage` (cookie kararı danışmanda). Permission hâlâ DB. `REACT-OGRENIM-V2` bölüm 35 yazıldı.
 
 ## Yeni chat’e geçerken oku
 
@@ -69,10 +69,13 @@ Detay: `PROJE_MANTIGI.md`
   - [x] Login cevabına refresh (hash DB, ham JSON)
   - [x] `POST /api/auth/refresh` + rotation (14–15 Eyl) — `Hash` ortak SHA256, `RefreshCommand` + validator + handler, `RefreshRequest`, `[AllowAnonymous]` action
   - [x] React: 401’de sessiz yenileme (`api.ts`) — `refreshSession` + `refreshInFlight`, yeni Bearer ile tek tekrar, 403 dokunulmaz
-  - [ ] `POST /api/auth/logout` — DB satırını `Revoke` (Çıkış şu an yalnız `localStorage` siliyor)
-  - [ ] Reuse detection: iptal edilmiş fiş tekrar gelirse kullanıcının tüm satırlarını geçersiz kıl
-  - [ ] `ExpireMinutes` 60’a geri al (test için 1’e düşürüldü)
-  - [ ] Temizlik: `RefreshCommand` namespace’i `Authentication.Commands` olsun + 3 fazladan `using`, validator’daki `using static WebRequestMethods`, `Program.cs`’teki kullanılmayan `IdentityModel.Tokens.Jwt`
+  - [x] `POST /api/auth/logout` (16 Eyl) — `LogoutCommand` + validator + handler, `LogoutRequest`, 204; `Revoke`’un ikinci kullanımı, süre kontrolü yok (çıkışta gereksiz)
+  - [x] React Çıkış (16 Eyl) — `api.ts` `logout()` düz `fetch` + `clearToken`; `AppLayout` `handleLogout` `async`
+  - [x] `/me` 401 kapısı (16 Eyl) — `loadMe` 401’de `clearToken` + `navigate('/login')`; önce yetkisiz sayfada kalıyordu
+  - [x] `ExpireMinutes` 60’a geri alındı
+  - [x] Temizlik: `RefreshCommand` namespace’i `Authentication.Commands`, 4 gereksiz `using` silindi
+  - [ ] Reuse detection: iptal edilmiş refresh token tekrar gelirse kullanıcının tüm satırlarını geçersiz kıl
+  - [ ] `LogoutCommandHandler`’daki kullanılmayan `Domain.Authentication` using’i (küçük)
 - [ ] Battle Arena backend
 
 ## Karar notları
@@ -99,6 +102,9 @@ Detay: `PROJE_MANTIGI.md`
 - **Cookie’ye geçilirse yapılacaklar (hazır liste, bugün yapılmıyor):** `HttpOnly` + `Secure` + `SameSite=Strict` + `Path=/api/auth/refresh` cookie; access token `localStorage` değil **bellekte** (açılışta bir kez refresh); `Program.cs` CORS’a `AllowCredentials()`; şema farkı (`http:5173` → `https:7275`) cross-site sayıldığı için Vite proxy veya aynı alan adı; `credentials: 'include'`. Gerekçe: XSS’te 7 günlük refresh sızarsa oturum süresiz kaçırılır; `HttpOnly` cookie JS’e okunmaz.
 - **Refresh’in cookie’den bağımsız eksikleri:** `RefreshToken.Revoke` metodu var ama **hiçbir yer çağırmıyor** → rotation yok; gerçek `POST /api/auth/logout` yok (Çıkış sadece `localStorage` siliyor, DB satırı 7 gün geçerli); iptal edilmiş token tekrar kullanılırsa kullanıcının tüm satırlarını geçersiz kılma yok.
 - **Rotation çalışıyor (15 Eyl):** Yukarıdaki maddenin ilk kısmı kapandı — `RefreshCommandHandler` `Revoke` çağırıyor, aynı `SaveChanges` eski satırı iptal edip yeni satırı basıyor. Aynı ham token ikinci kez gelirse 401. Logout revoke ve reuse detection **hâlâ açık**.
+- **Benzetme kuralı (16 Eyl):** Notlarda ve chat’te takma ad yok. Terim doğrudan yazılır; benzetme şartsa her kullanımda terimle birlikte: “refresh token (fiş)”. Tek başına “fiş / çanta / kâğıt” yazmak yasak — eski notlarda “fiş” = refresh token, “çanta” = rol, “kâğıt” = permission dizisi. Kural dosyası: `.cursor/rules/ogrenim-yazim.mdc` madde 2a.
+- **Logout (16 Eyl):** Çıkış artık sunucuda da gerçek; `RefreshTokens` satırı iptal edilir. `[AllowAnonymous]` (access ölmüş olabilir), dönüş 204, handler `false` dönse de 204 — token’ın varlığı sızmaz. `logout()` düz `fetch` (apiFetch olsa çıkışta yenileme denerdi); `clearToken` `try/catch` dışında.
+- **Bugünün hatası (16 Eyl):** `AppLayout`’a `logout` import edildi ama `api.ts`’e fonksiyon eklenmemişti → sayfa açılmadı (“does not provide an export named 'logout'” = dosya var, isim yok).
 - **Refresh akışı (15 Eyl, ezber):** Ölü access → JwtBearer 401 → `refreshSession` → `POST /api/auth/refresh` `{ refreshToken }` → handler hash + rotation → 200 yeni çift → aynı istek **yeni** Bearer ile bir kez tekrar. Refresh düz `fetch` (yoksa döngü); `refreshInFlight` paralel 401’lerde tek yenileme; 403’e dokunulmaz (yetki, süre değil); fiş de dolmuşsa refresh 401 → `clearToken` → sayfa gerçek 401 görür.
 - **`REACT-OGRENIM` düzeltme yöntemi (26 Ağu kilit):** Tüm dosyayı hikâyeleştir / “toparla” **isteme**. Bir başlık seç; eski metne dokunma; **alta** chat gibi okuma hali ekle. İlk parça hâlâ 26 Ağustos. Temmuz’a dokunma.
 - **Yazım modeli + V2 kararı (29 Ağu):** Anlatım sırası **önce kod bloğu, sonra düz yazı açıklama**; metafor yalnızca görünmeyen mekanizmalar için (Context, ağaç, token akışı, MediatR pipeline, middleware sırası) ve kodda karşılığı gösterildikten sonra. Kurallar: `.cursor/rules/ogrenim-yazim.mdc`. Düzeltilmiş notlar **yeni** `REACT-OGRENIM-V2.md` dosyasına yazılır; eski `REACT-OGRENIM.md` arşiv.

@@ -2,7 +2,6 @@
 using Microsoft.EntityFrameworkCore;
 using ReactBattleArena.Abstractions;
 using ReactBattleArena.Application.Abstractions;
-using ReactBattleArena.Application.Commands;
 using ReactBattleArena.Domain.Authentication;
 
 namespace ReactBattleArena.Application.Authentication.Commands;

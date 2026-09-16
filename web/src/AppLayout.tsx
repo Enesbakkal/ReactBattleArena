@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, Outlet, useNavigate } from 'react-router-dom'
 import './AppLayout.css'
-import { apiFetch, clearToken, getToken } from './api'
+import { apiFetch, clearToken, getToken, logout } from './api'
 import { PermissionContext } from './PermissionContext'
 
 
@@ -25,6 +25,11 @@ function AppLayout() {
       if (meResponse.ok) {
         const me = await meResponse.json()
         setPermissions(me.permissions ?? [])
+      } else if (meResponse.status === 401) {
+        // apiFetch buraya gelene kadar yenilemeyi denedi ve başaramadı: oturum bitti.
+        clearToken()
+        navigate('/login')
+        return
       }
     } catch {
       // /me gelmese de meLoaded bitsin; yoksa sonsuz Yükleniyor
@@ -49,8 +54,8 @@ function AppLayout() {
   //   navigate('/login')
   // }  Ortak auth
 
-  function handleLogout() {
-    clearToken()
+  async function handleLogout() {
+    await logout()
     navigate('/login')
   }
 

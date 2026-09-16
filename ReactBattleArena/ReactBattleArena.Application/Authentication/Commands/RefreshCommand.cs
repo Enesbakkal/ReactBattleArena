@@ -1,7 +1,7 @@
 ﻿using MediatR;
 using ReactBattleArena.Application.Authentication.Commands;
 
-namespace ReactBattleArena.Application.Commands;
+namespace ReactBattleArena.Application.Authentication.Commands;
 
 public sealed record RefreshCommand(string RefreshToken) : IRequest<LoginResult?>;
 // null → fiş yok / iptal edilmiş / süresi bitmiş → controller 401 döner.

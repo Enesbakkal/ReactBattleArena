@@ -59,6 +59,29 @@ async function refreshSession(): Promise<boolean> {
   }
 }
 
+export async function logout(): Promise<void> {
+  const refreshToken = getRefreshToken()
+
+  if (refreshToken) {
+    try {
+      await fetch(`${API_BASE}/api/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken }),
+      })
+    } catch {
+      // API kapalıysa bile yerel temizlik yapılmalı; kullanıcı ekranda kalmasın
+      //Üç ayrıntı var burada. Token yoksa isteği hiç atmıyoruz, çünkü validator boş değere 400 döner ve çıkış yaparken hata görmek anlamsız. 
+      // İstek apiFetch değil düz fetch; apiFetch kullanırsak 401 ihtimalinde refresh denemesi yapar, oysa biz tam tersini istiyoruz. 
+      // clearToken() de try/catch'in dışında, yani sunucuya ulaşılamasa bile tarayıcı temizlenir.
+    }
+  }
+
+  clearToken()
+}
+
 type ApiFetchOptions = {
   method?: string
   body?: unknown
@@ -72,13 +95,13 @@ export async function apiFetch(
 ): Promise<Response> {
   const { method = 'GET', body, auth = true } = options
 
-  const headers: Record<string, string> = {}
+  const headers: Record<string, string> = {}// c# daki record değil dictionary
 
   if (body !== undefined) {
     headers['Content-Type'] = 'application/json'
   }
 
-  if (auth) {// LOgin yaparken auth olmadığı için buraya girmez
+  if (auth) {// Login yaparken auth olmadığı için buraya girmez
     // Backend'e henüz gidilmedi. JWT bu satırda Api'den gelmez.
     // Login'de gelmişti: POST /api/auth/login → data.token → setToken → localStorage 'token'.
     // Şimdi çekmeceden okuyoruz, header'a yazıyoruz, ONDAN SONRA alttaki fetch gider.
@@ -121,8 +144,9 @@ export async function apiFetch(
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
 
-//   Burada üç ayrıntı önemli. refreshSession içindeki istek bilinçli olarak apiFetch değil düz fetch; apiFetch kullanırsan 401 gelirse o da refreshSession çağırır ve kendi kuyruğunda kilitlenir. refreshInFlight değişkeni, iki istek aynı anda 401 alırsa ikisinin de aynı fişi harcamasını engelliyor; ikinci istek yeni bir yenileme başlatmaz, birincinin sonucunu bekler. Son olarak koşulda sadece 401 var, 403 yok: 403 "yetkin yok" demektir ve token yenilemek onu düzeltmez.
-
+//   Burada üç ayrıntı önemli. refreshSession içindeki istek bilinçli olarak apiFetch değil düz fetch; apiFetch kullanırsan 401 gelirse o da refreshSession çağırır ve kendi kuyruğunda kilitlenir. 
+// refreshInFlight değişkeni, iki istek aynı anda 401 alırsa ikisinin de aynı fişi harcamasını engelliyor; ikinci istek yeni bir yenileme başlatmaz, birincinin sonucunu bekler. 
+// Son olarak koşulda sadece 401 var, 403 yok: 403 "yetkin yok" demektir ve token yenilemek onu düzeltmez.
 // Tekrar isteğinde retryHeaders ile yeni token'ı koyuyoruz; eski headers nesnesini olduğu gibi göndermek en sık yapılan hata, çünkü içinde ölü JWT durur ve ikinci kez 401 alırsın.
   
 }

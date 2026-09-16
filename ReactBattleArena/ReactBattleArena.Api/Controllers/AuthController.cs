@@ -5,7 +5,6 @@ using Microsoft.Extensions.Configuration.UserSecrets;
 using ReactBattleArena.Api.Contracts;
 using ReactBattleArena.Application.Abstractions;
 using ReactBattleArena.Application.Authentication.Commands;
-using ReactBattleArena.Application.Commands;
 using ReactBattleArena.Domain.Authorization;
 using ReactBattleArena.Domain.Users;
 using System.Security;
@@ -77,6 +76,23 @@ public sealed class AuthController : ControllerBase
 
         return result is null ? Unauthorized() : Ok(result);
     }
+
+    [AllowAnonymous]
+    [HttpPost("logout")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult> Logout(
+        [FromBody] LogoutRequest body,
+        CancellationToken cancellationToken = default)
+    {
+        await _mediator.Send(new LogoutCommand(body.RefreshToken), cancellationToken);
+
+        return NoContent();
+    }
+    //[AllowAnonymous] burada da doğru tercih: kullanıcı access token'ı çoktan ölmüşken de çıkış yapabilmeli,
+    //yoksa "çıkış yapamıyorum" gibi saçma bir durum oluşur. Kimlik kanıtı elindeki refresh token'ın kendisi.
+    //Dönüş NoContent, yani PUT/DELETE'lerde alıştığın 204; handler false dönse bile 204 veriyoruz ki "bu token sistemde var mıydı" bilgisi sızmasın.
+
 
 
     [Authorize]

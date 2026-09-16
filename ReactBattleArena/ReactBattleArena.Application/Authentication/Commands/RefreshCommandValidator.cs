@@ -1,5 +1,4 @@
 ﻿using FluentValidation;
-using ReactBattleArena.Application.Commands;
 using static System.Net.WebRequestMethods;
 
 namespace ReactBattleArena.Application.Authentication.Commands;

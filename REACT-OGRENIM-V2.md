@@ -5525,3 +5525,260 @@ Sık düşülen hata: refresh’i `apiFetch` ile atmak (döngü). 403’te yenil
 #### Sonuçta ne kazandık
 
 Access bitince şifresiz yeni çift; permission hâlâ DB. Blok E ve V2’nin 34 bölümü kapandı.
+
+---
+
+### 35. 16 Eylül — `POST /api/auth/logout` + `AppLayout`’ta 401 kapısı
+
+**Yazım notu:** Bu bölümden itibaren benzetmeye takma ad verilmiyor. Önceki
+bölümlerde “fiş” diye geçen şey **refresh token**, “çanta” diye geçen şey
+**rol**, “kâğıt” diye geçen şey **permission dizisi**. Bundan sonra terimler
+doğrudan yazılıyor.
+
+#### Neden bu adım geldi
+
+15 Eylül akşamı refresh akışı uçtan uca çalışıyordu, ama `AppLayout` içindeki
+Çıkış düğmesi yalnızca `clearToken()` çağırıyordu. Yani tarayıcıdaki iki anahtar
+siliniyor, veritabanındaki `RefreshTokens` satırı ise `RevokedAtUtc = null`
+hâlinde yedi gün daha geçerli kalıyordu. Ham refresh token bir yere kopyalanmışsa
+çıkış yapmak onu geçersiz kılmıyordu; `RefreshToken.Revoke` metodu 28 Ağustos’tan
+beri duruyor olmasına rağmen sadece rotation’da kullanılıyordu.
+
+Dosya sırası şöyleydi: önce `LogoutCommand`, `LogoutCommandValidator`,
+`LogoutCommandHandler` (Application katmanı), sonra `LogoutRequest` ve
+`AuthController` action’ı (Api katmanı), en sonda `api.ts` içindeki `logout`
+fonksiyonu ve `AppLayout`’taki `handleLogout`. Backend’i önce yazdık, çünkü
+endpoint olmadan frontend’in çağıracağı bir adres yoktu ve Scalar’dan tek başına
+test edilebiliyordu.
+
+#### Command ve validator
+
+```1:5:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/LogoutCommand.cs
+using MediatR;
+
+namespace ReactBattleArena.Application.Authentication.Commands;
+
+public sealed record LogoutCommand(string RefreshToken) : IRequest<bool>;
+```
+
+`RefreshCommand` ile aynı girdiyi alıyor: ham refresh token. Fark dönüş tipinde;
+burada `LoginResult?` değil `bool` var, çünkü çıkışta yeni bir token çifti
+üretilmiyor. `true` değeri “satır bulundu ve iptal edildi” demek, ama bu bilgi
+dışarı çıkmıyor — controller her hâlükârda 204 döndürüyor.
+
+Bir gün önce `RefreshCommand.cs` yazılırken namespace yanlışlıkla
+`ReactBattleArena.Application.Commands` olmuş ve üç dosyaya fazladan `using`
+eklemek gerekmişti; 16 Eylül’de o düzeltildi ve bu dosya baştan doğru namespace
+ile yazıldı.
+
+```5:11:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/LogoutCommandValidator.cs
+public sealed class LogoutCommandValidator : AbstractValidator<LogoutCommand>
+{
+    public LogoutCommandValidator()
+    {
+        RuleFor(x => x.RefreshToken).NotEmpty().MaximumLength(200);
+    }
+}
+```
+
+`RefreshCommandValidator` ile birebir aynı kural. `Program.cs`’e kayıt satırı
+yazılmadı; `AddValidatorsFromAssembly` assembly’yi tarayıp bu sınıfı buluyor
+(bölüm 2). Boş gövde gelirse `ValidationBehavior` devreye girip 400 üretiyor.
+
+#### Handler — `Revoke`’un ikinci kullanımı
+
+```22:35:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/LogoutCommandHandler.cs
+    public async Task<bool> Handle(LogoutCommand request, CancellationToken cancellationToken)
+    {
+        var hash = _refreshTokens.Hash(request.RefreshToken);
+
+        var existing = await _db.RefreshTokens
+            .FirstOrDefaultAsync(t => t.TokenHash == hash, cancellationToken);
+
+        if (existing is null || existing.RevokedAtUtc is not null)
+            return false;
+
+        existing.Revoke(DateTime.UtcNow);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return true;
+    }
+```
+
+İlk iki satır `RefreshCommandHandler` ile aynı: istemciden gelen ham token
+`Hash` ile SHA256’ya çevriliyor ve `TokenHash` unique index’i üzerinden satır
+aranıyor. Buradaki fark, bulunan satırdan sonra yeni bir satır üretilmemesi.
+
+Süre kontrolü bilinçli olarak yok. Refresh’te `ExpiresAtUtc <= utcNow` kontrolü
+gerekiyordu, çünkü süresi dolmuş bir token’la yeni access vermek yanlış olurdu.
+Çıkışta ise süresi dolmuş bir satırı iptal etmek zararsız; fazladan bir `if`
+yazmanın getirisi yok.
+
+`existing.Revoke(utcNow)` çağrısından sonra `Update` çağırmıyoruz. Satır sorguyla
+çekildiği anda EF Core onu change tracking’e alıyor, `SaveChangesAsync` da
+değişen property’yi görüp UPDATE üretiyor. Bu, refresh handler’ında öğrendiğimiz
+davranışın aynısı.
+
+Burada iptal edilen yalnızca o cihazın satırı. Kullanıcı telefonundan da girmişse
+onun satırı ayrı durur ve etkilenmez. “Tüm cihazlardan çık” istenirse `UserId`
+üzerinden bütün satırları dolaşmak gerekir; o ayrı bir özellik.
+
+#### Api katmanı
+
+```1:6:ReactBattleArena/ReactBattleArena.Api/Contracts/LogoutRequest.cs
+namespace ReactBattleArena.Api.Contracts;
+
+public sealed class LogoutRequest
+{
+    public string RefreshToken { get; set; } = string.Empty;
+}
+```
+
+`RefreshRequest` ile aynı biçim: tek alanlı bir gövde sınıfı. `LoginRequest` ve
+`RegisterRequest` kalıbı (bölüm 7 ve 8).
+
+```80:91:ReactBattleArena/ReactBattleArena.Api/Controllers/AuthController.cs
+    [AllowAnonymous]
+    [HttpPost("logout")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult> Logout(
+        [FromBody] LogoutRequest body,
+        CancellationToken cancellationToken = default)
+    {
+        await _mediator.Send(new LogoutCommand(body.RefreshToken), cancellationToken);
+
+        return NoContent();
+    }
+```
+
+`[AllowAnonymous]` burada da doğru tercih, refresh action’ındaki sebeple aynı:
+kullanıcı çıkış yapmak istediğinde access token çoktan ölmüş olabilir. `[Authorize]`
+koysaydık “oturumu kapatamıyorum” gibi bir durum çıkardı. Kimlik kanıtı, gövdede
+gönderilen refresh token’ın veritabanındaki bir satırla eşleşmesi.
+
+Dönüş `NoContent`, yani karakter PUT/DELETE’lerinden bildiğimiz 204 (bölüm 5 ve 18).
+Handler `false` dönse bile 204 veriyoruz; “bu token sistemde yoktu” bilgisini
+dışarı vermiyoruz. Login’de kullanıcı adı sızdırmama kararının (bölüm 8) aynı
+mantığı.
+
+`_mediator.Send`’in dönüş değerini kullanmıyoruz. `bool`’u şimdilik sadece handler
+içinde anlamlı bıraktık; ileride “çıkış yapıldı / token zaten iptalliydi” diye
+log atmak istenirse orada duruyor.
+
+#### Bu kodu kim tetikliyor?
+
+`AppLayout`’taki Çıkış düğmesi → `logout()` → `POST /api/auth/logout`. Scalar’dan
+da aynı endpoint elle çağrılabilir: login ol, cevaptaki `refreshToken`’ı gövdeye
+koy, 204 al, SSMS’te `RevokedAtUtc`’nin dolduğunu gör. Ardından aynı token’la
+`POST /api/auth/refresh` denenince 401 gelir, çünkü refresh handler’ı
+`RevokedAtUtc is not null` kontrolünden dönüyor.
+
+#### Frontend — `logout` fonksiyonu
+
+```62:83:web/src/api.ts
+export async function logout(): Promise<void> {
+  const refreshToken = getRefreshToken()
+
+  if (refreshToken) {
+    try {
+      await fetch(`${API_BASE}/api/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken }),
+      })
+    } catch {
+      // API kapalıysa bile yerel temizlik yapılmalı; kullanıcı ekranda kalmasın
+      //Üç ayrıntı var burada. Token yoksa isteği hiç atmıyoruz, çünkü validator boş değere 400 döner ve çıkış yaparken hata görmek anlamsız. 
+      // İstek apiFetch değil düz fetch; apiFetch kullanırsak 401 ihtimalinde refresh denemesi yapar, oysa biz tam tersini istiyoruz. 
+      // clearToken() de try/catch'in dışında, yani sunucuya ulaşılamasa bile tarayıcı temizlenir.
+    }
+  }
+
+  clearToken()
+}
+```
+
+Üç karar var bu fonksiyonda. `localStorage`’da refresh token yoksa istek hiç
+atılmıyor, çünkü validator boş değere 400 döner ve çıkış yaparken hata görmek
+anlamsız. İstek `apiFetch` değil düz `fetch` ile gidiyor; `apiFetch` kullanılsa
+401 ihtimalinde `refreshSession` devreye girer, yani oturumu kapatmaya çalışırken
+yenilemeye çalışırdı. `clearToken()` çağrısı `try/catch`’in dışında duruyor, bu
+sayede API kapalı olsa bile tarayıcı temizlenir ve kullanıcı ekranda kilitli
+kalmaz.
+
+```57:60:web/src/AppLayout.tsx
+  async function handleLogout() {
+    await logout()
+    navigate('/login')
+  }
+```
+
+9 Ağustos’ta bu fonksiyon `localStorage.removeItem('token')` yapıyordu, 11 Ağustos’ta
+`clearToken()` oldu, bugün `logout()` çağırıyor ve `async` hâle geldi. `await`
+olmadan `navigate` çağırsak istek yarı yolda kesilebilirdi. `onClick={handleLogout}`
+satırı değişmedi; React `async` fonksiyonu olay işleyicisi olarak kabul eder,
+dönen Promise’i yok sayar.
+
+#### `/me` 401’inde login’e dönüş — bugünün ikinci düzeltmesi
+
+Test sırasında tarayıcıda ölü bir access token ve hiç refresh token olmayan bir
+durum oluştu. Konsolda `/api/auth/me` iki kez 401 verdi (StrictMode `useEffect`’i
+geliştirmede iki kez çalıştırır, bölüm 19) ama `POST /api/auth/refresh` isteği
+hiç görünmedi. Sebebi `refreshSession`’ın ağa çıkmadan `if (!refreshToken) return false`
+satırından dönmesiydi. Sayfa ise login’e gitmek yerine yetkisiz hâlde açık kaldı,
+çünkü `loadMe` sadece `ok` durumunu ele alıyordu.
+
+```22:38:web/src/AppLayout.tsx
+  async function loadMe() {
+    try {
+      const meResponse = await apiFetch('/api/auth/me')
+      if (meResponse.ok) {
+        const me = await meResponse.json()
+        setPermissions(me.permissions ?? [])
+      } else if (meResponse.status === 401) {
+        // apiFetch buraya gelene kadar yenilemeyi denedi ve başaramadı: oturum bitti.
+        clearToken()
+        navigate('/login')
+        return
+      }
+    } catch {
+      // /me gelmese de meLoaded bitsin; yoksa sonsuz Yükleniyor
+    }
+    setMeLoaded(true)
+  }
+```
+
+Mantık şu: `apiFetch` bu satıra 401 ile geldiyse yenilemeyi zaten denemiş ve
+başaramamış demektir, ikinci bir şans yok. O yüzden `clearToken()` ile iki anahtar
+siliniyor ve `navigate('/login')` çağrılıyor. `return` önemli; `setMeLoaded(true)`
+çalışmasın ki yönlendirme sırasında yetkisiz sayfa bir an görünmesin.
+
+Bu kodun ASP.NET karşılığı, bir MVC uygulamasında `[Authorize]` başarısız olunca
+`LoginPath`’e redirect edilmesidir. React’te böyle bir otomatik mekanizma yok;
+yönlendirmeyi bizim yazmamız gerekiyor.
+
+#### Bu adımda yapılan / kalan iz
+
+Bugün yapılan gerçek hata: `AppLayout.tsx`’e `import { ..., logout } from './api'`
+satırı yazıldı ama `api.ts`’e `logout` fonksiyonu henüz eklenmemişti. Sayfa açılmadı;
+konsoldaki tipik mesaj “does not provide an export named 'logout'” şeklindedir ve
+“dosya bulundu, içinde o isim yok” demektir. Import ile `export` isminin birebir
+aynı olması gerekiyor.
+
+Diğer izler: `LogoutCommandHandler`’a kullanılmayan `ReactBattleArena.Domain.Authentication`
+using’i eklendi (yeni satır üretmediğimiz için gereksiz). Logout’u `apiFetch` ile
+atmak (çıkışta yenileme denemesi). Çıkışta 200 bekleyip 204’ü hata sanmak. Handler’ın
+`false` dönüşünü 404’e çevirmek — token’ın varlığını sızdırır. Test öncesi
+`localStorage`’ı elle kurcalayıp “kod bozuldu” sanmak; oradaki iki anahtarın
+tutarlı olması gerekir.
+
+#### Sonuçta ne kazandık
+
+Çıkış artık sunucu tarafında da gerçek: `RefreshTokens` satırı iptal ediliyor ve o
+ham token bir daha yeni access üretemiyor. Ayrıca oturumu gerçekten bitmiş bir
+kullanıcı yetkisiz sayfada kalmıyor, login’e yönlendiriliyor. Kalan iki madde
+reuse detection (iptal edilmiş token tekrar gelirse kullanıcının tüm satırlarını
+geçersiz kılmak) ve refresh token’ı `HttpOnly` cookie’ye taşıma kararı.

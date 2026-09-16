@@ -300,7 +300,10 @@ Yapılış sırası (back → back → … → front):
 - [x] `RefreshRequest` + `AuthController` `POST /api/auth/refresh` — `[AllowAnonymous]` (access ölmüş olur; `[Authorize]` 401 döngüsü yapar), 200 / 401 / 400 — 15 Eyl
 - [x] `api.ts` sessiz yenileme — `refreshSession` + `refreshInFlight` (paralel 401’ler tek yenileme bekler); `apiFetch` 401’de bir kez yeniler ve **yeni** Bearer ile tekrar atar; refresh’in kendisi düz `fetch` (döngü olmasın); `auth: false` ve 403 dokunulmaz — 15 Eyl
 - [x] Test: `ExpireMinutes` geçici 1 → ölü access ile liste isteği 401 → refresh → 200; kullanıcı login formu görmedi (değer 60’a geri alınacak) — 15 Eyl
-- [ ] `POST /api/auth/logout` — DB satırını `Revoke` (şu an Çıkış yalnız `localStorage` siliyor, satır 7 gün geçerli)
+- [x] Temizlik: `RefreshCommand` namespace’i `Authentication.Commands`, 4 gereksiz `using`, `ExpireMinutes` 60 — 16 Eyl
+- [x] `POST /api/auth/logout` — `LogoutCommand` + validator + handler (hash → satır → `Revoke`; süre kontrolü yok), `LogoutRequest`, `[AllowAnonymous]`, 204; handler `false` dönse de 204 (token varlığı sızmaz) — 16 Eyl
+- [x] React Çıkış — `api.ts` `logout()` (refresh token yoksa istek atmaz, düz `fetch`, `clearToken` her hâlde çalışır); `AppLayout` `handleLogout` `async` + `await logout()` — 16 Eyl
+- [x] `AppLayout` `/me` 401 kapısı — yenileme başarısızsa `clearToken` + `navigate('/login')`; önceki hâlde kullanıcı yetkisiz sayfada kalıyordu — 16 Eyl
 - [ ] İptal edilmiş token tekrar kullanılırsa kullanıcının tüm satırlarını geçersiz kılma (reuse detection)
 - [ ] Karar bekliyor: refresh `localStorage` → `HttpOnly` cookie (danışmana soruldu; şimdilik `localStorage`)
 
@@ -323,8 +326,9 @@ Yapılış sırası (back → back → … → front):
 - [x] Login: refresh üret (hash DB, ham JSON)
 - [x] `POST /api/auth/refresh` (eski revoke, yeni çift)
 - [x] React: access bitince sessiz yenile (`api.ts`)
-- [ ] `ExpireMinutes` 60’a geri al (test için 1’e düşürüldü)
-- [ ] `POST /api/auth/logout` + reuse detection
+- [x] `ExpireMinutes` 60’a geri al (test için 1’e düşürülmüştü)
+- [x] `POST /api/auth/logout`
+- [ ] Reuse detection (iptal edilmiş token tekrar gelirse tüm satırları iptal)
 - [ ] Liste yükleme 3–4 sn gecikmesi (inceleme)
 - [ ] Login/Register UI’yi kilit palete boyama
 - [ ] Battle Arena backend
@@ -527,6 +531,16 @@ Yapılış sırası (back → back → … → front):
 - `ExpireMinutes` 1 ile uçtan uca test: 401 → refresh → 200, kullanıcı formu görmedi
 - Kod kontrolünde bulunanlar: `RefreshCommand.cs` namespace’i `Application.Commands` olmuş (klasörü `Authentication/Commands`) → üç dosyada fazladan `using`; validator’da gereksiz `using static System.Net.WebRequestMethods`; `Program.cs`’te kullanılmayan `System.IdentityModel.Tokens.Jwt`; `ExpireMinutes` 1 kalmış
 - `dotnet build` hatası derleme değil dosya kilidi (Api çalışırken DLL kopyalanamıyor)
+
+### 16 Eylül 2026
+
+- Dünkü temizlik yapıldı: `RefreshCommand` namespace’i düzeldi, 4 gereksiz `using` gitti, `ExpireMinutes` 60
+- `POST /api/auth/logout` yazıldı: `LogoutCommand` (`IRequest<bool>`) + validator + handler; `Revoke` ikinci kez kullanıldı, çıkışta süre kontrolü yok
+- Frontend Çıkış sunucuya bağlandı: `api.ts` `logout()` + `AppLayout` `handleLogout` `async`
+- `AppLayout` `loadMe` 401 kapısı: yenileme başarısızsa login’e yönlendirme (önce yetkisiz sayfada kalıyordu)
+- Hata: `logout` import edildi ama `api.ts`’e eklenmemişti → sayfa açılmadı; export/import ismi birebir aynı olmalı
+- Yazım kuralı değişti: takma adlı benzetme yok; terim doğrudan yazılır (“fiş” = refresh token, “çanta” = rol, “kâğıt” = permission dizisi)
+- `REACT-OGRENIM-V2` bölüm 35 yazıldı
 
 ---
 
