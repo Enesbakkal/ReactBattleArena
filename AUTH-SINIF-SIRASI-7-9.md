@@ -112,7 +112,7 @@ Scalar için `BearerSecuritySchemeTransformer` (`Api/OpenApi/BearerSecuritySchem
 
 27 Temmuz’da yazmaya `[Authorize]`, login ile register `[AllowAnonymous]`, `/me`. Tokensız yazmak 401. Rol yok. Katalog GET bilerek açık.
 
-28 Temmuz’da `Roles`, `Users.Role`, JWT’de rol claim’i, yazma yalnız Admin. Player POST 403. `BearerSecuritySchemeTransformer` denemeyi kolaylaştırır, kilidi koymaz.
+28 Temmuz’da `Roles`, `Users.Role`, JWT’de rol claim’i, yazma yalnız Admin. Player POST 403. `BearerSecuritySchemeTransformer` denemeyi kolaylaştırır, kilidi koymaz. O gün şema tek kolon: kullanıcıya `Admin` veya `Player` yazılır. Bir kullanıcının birden fazla rolü, rolün fiil listesi yok. O tablo fikri bölüm 24.
 
 Dosyada refresh, `UserRoles`, `[HasPermission]` görürsen 7–9’a katma. Omurga: hash, JWT, 401, sonra 403.
 
@@ -518,6 +518,25 @@ Karşıda metot adı `GetPaged`’dir. Bu isim tarayıcıya yazılmaz. ASP.NET H
 
 Handler’da `pageSize` 200 tavanına sıkıştırılır. 200 varsayılan sayfa boyutu değil. Biri `pageSize=5000` yazarsa veritabanını kilitlemesin diye. Liste 20 ister, 20 gelir. `Skip((page - 1) * pageSize)` çünkü ekranda 1. sayfa deriz, SQL 0’dan sayar. Sayfa 1 → Skip 0. Sayfa 2 → Skip 20.
 
+Aynı parametre adlarıyla başka iş yapan bir metot yazabilir misin? Yazabilirsin. Adları değiştirmen gerekmez. ASP.NET C# metot adına bakmaz. Eşleme HTTP yöntemi ve route şablonudur.
+
+`GetPaged` `[HttpGet]` ile `/api/characters` olur. `GetById` `[HttpGet("{id:guid}")]` ile `/api/characters/{guid}` olur. İkisinde de `CancellationToken` var; karışmaz. `Update` da `Guid id` alır; adı `GetById` ile aynı, farkı `PUT`:
+
+```69:77:ReactBattleArena/ReactBattleArena.Api/Controllers/CharactersController.cs
+    [HasPermission(PermissionCodes.CharactersUpdate)]  // PUT
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Update(
+    Guid id,
+    [FromBody] CreateCharacterRequest body,
+```
+
+Aynı `page` / `pageSize` adlarını başka bir action’da da kullanabilirsin. Örnek: `[HttpGet("search")]` yine `[FromQuery] int page` alabilir. Query adı `?page=` ile bağlanır; başka metoddaki `page` ile çakışmaz.
+
+Çakışma parametre adından değil, aynı kapıdan gelir. İkinci bir `[HttpGet]` de çıplak `/api/characters` olursa ASP.NET hangisini seçeceğini bilemez. `page`’i `sayfa` yapsan da olmaz.
+
 ### Karta tıklayınca Api gitmez; detay sayfası gider
 
 ```11:13:web/src/CharacterCard.tsx
@@ -529,6 +548,15 @@ function CharacterCard({ id, name, universe, rarity, imageUrl }: CharacterCardPr
 Bu `Link` 7275’e istek atmaz. Adresi `/characters/{guid}` yapar. Router `CharacterDetailPage`’i açar.
 
 Karta basınca `id` detay sayfasına prop olarak gitmiyor. Kart kapanıyor, `CharacterDetailPage` yeni açılıyor. `id` adres çubuğunda gidiyor. `App.tsx`’te path `/characters/:id`. Router URL’deki o parçayı `:id` diye alıyor. Yeni sayfa `useParams()` deyince router o Guid’i veriyor. Yani aynı Guid önce kartta, sonra adreste, sonra `useParams`’ta. (React tarafını sonra ayrıntılı işleriz.)
+
+`useParams` path’e Guid yazmaz. Adresteki `:id` parçasını okur. Yazan karttaki `Link`: `to={`/characters/${id}`}`. Router adresi değiştirir. Kart kapanır.
+
+```22:23:web/src/CharacterDetailPage.tsx
+function CharacterDetailPage() {
+  const { id } = useParams<{ id: string }>()
+```
+
+Bu `id` URL’deki Guid’dir. Karttan prop gelmez. Kodun kalanı bunu kullanır: `apiFetch(\`/api/characters/${id}\`)`. Karttaki Guid ile aynı değer, çünkü URL’ye o yazılmıştı. Kaynak artık kart değil, adres çubuğu. Edit sayfasında da aynı satır var (`CharacterEditPage` satır 9); oradaki `id` de URL’den gelir.
 
 Asıl GET orada başlar. `apiFetch(\`/api/characters/${id}\`)` atılır. Controller `[HttpGet("{id:guid}")] GetById` bunu `GetCharacterByIdQuery`’ye çevirir.
 
@@ -555,6 +583,10 @@ SPA’nın verdiği şey tam HTML sayfa yenilememektir. Adres değişir, kabuk (
 
 Bunu bilinçli yaptık. Başka biri aynı karakteri güncellediyse sen taze satır görürsün. Bedeli ekstra istek. Listeyi “cache” gibi detaya versen istek azalır, ekran bayat kalabilir.
 
+Edit sayfası açılınca zaten kendi `GetById`’sini atıyor. Form o anki satırla dolar. F5 şart değil. Form açıkken başka biri kaydederse senin input’lar eski kalır. Kaydete basarsan senin eski değerler üzerine yazar. O durumda sayfayı yenilemek (veya edit’e tekrar girmek) taze satırı çeker.
+
+Bizde “kim son yazdı kazandı”; çakışma kilidi yok. İleride iki kişi aynı karakteri aynı anda düzenlerse `rowversion` (veya benzeri concurrency token) eklemek gerekir. Şimdiki öğrenme ve tek admin kaydı için şart değil. Auth bitmeden bunu yazmıyoruz.
+
 ### `/characters` yazınca ne olur, sırayla
 
 Adres çubuğuna `/characters` yazarsın. `/` yazarsan `App.tsx` seni `/characters`’a çevirir. `AppLayout` kabuğu açılır, `Outlet` içine `CharactersPage` oturur.
@@ -571,7 +603,7 @@ Detaydaki Düzenle bir `Link`’tir. `/characters/{id}/edit` açılır. 13 Ağus
         body: {
 ```
 
-Bu `PUT` `CharactersController.Update`’e gider. 13 Ağustos’ta `[Authorize(Roles = Admin)]` idi. Bugün `[HasPermission(CharactersUpdate)]`. 204 gelir, gövde yoktur, `json()` çağırma. Sayfa detaya döner. Player PUT denerse 403.
+Bu `PUT` `CharactersController.Update`’e gider. 13 Ağustos’ta `[Authorize(Roles = Admin)]` idi. Bugün `[HasPermission(CharactersUpdate)]`. 204 gelir, gövde yoktur, `json()` çağırma. Sayfa detaya döner. Player PUT denerse 403. Çakışma kilidi yok; form açıkken son kayıt kazanır (yukarıda SPA paragrafı).
 
 ### `App.tsx` veri taşımaz
 
@@ -731,6 +763,24 @@ public sealed class RolePermission
 
 SQL’de `Users`, `UserRoles` ve `Roles` join olur. Identity’deki `AspNetUserRoles` aynı iş. Frontend o gün hâlâ `apiFetch` kullanıyor; bu tabloları okumuyor.
 
+### Şema: Mehmet hangi fiilleri alır
+
+`User` satırında permission listesi yok. Mehmet `Users`’ta bir kişidir. 28 Temmuz’daki `Role` kolonu hâlâ orada durabilir; 24’ün bağları o kolonu kullanmaz. Fiil, üç tablodan geçerek gelir.
+
+Birinci tablo `UserRoles`. Satırın iki Guid’i var: `UserId` ve `RoleId`. Bir kullanıcıya birden fazla satır yazılırsa birden fazla rolü vardır. Mehmet’e Player ve ShopOwner bağlamak iki satırdır. Tersi de olur: aynı `RoleId` birçok `UserRoles` satırında durur. Player rolüne hem Mehmet hem Ayşe üye olabilir.
+
+İkinci tablo `Roles`. Bu tablo yalnız isim tutar: Admin, Player. Fiil burada yok. Rol, insanları fiillere bağlayan etiket.
+
+Üçüncü tablo `RolePermissions`. Satırın iki Guid’i var: `RoleId` ve `PermissionId`. Bir rolün birden fazla fiili varsa o kadar satır vardır. Admin’e `characters.create`, `characters.update`, `characters.delete` vermek üç satırdır. Tersi de olur: bir permission’ın birden fazla `RolePermission` satırı olabilir. `characters.create` hem Admin’e hem yarın Moderator’e bağlıysa aynı `PermissionId` iki satırda durur. Fiil bir kez `Permissions` tablosundadır; çoğalan şey bağdır.
+
+`Permissions` somut fiildir. `Code` `characters.create` gibi bir string. Kullanıcıya doğrudan bağlanmaz.
+
+Mehmet karakter ekleyebilir mi, diye bakınca zincir şöyle yürür. Önce `UserRoles`’ta Mehmet’in `RoleId`’leri bulunur. Sonra o rollerin `RolePermissions` satırları okunur. Sonra o satırlardaki `PermissionId`’lerin `Code`’ları birleşir (union). Mehmet’te Player ve ShopOwner varsa iki çantanın fiilleri toplanır. `characters.create` bu birleşik listede yoksa POST 403 olur. Listede varsa kapı açılır.
+
+Doğrudan `UserPermission` tablosu yok. Kullanıcıya fiil yazmıyoruz. Fiili role yazıyoruz, kullanıcıyı role yazıyoruz. Player yarın karakter eklesin dersen `RolePermissions`’a bir satır eklersin. Mehmet’in `Users` satırına dokunmazsın. Admin’den create’i almak da Mehmet’i tek tek gezmek değil, Admin–`characters.create` bağını silmektir. O bağ gidince Admin olan herkes create kaybeder.
+
+20 Ağustos’ta bu join henüz çalışmıyor. Tablolar SQL’de yok, kapı hâlâ JWT’deki rol string’ine bakıyor. 25 tabloları basacak, 26 her istekte bu zinciri okuyacak. Kafadaki resim yine bu: User → UserRoles → Role → RolePermissions → Permission.
+
 ### Composite PK ve silme
 
 ```13:26:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/UserRoleConfiguration.cs
@@ -752,6 +802,8 @@ SQL’de `Users`, `UserRoles` ve `Roles` join olur. Identity’deki `AspNetUserR
 
 `HasKey` iki kolonu birlikte birincil anahtar yapıyor. Aynı kullanıcı-rol çifti iki kez yazılamaz. Ayrı bir `Id` Guid’i yok. `WithMany()` boş bırakıldı çünkü `User`’da collection yok. FK yine var. Kullanıcı silinince üyelikler gitsin diye User tarafı Cascade. Rol hâlâ birine bağlıyken silinmesin diye Role tarafı Restrict.
 
+Cascade şunu der: Mehmet’i `Users`’tan silince `UserRoles`’taki Mehmet–Player satırı da silinsin. O satırın UserId’si artık kimseyi göstermez. Restrict ters yöndedir. Player rolünü silmeye kalkınca SQL bakar: bu RoleId hâlâ bir `UserRoles` satırında var mı. Varsa silmeyi reddeder. Yoksa Mehmet’in üyeliği havada kalır, ya da bir `Roles` satırını silince yanlışlıkla herkesten etiket gider. Kullanıcı gidebilir, üyelik onunla gider. Rol katalogdur; biri bağlıyken katalog satırını koparma.
+
 ```11:22:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/RolePermissionConfiguration.cs
         builder.ToTable("RolePermissions");
         builder.HasKey(x => new { x.RoleId, x.PermissionId });
@@ -767,7 +819,7 @@ SQL’de `Users`, `UserRoles` ve `Roles` join olur. Identity’deki `AspNetUserR
             .OnDelete(DeleteBehavior.Restrict);
 ```
 
-Burada iki FK de Restrict. Fiil veya rol hâlâ bağlıyken satır silinmesin. `Roles.Name` ve `Permissions.Code` unique:
+Burada iki FK de Restrict. Fiil veya rol hâlâ bağlıyken satır silinmesin. `characters.create` fiilini silmek, Admin hâlâ ona bağlıyken olmasın. `Roles.Name` ve `Permissions.Code` unique:
 
 ```11:14:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/RoleConfiguration.cs
         builder.ToTable("Roles");
@@ -791,5 +843,24 @@ Handler bu tablolara `IApplicationDbContext` üzerinden uzanır. Application, In
 20 Ağustos’ta bu sınıfları hiçbir endpoint çağırmıyor. Tablolar henüz migration almadı. Login `Users.Role` yazıyor, JWT o string’i taşıyor. Frontend aynı `apiFetch`’i kullanıyor. Seed ve `dotnet ef` ertesi gün (bölüm 25).
 
 Kolonu silip JWT’yi unutmak kolay bir hata. `Users.Role` duruyor, claim hâlâ oradan geliyor. Join’e ayrı `Id` koyup aynı çifti iki kez eklemek de ikinci hata. `ICollection` yok diye ilişkinin yok sanılması üçüncü. Permission’ı JWT’ye gömmedik; istekte DB’den bakılacak (bölüm 26).
+
+`User` sınıfında `ICollection<UserRole>` yok diye tablo yok olmaz. EF ilişkiyi `UserRoleConfiguration` içindeki `HasOne` / `HasForeignKey` ile kurar. Join tablosu `UserRoles`. Handler `_db.UserRoles` ile yazar. Navigation property kolaylık; FK asıl bağdır.
+
+Permission listesini token’a koymadık. Rol string’ini 28 Temmuz’da koyduk:
+
+```22:28:ReactBattleArena/ReactBattleArena.Infrastructure/Security/JwtTokenService.cs
+        var claims = new[]
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName),
+            new Claim(JwtRegisteredClaimNames.Email, user.Email),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Role, user.Role)
+        };
+```
+
+`user.Role` `Users.Role` kolonudur. Login anında basılır. SSMS’te kolonu Admin yapsan eski JWT hâlâ Player der. `[Authorize(Roles = Admin)]` o claim’e bakar; yeniden login şart (bölüm 9).
+
+Fiil başka. 22 Ağustos’tan sonra `[HasPermission]` her istekte `UserRoles` → `RolePermissions` join’ler (bölüm 26). Token içindeki Role claim’ini okumaz. `UserRoles` satırını değiştirirsen bir sonraki POST yeni tabloya bakar; JWT süresinin dolmasını beklemezsin. `Users.Role` kolonu ve token’daki claim bayat kalabilir. Login hâlâ kolondan basar. İkisini birlikte tutmak ayrı iş.
 
 Sonuçta modelde rol ve fiil nesneleri var. SQL ve seed yok. Endpoint hâlâ Admin string’ine bakıyor. 21 Ağustos’ta tablo ve seeder (bölüm 25).

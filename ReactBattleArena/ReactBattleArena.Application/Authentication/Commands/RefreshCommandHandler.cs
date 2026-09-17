@@ -33,7 +33,26 @@ public sealed class RefreshCommandHandler : IRequestHandler<RefreshCommand, Logi
             return null;
 
         if (existing.RevokedAtUtc is not null)
+        {
+            // Rotation yüzünden her refresh token tek kullanımlık. İptal edilmiş bir token
+            // ikinci kez geldiyse aynı zinciri iki taraf tutuyor demektir; çalınmış varsayıyoruz.
+
+            var activeTokens = await _db.RefreshTokens
+                .Where(t => t.UserId == existing.UserId && t.RevokedAtUtc == null)
+                .ToListAsync(cancellationToken);
+
+            
+            if (activeTokens.Count > 0)
+            {
+                foreach (var activeToken in activeTokens)
+                    activeToken.Revoke(utcNow);
+
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+                
             return null;
+        }
+
 
         if (existing.ExpiresAtUtc <= utcNow)
             return null;

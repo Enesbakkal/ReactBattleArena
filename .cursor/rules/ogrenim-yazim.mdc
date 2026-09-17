@@ -213,6 +213,9 @@ oldu.
 35. **16 Eyl** `POST /api/auth/logout` (`LogoutCommand` + validator + handler,
     `LogoutRequest`, 204, `Revoke`’un ikinci kullanımı) + `api.ts` `logout` +
     `AppLayout` `/me` 401’inde `clearToken` + `navigate('/login')`
+36. **17 Eyl** Reuse detection: iptal edilmiş refresh token tekrar gelirse
+    kullanıcının tüm aktif satırları iptal; rotation tekrarı, `refreshInFlight`
+    ile yanlış alarm bağlantısı, A/B test kaydı
 
 ## Bölüm durumu
 
@@ -220,6 +223,6 @@ oldu.
 - [x] 10 - [x] 11 - [x] 12 - [x] 13 - [x] 14 - [x] 15 - [x] 16 - [x] 17
 - [x] 18 - [x] 19 - [x] 20 - [x] 21 - [x] 22 - [x] 23 - [x] 24 - [x] 25
 - [x] 26 - [x] 27 - [x] 28 - [x] 29 - [x] 30 - [x] 31 - [x] 32 - [x] 33 - [x] 34
-- [x] 35
+- [x] 35 - [x] 36
 
 Bölüm bitince buradaki kutuyu işaretle.

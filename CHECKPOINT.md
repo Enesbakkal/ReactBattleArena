@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 16 Eylül 2026 — AuthN + AuthZ (RBAC) bitti. Refresh + rotation + `POST /api/auth/logout` + `/me` 401’de login’e dönüş **çalışıyor**. Kalan tek auth maddesi: reuse detection. Saklama `localStorage` (cookie kararı danışmanda). Permission hâlâ DB. `REACT-OGRENIM-V2` bölüm 35 yazıldı.
+Son güncelleme: 17 Eylül 2026 — **Auth kod tarafı bitti**: AuthN, AuthZ (RBAC), refresh + rotation, logout revoke, `/me` 401 kapısı, reuse detection. Açık tek konu refresh’i `HttpOnly` cookie’ye taşımak (danışman görüşü bekliyor). Permission hâlâ DB. `REACT-OGRENIM-V2` bölüm 36 yazıldı. Sıradaki: Battle Arena backend.
 
 ## Yeni chat’e geçerken oku
 
@@ -74,7 +74,7 @@ Detay: `PROJE_MANTIGI.md`
   - [x] `/me` 401 kapısı (16 Eyl) — `loadMe` 401’de `clearToken` + `navigate('/login')`; önce yetkisiz sayfada kalıyordu
   - [x] `ExpireMinutes` 60’a geri alındı
   - [x] Temizlik: `RefreshCommand` namespace’i `Authentication.Commands`, 4 gereksiz `using` silindi
-  - [ ] Reuse detection: iptal edilmiş refresh token tekrar gelirse kullanıcının tüm satırlarını geçersiz kıl
+  - [x] Reuse detection (17 Eyl) — `RefreshCommandHandler`: iptal edilmiş token gelirse o kullanıcının `RevokedAtUtc == null` satırlarının hepsi iptal, dönüş yine 401. Test A/B ile doğrulandı
   - [ ] `LogoutCommandHandler`’daki kullanılmayan `Domain.Authentication` using’i (küçük)
 - [ ] Battle Arena backend
 
@@ -103,6 +103,12 @@ Detay: `PROJE_MANTIGI.md`
 - **Refresh’in cookie’den bağımsız eksikleri:** `RefreshToken.Revoke` metodu var ama **hiçbir yer çağırmıyor** → rotation yok; gerçek `POST /api/auth/logout` yok (Çıkış sadece `localStorage` siliyor, DB satırı 7 gün geçerli); iptal edilmiş token tekrar kullanılırsa kullanıcının tüm satırlarını geçersiz kılma yok.
 - **Rotation çalışıyor (15 Eyl):** Yukarıdaki maddenin ilk kısmı kapandı — `RefreshCommandHandler` `Revoke` çağırıyor, aynı `SaveChanges` eski satırı iptal edip yeni satırı basıyor. Aynı ham token ikinci kez gelirse 401. Logout revoke ve reuse detection **hâlâ açık**.
 - **Benzetme kuralı (16 Eyl):** Notlarda ve chat’te takma ad yok. Terim doğrudan yazılır; benzetme şartsa her kullanımda terimle birlikte: “refresh token (fiş)”. Tek başına “fiş / çanta / kâğıt” yazmak yasak — eski notlarda “fiş” = refresh token, “çanta” = rol, “kâğıt” = permission dizisi. Kural dosyası: `.cursor/rules/ogrenim-yazim.mdc` madde 2a.
+- **Eski rol modeli artıkları (17 Eyl):** RBAC'a geçtik ama string rol hâlâ üç yerde: `Users.Role` kolonu (Register/CreateUser yazıyor), `JwtTokenService`'teki `ClaimTypes.Role` claim'i, ve `UsersController`'da bir action'ın `[Authorize(Roles = Admin)]` kullanması — yani eski model tek noktada **canlı**. Temizlik sırası: önce o endpoint izin koduna geçsin, sonra claim kalksın, en sonda kolon drop. Ters sırada endpoint korumasız kalır. Madde listesi `PROJE_EKLEMELERI.md` Adım 31.
+- **Belge (17 Eyl):** `PROJE_MANTIGI.md`'de yetki/oturum modeli hiç yazılmamıştı (eskimiş değil, eksikti). "Yetkilendirme Modeli" ve "Oturum Modeli" bölümleri eklendi: RBAC + izin kodu, izinlerin JWT'ye gömülmemesi, refresh/rotation/reuse/logout, `localStorage` kararı.
+- **Süre vs iptal (17 Eyl):** Süresi dolan refresh token kendi kendine iptal olmaz; arka planda iş yok. `RefreshExpireDays` yalnız `ExpiresAtUtc`’yi hesaplar, ret istek anında `ExpiresAtUtc <= utcNow` ile olur. “İptal edilmiş” ve “süresi dolmuş” ayrı sebepler, ikisi de 401. Çalınan token en fazla 7 gün (rotation varsa genelde çok daha az) işe yarar. Eski satırlar birikiyor → ileride temizlik işi.
+- **Tuple deconstruction (17 Eyl):** `var (rawRefresh, newHash, expires) = _refreshTokens.Create(utcNow);` tek değerin üç parçasını dağıtır. Eşleşme **sırayla**, isimle değil: sıra karışırsa ham token `TokenHash` kolonuna yazılır ve hash kullanıcıya gider — derlenen, sessiz güvenlik hatası.
+- **Rotation (tanım):** Her yenilemede kullanılan refresh token’ın satırı iptal edilir ve yeni bir refresh token verilir → refresh token tek kullanımlıktır. Kazanç: sızan token’ın ömrü kısalır, ve ikinci kullanım **anormal** olduğu için tespit edilebilir.
+- **Reuse detection (17 Eyl):** İptal edilmiş refresh token tekrar gelirse hırsızlık varsayılır; o kullanıcının tüm aktif satırları iptal edilir, istek yine 401. `return null` `if` içine alınmamalı — aktif satır olmasa da 401 dönmeli. `activeTokens.Count > 0` kontrolü isteğe bağlı: EF değişiklik yoksa `SaveChanges`’te DB’ye hiç gitmez (önceki “DB turu” açıklaması yanlıştı). Yanlış alarmı `api.ts` `refreshInFlight` engelliyor.
 - **Logout (16 Eyl):** Çıkış artık sunucuda da gerçek; `RefreshTokens` satırı iptal edilir. `[AllowAnonymous]` (access ölmüş olabilir), dönüş 204, handler `false` dönse de 204 — token’ın varlığı sızmaz. `logout()` düz `fetch` (apiFetch olsa çıkışta yenileme denerdi); `clearToken` `try/catch` dışında.
 - **Bugünün hatası (16 Eyl):** `AppLayout`’a `logout` import edildi ama `api.ts`’e fonksiyon eklenmemişti → sayfa açılmadı (“does not provide an export named 'logout'” = dosya var, isim yok).
 - **Refresh akışı (15 Eyl, ezber):** Ölü access → JwtBearer 401 → `refreshSession` → `POST /api/auth/refresh` `{ refreshToken }` → handler hash + rotation → 200 yeni çift → aynı istek **yeni** Bearer ile bir kez tekrar. Refresh düz `fetch` (yoksa döngü); `refreshInFlight` paralel 401’lerde tek yenileme; 403’e dokunulmaz (yetki, süre değil); fiş de dolmuşsa refresh 401 → `clearToken` → sayfa gerçek 401 görür.

@@ -1,4 +1,4 @@
-﻿namespace ReactBattleArena .Domain.Authorization;
+﻿namespace ReactBattleArena.Domain.Authorization;
 
 public sealed class UserRole
 {

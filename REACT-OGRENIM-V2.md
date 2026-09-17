@@ -5782,3 +5782,204 @@ ham token bir daha yeni access üretemiyor. Ayrıca oturumu gerçekten bitmiş b
 kullanıcı yetkisiz sayfada kalmıyor, login’e yönlendiriliyor. Kalan iki madde
 reuse detection (iptal edilmiş token tekrar gelirse kullanıcının tüm satırlarını
 geçersiz kılmak) ve refresh token’ı `HttpOnly` cookie’ye taşıma kararı.
+
+---
+
+### 36. 17 Eylül — Reuse detection (iptal edilmiş refresh token tekrar gelirse)
+
+#### Önce rotation’ı tek paragrafta tekrar edelim
+
+**Rotation:** her yenileme isteğinde kullanılan refresh token’ın satırı iptal
+edilir (`RevokedAtUtc` dolar) ve kullanıcıya yeni bir refresh token verilir. Yani
+refresh token **tek kullanımlıktır**. Kodda bu iki satırın yan yana durması demek:
+
+```59:67:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/RefreshCommandHandler.cs
+        existing.Revoke(utcNow);
+        //Dört ayrı başarısızlık durumunun hepsi aynı null'u döndürüyor; login'deki "email sızdırmama" mantığının aynısı.
+        //existing.Revoke(utcNow) satırından sonra ayrıca bir Update çağırmıyoruz, çünkü satırı sorguyla çektiğimiz an EF onu takibe alıyor;
+        //SaveChangesAsync değişikliği kendisi UPDATE'e çeviriyor. Aynı SaveChanges hem eski satırın RevokedAtUtc'sini hem yeni satırın INSERT'ünü tek transaction'da yazıyor — rotation tam olarak bu.
+
+        var (rawRefresh, newHash, expires) = _refreshTokens.Create(utcNow);
+        _db.RefreshTokens.Add(RefreshToken.Create(user.Id, newHash, expires, utcNow));
+
+        await _db.SaveChangesAsync(cancellationToken);
+```
+
+Rotation’ın iki kazancı var. Sızmış bir refresh token’ın ömrü, bir sonraki
+yenilemeye kadar kısalıyor. Daha önemlisi, iptal edilmiş bir refresh token ikinci
+kez geldiğinde bunun **anormal** olduğunu anlayabiliyoruz — bu bölümün konusu
+tam olarak o bilgiyi kullanmak.
+
+#### Neden bu adım geldi
+
+16 Eylül’de logout bitince auth listesinde tek madde kalmıştı. Rotation sayesinde
+her refresh token tek kullanımlık olduğu için, normal çalışan bir istemci iptal
+edilmiş bir refresh token’ı bir daha göndermez. Gönderildiyse iki açıklama var:
+refresh token bir yere sızmış ve hem saldırgan hem gerçek kullanıcı aynı zinciri
+kullanmaya çalışıyor, ya da istemcide aynı refresh token’ı iki kez yollayan bir
+hata var. (Bu paragraftaki her “token” refresh token; access JWT bu tabloda
+tutulmuyor.)
+
+O güne kadar bu durumda handler sadece `null` döndürüyordu, yani istek 401 alıyor
+ama saldırganın elindeki zincir yaşamaya devam ediyordu. Bu adımda tek dosyaya
+dokunduk: `RefreshCommandHandler`. Frontend’de hiçbir değişiklik yapılmadı.
+
+#### Kod
+
+```35:49:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/RefreshCommandHandler.cs
+        if (existing.RevokedAtUtc is not null)
+        {
+            // Rotation yüzünden her refresh token tek kullanımlık. İptal edilmiş bir token
+            // ikinci kez geldiyse aynı zinciri iki taraf tutuyor demektir; çalınmış varsayıyoruz.
+
+            var activeTokens = await _db.RefreshTokens
+                .Where(t => t.UserId == existing.UserId && t.RevokedAtUtc == null)
+                .ToListAsync(cancellationToken);
+
+            foreach (var activeToken in activeTokens)
+                activeToken.Revoke(utcNow);
+            if (activeTokens.Count > 0)
+                await _db.SaveChangesAsync(cancellationToken);
+            return null;
+        }
+```
+
+Sorgu, gelen satırın `UserId`’si üzerinden o kullanıcının **iptal edilmemiş** tüm
+refresh token satırlarını çekiyor. `RevokedAtUtc == null` koşulu olmasa zaten
+iptal edilmiş eski satırlar da gelirdi; `Revoke` metodu içinde aynı kontrol
+olduğu için sonuç değişmezdi ama boşuna satır çekilirdi.
+
+Çekilen satırlar sorgu anında EF Core’un change tracking’ine giriyor, bu yüzden
+`foreach` içinde `Revoke` çağırmak yeterli; `Update` gerekmiyor. Tek
+`SaveChangesAsync` hepsini UPDATE olarak yazıyor. LINQ karşılığı C# tarafında
+alıştığımız `Where` ile aynı, EF bunu `WHERE UserId = @p AND RevokedAtUtc IS NULL`
+sorgusuna çeviriyor.
+
+`return null` satırının `if` bloğunun dışında değil, ama en sonunda durması
+önemli: aktif satır bulunsa da bulunmasa da istek 401 dönmek zorunda. Handler
+burada da “neden başarısız oldu” bilgisini dışarı vermiyor (bölüm 8’deki
+sızdırmama kararı).
+
+`if (activeTokens.Count > 0)` kontrolü **isteğe bağlı**. İlk anlatımda “gereksiz
+veritabanı turunu engelliyor” demiştim, bu yanlıştı: EF Core takipte değişiklik
+yoksa `SaveChangesAsync`’te veritabanına hiç gitmez, doğrudan 0 döner. Yani bu
+satır sadece EF’in iç işini atlıyor. Kaldırmak da, `foreach` ile birlikte tek
+`if` içine almak da doğru; ikincisi niyeti daha iyi gösterir.
+
+#### Yanlış alarm riski ve `refreshInFlight` bağlantısı
+
+Bu özellik yanlış alarma çok müsait. İki istek aynı anda 401 alıp ikisi de aynı
+refresh token’ı gönderse, ikincisi iptal edilmiş token’la gelir ve kullanıcı
+sebepsiz her yerden çıkarılır.
+
+```23:28:web/src/api.ts
+let refreshInFlight: Promise<boolean> | null = null
+
+async function refreshSession(): Promise<boolean> {
+  if (refreshInFlight) {
+    return refreshInFlight
+  }
+```
+
+15 Eylül’de yazdığımız bu üç satır tam bunu engelliyor: paralel 401’lerde ikinci
+istek yeni bir yenileme başlatmıyor, birincinin sonucunu bekliyor. Yani
+frontend’i o gün doğru yazmış olmamız, bugünkü reuse detection’ı güvenli hâle
+getirdi. Geliştirmede StrictMode’un `/me` isteğini iki kez çalıştırması da
+(bölüm 19) bu yüzden sorun çıkarmıyor.
+
+#### Bu kodu kim tetikliyor?
+
+`POST /api/auth/refresh`, gövdesinde daha önce kullanılmış bir refresh token ile.
+Gerçek kullanıcı akışında bu isteği kimse atmaz; Scalar’dan elle ya da sızmış bir
+token ile gelir. Frontend tarafında sonuç şu: refresh 401 → `refreshSession`
+`clearToken` çağırır → `AppLayout`’un `/me` kapısı (bölüm 35) login’e yönlendirir.
+Kullanıcı şifresini yeniden girer; saldırganda şifre olmadığı için zincir kopar.
+
+#### Test (17 Eylül, başarılı)
+
+Sırası şöyleydi:
+
+1. Uygulamadan giriş yapıldı ve `localStorage`’daki `refreshToken` değeri
+   kopyalandı — buna **A** diyoruz.
+2. Scalar’dan `POST /api/auth/refresh` gövdesine A konuldu → **200**, cevapta yeni
+   bir refresh token geldi — buna **B** diyoruz. SSMS’te A’nın satırında
+   `RevokedAtUtc` dolmuştu (rotation).
+3. Aynı istek A ile **ikinci kez** gönderildi → **401**. Bu sefer SSMS’te B’nin
+   satırı da iptal edilmiş görünüyordu; reuse detection devreye girmişti.
+4. Son kontrol olarak B gönderildi → **401**, çünkü B bir önceki adımda iptal
+   edilmişti.
+5. Tabloda o kullanıcıya ait bütün satırların `RevokedAtUtc` değeri doluydu.
+
+Üçüncü adım bu özelliğin kanıtı: eskiden orada sadece 401 dönerdi ve B yaşamaya
+devam ederdi.
+
+#### Bu adımda yapılan / kalan iz
+
+Sık düşülen hata: `return null`’u `if` bloğunun içine alıp aktif satır yokken
+401 dönmeyi atlamak. Yalnız gelen satırı iptal edip diğerlerini bırakmak (o zaman
+saldırganın zinciri yaşar). `RevokedAtUtc == null` filtresini yazmayıp tüm
+geçmişi çekmek. Frontend’de `refreshInFlight` olmadan bu özelliği açmak — paralel
+401’ler kullanıcıyı sebepsiz atar. Bir de benim yaptığım hata: `Count > 0`
+kontrolünü “veritabanı turunu engelliyor” diye açıklamak; EF zaten değişiklik
+yoksa veritabanına gitmiyor.
+
+#### Yan not 1 — `var (rawRefresh, newHash, expires) = ...` satırı
+
+Bu satır bölüm 33’ten beri kodda duruyordu, burada açıyoruz.
+
+```64:65:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/RefreshCommandHandler.cs
+        var (rawRefresh, newHash, expires) = _refreshTokens.Create(utcNow);
+        _db.RefreshTokens.Add(RefreshToken.Create(user.Id, newHash, expires, utcNow));
+```
+
+`Create` metodu tek bir değer döndürüyor ama o değerin üç parçası var:
+`(string Raw, string Hash, DateTime ExpiresAtUtc)`. Buna **value tuple** denir.
+Sol taraftaki parantezli yazım da **deconstruction**: tek satırda üç parçayı üç
+ayrı yerel değişkene dağıtmak. Deconstruction yapmadan şöyle yazılabilirdi:
+
+```csharp
+var result = _refreshTokens.Create(utcNow);
+// result.Raw, result.Hash, result.ExpiresAtUtc
+```
+
+Üç değerin gittiği yerler farklı, asıl mesele bu: `rawRefresh` yalnızca cevabın
+JSON’una konur (`LoginResult`), `newHash` veritabanındaki `TokenHash` kolonuna
+yazılır, `expires` da `ExpiresAtUtc` kolonuna. Ham token hiçbir zaman
+veritabanına girmez.
+
+Tuzak: eşleşme isimle değil **sırayla** yapılır. Sol tarafa
+`var (newHash, rawRefresh, expires)` yazılsa derleyici uyarmaz, ama ham token
+`TokenHash` kolonuna yazılır ve hash kullanıcıya gönderilir — derlenen, sessiz
+bir güvenlik hatası. C# tarafında alternatifi `out` parametreleri veya küçük bir
+`record` döndürmek olurdu; iki-üç değer hemen kullanılıyorsa tuple yeterli.
+
+#### Yan not 2 — Süresi dolan refresh token kendi kendine iptal olur mu?
+
+Olmaz. Arka planda çalışan hiçbir iş yok; `RefreshExpireDays = 7` yalnızca satır
+oluşturulurken `ExpiresAtUtc` değerini hesaplar. Süre geçince satır aynen durur,
+`RevokedAtUtc` hâlâ `null` kalır. Kontrol istek anında yapılır:
+
+```52:53:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/RefreshCommandHandler.cs
+        if (existing.ExpiresAtUtc <= utcNow)
+            return null;
+```
+
+Yani **“iptal edilmiş”** ile **“süresi dolmuş”** iki ayrı ret sebebi. İkisi de
+401 üretir ama veritabanında farklı görünürler: birinde `RevokedAtUtc` dolu,
+öbüründe boş ama `ExpiresAtUtc` geçmişte.
+
+Bunun güvenlik tarafındaki anlamı şu: çalınan bir refresh token en fazla yedi gün
+işe yarar. Rotation varsa genelde daha az — gerçek kullanıcı bir kez yenileme
+yaptığı anda çalınan satır iptal olur, çalınan token bir sonraki kullanımda reuse
+detection’a düşer.
+
+Yan etkisi: iptal edilmiş ve süresi dolmuş satırlar tabloda sonsuza kadar birikir.
+Doğruluğu etkilemez, ama üretimde periyodik bir temizlik işi (örneğin süresi bir
+aydan fazla önce dolmuş satırları silmek) mantıklı olur. Şimdilik yapılmadı.
+
+#### Sonuçta ne kazandık
+
+Çalınmış bir refresh token tek kullanımla sınırlı kalmıyor, ikinci kullanımda o
+kullanıcının bütün oturumları kapanıyor. Auth listesinde kod tarafında açık madde
+kalmadı; geriye yalnızca refresh token’ı `HttpOnly` cookie’ye taşıma kararı var
+ve o danışman görüşü bekliyor.

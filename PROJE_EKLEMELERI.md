@@ -304,13 +304,25 @@ Yapılış sırası (back → back → … → front):
 - [x] `POST /api/auth/logout` — `LogoutCommand` + validator + handler (hash → satır → `Revoke`; süre kontrolü yok), `LogoutRequest`, `[AllowAnonymous]`, 204; handler `false` dönse de 204 (token varlığı sızmaz) — 16 Eyl
 - [x] React Çıkış — `api.ts` `logout()` (refresh token yoksa istek atmaz, düz `fetch`, `clearToken` her hâlde çalışır); `AppLayout` `handleLogout` `async` + `await logout()` — 16 Eyl
 - [x] `AppLayout` `/me` 401 kapısı — yenileme başarısızsa `clearToken` + `navigate('/login')`; önceki hâlde kullanıcı yetkisiz sayfada kalıyordu — 16 Eyl
-- [ ] İptal edilmiş token tekrar kullanılırsa kullanıcının tüm satırlarını geçersiz kılma (reuse detection)
+- [x] Reuse detection — `RefreshCommandHandler`: iptal edilmiş refresh token tekrar gelirse o kullanıcının `RevokedAtUtc == null` satırlarının hepsi `Revoke`, dönüş yine 401 (`return null` if dışında). Frontend değişmedi; yanlış alarmı `refreshInFlight` engelliyor. A/B testi başarılı — 17 Eyl
 - [ ] Karar bekliyor: refresh `localStorage` → `HttpOnly` cookie (danışmana soruldu; şimdilik `localStorage`)
 
 
 
 
 
+
+### Adım 31 — Eski rol modelinin temizliği (sırayla yapılacak)
+
+17 Eylül'de fark edildi: RBAC'a geçtik ama 27–28 Temmuz'un string rol modeli
+birkaç noktada duruyor. Sıra önemli; ters sırada `UsersController` korumasız kalır.
+
+- [ ] `UsersController` `[Authorize(Roles = Roles.Admin)]` → izin kodu (`users.read` / `users.manage` gibi) + `PermissionCodes`'a ekleme + `AuthSeeder`'da Admin rolüne izin satırı
+- [ ] `JwtTokenService`'ten `new Claim(ClaimTypes.Role, user.Role)` kaldır (yetki JWT'de değil kararının son adımı)
+- [ ] `RegisterCommandHandler` / `CreateUserCommandHandler` `Users.Role`'e yazmayı bıraksın; `User.Role` property + `SetRole` + `UserConfiguration` eşlemesi kalksın
+- [ ] Migration `DropUserRoleColumn` + `database update`
+- [ ] `AuthSeeder`'daki `Users.Role` → `UserRoles` tek seferlik aktarım bloğu kalksın (kolon gidince anlamsız)
+- [x] Belge: `PROJE_MANTIGI.md`'ye "Yetkilendirme Modeli" ve "Oturum Modeli" bölümleri yazıldı — 17 Eyl
 
 ### Güvenlik & Git
 
@@ -328,7 +340,7 @@ Yapılış sırası (back → back → … → front):
 - [x] React: access bitince sessiz yenile (`api.ts`)
 - [x] `ExpireMinutes` 60’a geri al (test için 1’e düşürülmüştü)
 - [x] `POST /api/auth/logout`
-- [ ] Reuse detection (iptal edilmiş token tekrar gelirse tüm satırları iptal)
+- [x] Reuse detection (iptal edilmiş token tekrar gelirse tüm satırları iptal)
 - [ ] Liste yükleme 3–4 sn gecikmesi (inceleme)
 - [ ] Login/Register UI’yi kilit palete boyama
 - [ ] Battle Arena backend
@@ -541,6 +553,15 @@ Yapılış sırası (back → back → … → front):
 - Hata: `logout` import edildi ama `api.ts`’e eklenmemişti → sayfa açılmadı; export/import ismi birebir aynı olmalı
 - Yazım kuralı değişti: takma adlı benzetme yok; terim doğrudan yazılır (“fiş” = refresh token, “çanta” = rol, “kâğıt” = permission dizisi)
 - `REACT-OGRENIM-V2` bölüm 35 yazıldı
+
+### 17 Eylül 2026
+
+- Reuse detection yazıldı (`RefreshCommandHandler`): iptal edilmiş refresh token tekrar gelirse o kullanıcının tüm aktif satırları iptal, dönüş 401
+- Test A/B ile doğrulandı: A → 200 + B; A ikinci kez → 401 **ve B de iptal**; B → 401; tüm satırlar `RevokedAtUtc` dolu
+- Rotation tanımı nota yazıldı: her yenilemede eski satır iptal + yeni token = tek kullanımlık; ikinci kullanım anormal olduğu için tespit edilebilir
+- Düzeltme: `activeTokens.Count > 0` kontrolü DB turunu engellemiyor — EF değişiklik yoksa `SaveChanges`’te veritabanına hiç gitmiyor; kontrol isteğe bağlı
+- **Auth kod tarafı bitti.** Açık konu yalnız `HttpOnly` cookie kararı (danışman)
+- `REACT-OGRENIM-V2` bölüm 36 yazıldı
 
 ---
 
