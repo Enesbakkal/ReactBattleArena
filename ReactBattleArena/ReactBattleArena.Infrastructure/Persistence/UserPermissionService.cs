@@ -23,5 +23,6 @@ public sealed class UserPermissionService : IUserPermissionService
             where ur.UserId == userId
             select p.Code
         ).Distinct().ToListAsync(cancellationToken);
+        // Distinct: iki rol aynı fiili verse bir kez.
     }
 }

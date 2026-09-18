@@ -19,10 +19,6 @@ public sealed class User
     // Arena / ödül için; Auth sonrası da kullanılacak
     public int Points { get; private set; }
 
-    public string Role { get; private set; } = null!;
-    //= null!; = “derleyiciye: başlangıçta null görünebilir ama runtime’da asla null kalmayacak” demek.
-    //null-forgiving (!) işareti
-
     public DateTime CreatedAtUtc { get; private set; }
 
     public static User Create(
@@ -30,7 +26,6 @@ public sealed class User
         string email,
         string? displayName,
         string passwordHash,
-        string role,
         DateTime utcNow)
     {
         return new User
@@ -40,7 +35,6 @@ public sealed class User
             Email = email,
             DisplayName = displayName,
             PasswordHash = passwordHash,
-            Role = role,
             Points = 0,
             CreatedAtUtc = utcNow
         };
@@ -64,10 +58,5 @@ public sealed class User
             return;
 
         Points += amount;
-    }
-
-    public void SetRole(string role)
-    {
-        Role = role;
     }
 }

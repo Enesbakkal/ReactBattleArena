@@ -4,6 +4,7 @@ using ReactBattleArena.Api.Contracts;
 using ReactBattleArena.Application.Users.Commands;
 using ReactBattleArena.Application.Users.Queries;
 using Microsoft.AspNetCore.Authorization;
+using ReactBattleArena.Api.Authorization;
 using ReactBattleArena.Domain.Authorization;
 
 namespace ReactBattleArena.Api.Controllers;
@@ -73,7 +74,7 @@ public sealed class UsersController : ControllerBase
         return updated ? NoContent() : NotFound();
     }
 
-    [Authorize(Roles = Roles.Admin)]
+    [HasPermission(PermissionCodes.UsersDelete)]
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

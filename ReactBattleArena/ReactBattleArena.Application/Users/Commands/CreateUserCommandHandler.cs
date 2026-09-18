@@ -1,6 +1,5 @@
 ﻿using MediatR;
 using ReactBattleArena.Application.Abstractions;
-using ReactBattleArena.Domain.Authorization;
 using ReactBattleArena.Domain.Users;
 
 namespace ReactBattleArena.Application.Users.Commands;
@@ -25,7 +24,6 @@ public sealed class CreateUserCommandHandler : IRequestHandler<CreateUserCommand
             request.Email,
             request.DisplayName,
             passwordHash,
-            Roles.Player,
             DateTime.UtcNow);
 
         _db.Users.Add(entity);

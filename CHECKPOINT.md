@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 17 Eylül 2026 — **Auth kod tarafı bitti**: AuthN, AuthZ (RBAC), refresh + rotation, logout revoke, `/me` 401 kapısı, reuse detection. Açık tek konu refresh’i `HttpOnly` cookie’ye taşımak (danışman görüşü bekliyor). Permission hâlâ DB. `REACT-OGRENIM-V2` bölüm 36 yazıldı. Sıradaki: Battle Arena backend.
+Son güncelleme: 18 Eylül 2026 — Auth kod tarafı + eski string rol temizliği bitti (`DropUserRoleColumn` uygulandı). Cookie kararı danışmanda. Permission hâlâ DB. Sıradaki: Battle Arena backend.
 
 ## Yeni chat’e geçerken oku
 
@@ -103,7 +103,7 @@ Detay: `PROJE_MANTIGI.md`
 - **Refresh’in cookie’den bağımsız eksikleri:** `RefreshToken.Revoke` metodu var ama **hiçbir yer çağırmıyor** → rotation yok; gerçek `POST /api/auth/logout` yok (Çıkış sadece `localStorage` siliyor, DB satırı 7 gün geçerli); iptal edilmiş token tekrar kullanılırsa kullanıcının tüm satırlarını geçersiz kılma yok.
 - **Rotation çalışıyor (15 Eyl):** Yukarıdaki maddenin ilk kısmı kapandı — `RefreshCommandHandler` `Revoke` çağırıyor, aynı `SaveChanges` eski satırı iptal edip yeni satırı basıyor. Aynı ham token ikinci kez gelirse 401. Logout revoke ve reuse detection **hâlâ açık**.
 - **Benzetme kuralı (16 Eyl):** Notlarda ve chat’te takma ad yok. Terim doğrudan yazılır; benzetme şartsa her kullanımda terimle birlikte: “refresh token (fiş)”. Tek başına “fiş / çanta / kâğıt” yazmak yasak — eski notlarda “fiş” = refresh token, “çanta” = rol, “kâğıt” = permission dizisi. Kural dosyası: `.cursor/rules/ogrenim-yazim.mdc` madde 2a.
-- **Eski rol modeli artıkları (17 Eyl):** RBAC'a geçtik ama string rol hâlâ üç yerde: `Users.Role` kolonu (Register/CreateUser yazıyor), `JwtTokenService`'teki `ClaimTypes.Role` claim'i, ve `UsersController`'da bir action'ın `[Authorize(Roles = Admin)]` kullanması — yani eski model tek noktada **canlı**. Temizlik sırası: önce o endpoint izin koduna geçsin, sonra claim kalksın, en sonda kolon drop. Ters sırada endpoint korumasız kalır. Madde listesi `PROJE_EKLEMELERI.md` Adım 31.
+- **Eski rol modeli (18 Eyl, kapandı):** `Users.Role` kolonu, JWT rol claim’i ve `[Authorize(Roles = Admin)]` kalktı. Delete artık `users.delete` izni (`HasPermission`); seed yalnız Admin. Migration `DropUserRoleColumn` veritabanına uygulandı.
 - **Belge (17 Eyl):** `PROJE_MANTIGI.md`'de yetki/oturum modeli hiç yazılmamıştı (eskimiş değil, eksikti). "Yetkilendirme Modeli" ve "Oturum Modeli" bölümleri eklendi: RBAC + izin kodu, izinlerin JWT'ye gömülmemesi, refresh/rotation/reuse/logout, `localStorage` kararı.
 - **Süre vs iptal (17 Eyl):** Süresi dolan refresh token kendi kendine iptal olmaz; arka planda iş yok. `RefreshExpireDays` yalnız `ExpiresAtUtc`’yi hesaplar, ret istek anında `ExpiresAtUtc <= utcNow` ile olur. “İptal edilmiş” ve “süresi dolmuş” ayrı sebepler, ikisi de 401. Çalınan token en fazla 7 gün (rotation varsa genelde çok daha az) işe yarar. Eski satırlar birikiyor → ileride temizlik işi.
 - **Tuple deconstruction (17 Eyl):** `var (rawRefresh, newHash, expires) = _refreshTokens.Create(utcNow);` tek değerin üç parçasını dağıtır. Eşleşme **sırayla**, isimle değil: sıra karışırsa ham token `TokenHash` kolonuna yazılır ve hash kullanıcıya gider — derlenen, sessiz güvenlik hatası.

@@ -44,7 +44,6 @@ public sealed class RegisterCommandHandler : IRequestHandler<RegisterCommand, Gu
             request.Email,
             request.DisplayName,
             passwordHash,
-            Roles.Player,
             DateTime.UtcNow);
 
         _db.Users.Add(entity);

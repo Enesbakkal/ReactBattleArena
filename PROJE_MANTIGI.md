@@ -59,20 +59,12 @@ Control) + izin kodu:
 - Frontend `GET /api/auth/me` ile izin listesini alır, `PermissionContext` ile
   paylaşır. UI'da link gizlemek yetki değildir — API yine 403 döner.
 
-### Eski modelden kalan artıklar (temizlenecek)
+### Eski model — temizlendi (18 Eylül 2026)
 
-- `Users.Role` string kolonu hâlâ duruyor ve Register / CreateUser oraya
-  `"Player"` yazıyor. Gerçek kaynak `UserRoles`; bu kolon ikinci bir doğruluk
-  kaynağı olduğu için çelişki riski taşır.
-- `JwtTokenService` hâlâ `ClaimTypes.Role` claim'i basıyor.
-- `UsersController`'daki bir action hâlâ `[Authorize(Roles = Roles.Admin)]`
-  kullanıyor; yani eski model tek noktada canlı.
-- `AuthSeeder` içindeki `Users.Role` → `UserRoles` aktarımı tek seferlik taşıma
-  işiydi, artık her açılışta boşa çalışıyor.
-
-Temizlik sırası önemlidir: önce `UsersController` izin koduna geçmeli, sonra JWT
-claim'i kaldırılmalı, en sonda kolon migration ile düşürülmeli. Ters sırada o
-endpoint korumasız kalır.
+`Users.Role` string kolonu, `SetRole`, JWT `ClaimTypes.Role` claim’i ve
+`[Authorize(Roles = Roles.Admin)]` kaldırıldı. Kullanıcı silme artık
+`[HasPermission(PermissionCodes.UsersDelete)]` ile korunuyor; izin yalnız
+Admin rolüne seed edilir. Migration: `DropUserRoleColumn`.
 
 ## Oturum Modeli (güncel — 17 Eylül 2026)
 

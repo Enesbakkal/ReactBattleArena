@@ -216,6 +216,10 @@ oldu.
 36. **17 Eyl** Reuse detection: iptal edilmiş refresh token tekrar gelirse
     kullanıcının tüm aktif satırları iptal; rotation tekrarı, `refreshInFlight`
     ile yanlış alarm bağlantısı, A/B test kaydı
+37. **18 Eyl** Authentication / Authorization / Refresh Token sonu — kimlik JWT,
+    yetki DB join, oturum refresh; 401 vs 403 vs refresh ayrımı
+38. **18 Eyl** Eski `Users.Role` kolonunun kaldırılması: `users.delete`, JWT rol
+    claim’i yok, `DropUserRoleColumn`
 
 ## Bölüm durumu
 
@@ -223,6 +227,6 @@ oldu.
 - [x] 10 - [x] 11 - [x] 12 - [x] 13 - [x] 14 - [x] 15 - [x] 16 - [x] 17
 - [x] 18 - [x] 19 - [x] 20 - [x] 21 - [x] 22 - [x] 23 - [x] 24 - [x] 25
 - [x] 26 - [x] 27 - [x] 28 - [x] 29 - [x] 30 - [x] 31 - [x] 32 - [x] 33 - [x] 34
-- [x] 35 - [x] 36
+- [x] 35 - [x] 36 - [x] 37 - [x] 38
 
 Bölüm bitince buradaki kutuyu işaretle.

@@ -5983,3 +5983,377 @@ aydan fazla önce dolmuş satırları silmek) mantıklı olur. Şimdilik yapılm
 kullanıcının bütün oturumları kapanıyor. Auth listesinde kod tarafında açık madde
 kalmadı; geriye yalnızca refresh token’ı `HttpOnly` cookie’ye taşıma kararı var
 ve o danışman görüşü bekliyor.
+
+---
+
+### 37. 18 Eylül — Authentication, Authorization ve Refresh Token sonu
+
+Bu bölüm yeni bir endpoint yazmıyor. 16 Temmuz’daki Register’dan 18 Eylül’deki
+`Users.Role` kolonunun düşürülmesine kadar olan işin **bugünkü hâli**. Amaç:
+üç kelimeyi (authentication / authorization / refresh token) kodda nereye
+denk geldiğini unutmamak.
+
+Kronoloji tek cümle: önce kimlik (Register, Login, JWT, `[Authorize]`), sonra
+arayüz (React login / `/me`), sonra yetki tabloları (RBAC), sonra oturum
+süresi (refresh + rotation + logout + reuse detection), en sonda 27 Temmuz’un
+string rol kolonunu kaldırmak. JWT login bitince arayüzsüz test zorlaştığı
+için React’e geçmiştik; yetki JWT’ye gömülmesin diye RBAC’te backend’e
+dönmüştük; access 60 dakikada ölünce yine backend’e refresh için dönmüştük.
+
+#### Authentication — kimsin
+
+Kimlik, `AuthController`’daki dört `[AllowAnonymous]` action + bir
+`[Authorize]` action’dır. Register ve Login şifreyle kim olduğunu kanıtlar;
+Refresh ve Logout elindeki ham refresh token ile oturumu uzatır veya kapatır;
+`/me` access JWT’si olmadan çalışmaz.
+
+```29:32:ReactBattleArena/ReactBattleArena.Api/Controllers/AuthController.cs
+    [AllowAnonymous]//Böylece ileride global [Authorize] eklesek bile login/register çalışır.
+    [HttpPost("register")]
+    [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+```
+
+```44:46:ReactBattleArena/ReactBattleArena.Api/Controllers/AuthController.cs
+    [AllowAnonymous]//Böylece ileride global [Authorize] eklesek bile login/register çalışır.
+    [HttpPost("login")]
+    [ProducesResponseType(typeof(LoginResult), StatusCodes.Status200OK)]
+```
+
+```62:65:ReactBattleArena/ReactBattleArena.Api/Controllers/AuthController.cs
+    [AllowAnonymous]
+    //[AllowAnonymous] şart: bu endpoint'e gelindiğinde access token çoktan ölmüş olacak,
+    //[Authorize] koyarsak 401 döngüsüne gireriz. [HasPermission] de yok, çünkü bu bir oturum kapısı, bir fiil kapısı değil.
+    [HttpPost("refresh")]
+```
+
+```80:83:ReactBattleArena/ReactBattleArena.Api/Controllers/AuthController.cs
+    [AllowAnonymous]
+    [HttpPost("logout")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+```
+
+Refresh ve Logout’ta `[AllowAnonymous]` bilinçli: access token ölmüşken de
+yenilemek ve çıkış yapmak gerekir. `[Authorize]` koysan 401 döngüsü olur.
+
+```98:101:ReactBattleArena/ReactBattleArena.Api/Controllers/AuthController.cs
+    [Authorize]
+    [HttpGet("me")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+```
+
+`/me` tam tersi: token’daki `NameIdentifier` (veya `sub`) olmadan kullanıcı
+id’si yok.
+
+Access JWT’nin içinde bugün rol yok. Claim listesi kimlik bilgisi:
+
+```22:28:ReactBattleArena/ReactBattleArena.Infrastructure/Security/JwtTokenService.cs
+        var claims = new[]
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName),
+            new Claim(JwtRegisteredClaimNames.Email, user.Email),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+        };
+```
+
+22 Temmuz’da burada `ClaimTypes.Role` de vardı; 18 Eylül’de kalktı (bölüm 38).
+Sunucu token’ı tabloda saklamaz; imza `Jwt:Key` ile doğrulanır. Süre
+`ExpireMinutes` (60). Parola BCrypt ile `PasswordHash` kolonunda durur; JWT
+imzası ile karıştırılmaz.
+
+Frontend karşılığı: `LoginPage` `POST /api/auth/login` → `setToken` +
+`setRefreshToken`; korumalı sayfalar `apiFetch` ile `Authorization: Bearer`.
+ASP.NET’te bunun karşılığı cookie auth + `[Authorize]` idi; bizde cookie yok,
+Bearer header var.
+
+#### Authorization — ne yapabilirsin
+
+Yetki access JWT’de değil. Zincir: `UserRoles` → `RolePermissions` →
+`Permissions.Code`. Her istekte join:
+
+```15:25:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/UserPermissionService.cs
+    public async Task<IReadOnlyList<string>> GetCodesAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await (
+            from ur in _db.UserRoles
+            join rp in _db.RolePermissions on ur.RoleId equals rp.RoleId
+            join p in _db.Permissions on rp.PermissionId equals p.Id
+            where ur.UserId == userId
+            select p.Code
+        ).Distinct().ToListAsync(cancellationToken);
+```
+
+`Distinct` aynı izni iki rol verse bir kez döner. Controller tarafında rol adı
+yazılmaz; izin kodu yazılır:
+
+```46:47:ReactBattleArena/ReactBattleArena.Api/Controllers/CharactersController.cs
+    [HasPermission(PermissionCodes.CharactersCreate)]  // POST
+    [HttpPost]
+```
+
+```4:10:ReactBattleArena/ReactBattleArena.Api/Authorization/HasPermissionAttribute.cs
+public sealed class HasPermissionAttribute : AuthorizeAttribute
+{
+    public HasPermissionAttribute(string permission)
+    {
+        Policy = "Permission:" + permission;
+    }
+}
+```
+
+`HasPermission` bir `AuthorizeAttribute` türevi; policy adı `"Permission:" +
+kod`. `PermissionPolicyProvider` bu adı görünce `PermissionRequirement`
+üretir, `PermissionAuthorizationHandler` `IUserPermissionService`’e sorar.
+JWT’de izin claim’i olmadığı için yetki değişince yeniden login gerekmez.
+
+Frontend gizleme yetki değildir. `permissions.ts` içindeki `hasPermission`
+dizide kod var mı diye bakar; API yine 403 dönebilir. Liste
+`GET /api/auth/me`’nin `permissions` alanından gelir, `AppLayout`
+`PermissionContext` ile paylaşır. UI’daki `&&` ile link gizlemek, URL’yi elle
+yazanın POST’unu durdurmaz.
+
+#### Refresh token — oturum ne kadar sürer
+
+Access 60 dakikada ölür. Refresh token ham hâli `localStorage`’da, hash’i
+`RefreshTokens.TokenHash`’te (SHA256, unique). Login hash’i yazar, hamı JSON’a
+koyar. `POST /api/auth/refresh` rotation yapar: eski satır `Revoke`, yeni çift
+cevapta. İptal edilmiş refresh token tekrar gelirse reuse detection o
+kullanıcının tüm aktif satırlarını iptal eder (bölüm 36). `POST /api/auth/logout`
+yalnız o cihazın satırını iptal eder.
+
+```62:82:web/src/api.ts
+export async function logout(): Promise<void> {
+  const refreshToken = getRefreshToken()
+
+  if (refreshToken) {
+    try {
+      await fetch(`${API_BASE}/api/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken }),
+      })
+    } catch {
+      // API kapalıysa bile yerel temizlik yapılmalı; kullanıcı ekranda kalmasın
+      //Üç ayrıntı var burada. Token yoksa isteği hiç atmıyoruz, çünkü validator boş değere 400 döner ve çıkış yaparken hata görmek anlamsız. 
+      // İstek apiFetch değil düz fetch; apiFetch kullanırsak 401 ihtimalinde refresh denemesi yapar, oysa biz tam tersini istiyoruz. 
+      // clearToken() de try/catch'in dışında, yani sunucuya ulaşılamasa bile tarayıcı temizlenir.
+    }
+  }
+
+  clearToken()
+}
+```
+
+`apiFetch` 401’de `refreshSession` çağırır; refresh’in kendisi düz `fetch`
+(döngü olmasın). `refreshInFlight` paralel 401’lerde tek yenileme. 403’e
+dokunulmaz — o yetki yok demektir, süre değil.
+
+```22:32:web/src/AppLayout.tsx
+  async function loadMe() {
+    try {
+      const meResponse = await apiFetch('/api/auth/me')
+      if (meResponse.ok) {
+        const me = await meResponse.json()
+        setPermissions(me.permissions ?? [])
+      } else if (meResponse.status === 401) {
+        // apiFetch buraya gelene kadar yenilemeyi denedi ve başaramadı: oturum bitti.
+        clearToken()
+        navigate('/login')
+        return
+      }
+```
+
+Yenileme de başarısızsa kullanıcı yetkisiz sayfada kalmaz.
+
+#### Üç kelimeyi karıştırmama
+
+Authentication 401’dir: token yok / bozuk / süresi dolmuş. Authorization
+403’tür: token geçerli, izin kodu yok. Refresh token üçüncü bir şeydir: yeni
+access üretir, izin listesini değiştirmez. Cookie kararı (refresh token’ı
+`HttpOnly` cookie’ye taşımak) danışmanda; saklama yeri `localStorage`.
+
+#### Sonuçta ne kazandık
+
+Kimlik JWT, yetki DB join, oturum süresi refresh token. 27 Temmuz’daki
+`Users.Role` string modeli Characters’ta Ağustos’ta, Users Delete’te 18
+Eylül’de kapandı. Kod tarafında auth bitti; ayrıntılı temizlik notu bölüm 38.
+
+---
+
+### 38. 18 Eylül — Eski string `Users.Role` kolonunun kaldırılması
+
+17 Eylül’de belgeye yazılmıştı: RBAC’a geçtik ama 27–28 Temmuz’un string rolü
+üç yerde duruyordu. 18 Eylül’de o artıklar silindi. Sıra bilinçliydi — önce
+`UsersController` Delete’i izin koduna bağlamak, sonra JWT claim’ini ve kolonu
+kaldırmak. Tersi: `[Authorize(Roles = Roles.Admin)]` kalkar, JWT’de rol kalmaz,
+Delete herkese açık kalırdı.
+
+Dosya sırası: `PermissionCodes.UsersDelete` + `AuthSeeder` Admin’e o izni
+verdi, `UsersController` `HasPermission` aldı, `JwtTokenService`’ten
+`ClaimTypes.Role` çıktı, `User.Role` / `SetRole` / `User.Create`’teki `role`
+parametresi / `UserConfiguration` eşlemesi kalktı, Register ve CreateUser
+kolona `"Player"` yazmayı bıraktı, `AuthSeeder`’daki `Users.Role` →
+`UserRoles` aktarım döngüsü silindi, en sonda `DropUserRoleColumn` migration’ı
+ve `database update`.
+
+#### Neden `Users.Role` yetmiyordu
+
+Tek string kolon bir kullanıcının **tek** rolü olduğunu varsayar. RBAC’te
+kullanıcı birden fazla role girebilir (`UserRoles` composite PK) ve yetki rol
+adına değil izin koduna bağlıdır. Kolon durduğu sürece ikinci bir doğruluk
+kaynağı vardı: `Users.Role = "Player"` iken `UserRoles`’ta Admin satırı
+olabilirdi. JWT claim’i de o kolonu taşıdığı için `[Authorize(Roles)]`
+kolondaki eski değere bakardı, `HasPermission` ise tabloya.
+
+#### Entity’den kolonun çıkması
+
+```24:40:ReactBattleArena/ReactBattleArena.Domain/Users/User.cs
+    public static User Create(
+        string userName,
+        string email,
+        string? displayName,
+        string passwordHash,
+        DateTime utcNow)
+    {
+        return new User
+        {
+            Id = Guid.NewGuid(),
+            UserName = userName,
+            Email = email,
+            DisplayName = displayName,
+            PasswordHash = passwordHash,
+            Points = 0,
+            CreatedAtUtc = utcNow
+        };
+    }
+```
+
+28 Temmuz’da beşinci parametre `string role` idi ve `Role = role` atanıyordu.
+`SetRole` metodu da vardı. İkisi de gitti. `RegisterCommandHandler` hâlâ
+Player rolünü **ayrı tabloya** yazar; kolonla işi kalmadı:
+
+```42:57:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/RegisterCommandHandler.cs
+        var entity = User.Create(
+            request.UserName,
+            request.Email,
+            request.DisplayName,
+            passwordHash,
+            DateTime.UtcNow);
+
+        _db.Users.Add(entity);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        var playerRole = await _db.Roles.SingleAsync(
+            r => r.Name == Roles.Player, cancellationToken);
+
+        _db.UserRoles.Add(UserRole.Create(entity.Id, playerRole.Id));
+```
+
+İki `SaveChanges`: önce `Users.Id` üretilsin, sonra `UserRoles.UserId` o Guid’i
+alsın. Rol yoksa `SingleAsync` fırlatır — seed çalışmamışsa sessiz Player
+uydurulmasın diye.
+
+`CreateUserCommandHandler` aynı `User.Create` imzasını kullanır ama
+**`UserRoles` satırı yazmaz**. Bu bugün açılan bir boşluk değil; Admin’in
+`POST /api/users` ile eklediği kullanıcıda izin listesi boş kalır. Register
+akışı etkilenmez. İleride CreateUser’a da `UserRoles` eklemek ayrı iş.
+
+```21:22:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/UserConfiguration.cs
+        builder.Property(x => x.PasswordHash).IsRequired().HasMaxLength(500);
+        //UserName ve Email unique — aynı kullanıcı / mail iki kez eklenemez.
+```
+
+Burada `builder.Property(x => x.Role).IsRequired().HasMaxLength(50)` vardı.
+Property entity’den düşünce EF mapping de düşmezse build, mapping durup kolon
+düşünce runtime patlardı. İkisi birlikte gitti.
+
+#### Delete: rol adı yerine izin kodu
+
+Sen `[Authorize(Roles = Roles.Admin)]` satırını yorumlamıştın; o hâlde Delete
+hiç attribute’suz kalıyordu. Temizlik onu öyle bırakmak değil, Characters
+CUD ile aynı kapıya bağlamak:
+
+```77:78:ReactBattleArena/ReactBattleArena.Api/Controllers/UsersController.cs
+    [HasPermission(PermissionCodes.UsersDelete)]
+    [HttpDelete("{id:guid}")]
+```
+
+```8:9:ReactBattleArena/ReactBattleArena.Domain/Authorization/PermissionCodes.cs
+    public const string ShopItemsCreate = "shop.items.create";
+    public const string UsersDelete = "users.delete";
+```
+
+```18:26:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/AuthSeeder.cs
+        await EnsurePermissionAsync(db, PermissionCodes.UsersDelete, cancellationToken);
+        ...
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.UsersDelete, cancellationToken);
+```
+
+Seed idempotent: izin satırı yoksa ekler, `RolePermissions` yoksa ekler. Player
+ve ShopOwner’a `users.delete` verilmedi — eski “yalnız Admin silebilir”
+davranışı korundu, ama artık `Roles.Admin` string’i controller’da yok. Api
+yeniden açılınca seed çalışır; eski access token’daki rol claim’i olsa bile
+handler DB’ye bakar.
+
+Create ve Update hâlâ `[Authorize]` — giriş yapmış herkes. Bu 18 Eylül’ün
+kapsamı değildi; eski model yalnız Delete’te `Roles.Admin` kullanıyordu.
+
+#### JWT’den rol claim’i
+
+`CreateToken` artık `user.Role` okumuyor; property zaten yok. `[Authorize(Roles
+= ...)]` hiçbir controller’da kalmadığı için claim’i bırakmanın işlevi yoktu.
+`/me` id’yi `ClaimTypes.NameIdentifier` / `sub` ile alır, izinleri
+`GetCodesAsync` ile alır.
+
+#### Seed’deki aktarım döngüsü
+
+21 Ağustos’ta `AuthSeeder` her açılışta `Users.Role` string’ini okuyup
+`UserRoles` satırı yoksa ekliyordu. Kolon gidince o kod derlenmez. Döngü
+silindi; mevcut kullanıcıların `UserRoles` satırları 21 Ağustos seed’inden
+beri duruyor. Yeni kayıt Register handler’ından geliyor.
+
+#### Migration
+
+```13:16:ReactBattleArena/ReactBattleArena.Infrastructure/Migrations/20260918112656_DropUserRoleColumn.cs
+            migrationBuilder.DropColumn(
+                name: "Role",
+                table: "Users");
+```
+
+`Up` kolonu düşürür. `Down` `nvarchar(50) NOT NULL default ""` ile geri ekler
+— geri alınırsa eski string boş gelir, `UserRoles` etkilenmez. Komut:
+`dotnet ef migrations add DropUserRoleColumn` sonra `database update`.
+Designer/snapshot alıntılanmaz; EF üretir.
+
+#### Bu kodu kim tetikliyor?
+
+Delete: Scalar veya ileride bir admin UI `DELETE /api/users/{id}` + Bearer.
+Handler `users.delete` yoksa 403, token yoksa 401. Register: `RegisterPage`
+`POST /api/auth/register` — kolon yazılmaz, `UserRoles` Player satırı yazılır.
+Login: JWT’de rol claim’i yoktur; `/me` yine izin listesini join’den doldurur.
+
+#### Bu adımda yapılan / kalan iz
+
+Yorum satırındaki `[Authorize(Roles)]`’i “kaldırdım” sanıp Delete’i açık
+bırakmak — bugünün asıl tuzağı. Claim’i silip `[Authorize(Roles)]`’i unutmak
+(endpoint 403 yerine herkese açılır). Entity’den `Role`’ü silip EF
+configuration’da property bırakmak. Migration’sız çalıştırıp
+“Invalid column name Role” veya tersi “Role required” almak. CreateUser’ın
+`UserRoles` yazmamasını bu temizlikle karıştırmak — o önceden de yoktu.
+
+Kalan (bilinçli): refresh token `localStorage`; `HttpOnly` cookie danışmanda.
+Süresi dolmuş `RefreshTokens` satırları birikiyor, periyodik silme yok.
+`CreateUserCommandHandler` `UserRoles` yazmıyor.
+
+#### Sonuçta ne kazandık
+
+Tek doğruluk kaynağı `UserRoles` + `RolePermissions`. JWT kimlik taşır, yetki
+taşımaz. Authentication / authorization / refresh token üçlüsü kodda da
+belgede de aynı modeli anlatıyor.

@@ -1,6 +1,6 @@
-# Authentication sırası — 7–9, 12–13, 22, 23, 24
+# Authentication sırası — 7–9, 12–13, 22, 23, 24, 25, 26, 27
 
-Bu dosya `REACT-OGRENIM-V2.md` bölüm 7–9, 12–13, 22, 23 ve 24. İstek sırası: kayıt, giriş, token’lı yazma, tarayıcının token’ı saklaması, listeye Bearer, her sayfanın `api.ts` kapısı, hangi ekranın hangi controller metoduna gittiği, sonra `Users.Role` string’inin yetmediği RBAC tabloları. Her adımda hangi sınıf ne yapıyor. VS Code’da o sınıfa git.
+Bu dosya `REACT-OGRENIM-V2.md` bölüm 7–9, 12–13, 22, 23, 24, 25, 26 ve 27. İstek sırası: kayıt, giriş, token’lı yazma, tarayıcının token’ı saklaması, listeye Bearer, her sayfanın `api.ts` kapısı, hangi ekranın hangi controller metoduna gittiği, RBAC model, tabloların SQL’e dökülmesi ve seed, yazma kapısının fiil join’ine geçmesi, Register’ın `UserRoles` yazması ve `GET /api/auth/me` permissions listesi. Her adımda hangi sınıf ne yapıyor. VS Code’da o sınıfa git.
 
 12–13’te asıl iş JWT’yi `localStorage`’a koymak ve `GET /api/characters` header’ına takmak. Buton gizleme (`permissions.ts`, `hasPermission`, `&&`) 24 Ağustos, bölüm 28. Burada kısa geçiyor. İnce ayrıntı 28–31.
 
@@ -771,6 +771,10 @@ Birinci tablo `UserRoles`. Satırın iki Guid’i var: `UserId` ve `RoleId`. Bir
 
 İkinci tablo `Roles`. Bu tablo yalnız isim tutar: Admin, Player. Fiil burada yok. Rol, insanları fiillere bağlayan etiket.
 
+Sıfırdan yeni bir rol (örneğin Moderator) eklemek, 26’dan sonra publish istemez. Kapı rol adına bakmaz; `characters.create` gibi fiilin o rolün `RolePermissions` satırında olup olmadığına bakar. `Roles`’a satır, `RolePermissions`’a mevcut fiillerin bağları, `UserRoles`’a üyelik yazman yeter. `Roles.cs` içindeki `Admin` / `Player` sabitleri seeder ve Register içindir; tabloda olmasa da Moderator çalışır. `AuthSeeder` “yoksa ekle” der, senin SSMS’te açtığın rolü silmez.
+
+Publish ve kod, yeni bir **fiil** gerektiğinde çıkar. `arena.join` diye bir kod yoksa controller’da `[HasPermission]` yazamazsın, frontend `PERMISSIONS` sabiti de olmaz. O zaman `PermissionCodes`, attribute, seed ve bir deploy gerekir. Rol yönetim ekranımız yok; bugün yeni rol SSMS (veya ileride bir admin API). 20 Ağustos’ta bu henüz işlemez: kapı hâlâ JWT’deki `Admin` string’ine bakıyor.
+
 Üçüncü tablo `RolePermissions`. Satırın iki Guid’i var: `RoleId` ve `PermissionId`. Bir rolün birden fazla fiili varsa o kadar satır vardır. Admin’e `characters.create`, `characters.update`, `characters.delete` vermek üç satırdır. Tersi de olur: bir permission’ın birden fazla `RolePermission` satırı olabilir. `characters.create` hem Admin’e hem yarın Moderator’e bağlıysa aynı `PermissionId` iki satırda durur. Fiil bir kez `Permissions` tablosundadır; çoğalan şey bağdır.
 
 `Permissions` somut fiildir. `Code` `characters.create` gibi bir string. Kullanıcıya doğrudan bağlanmaz.
@@ -840,13 +844,11 @@ Handler bu tablolara `IApplicationDbContext` üzerinden uzanır. Application, In
 
 ### Bu gün HTTP yok
 
-20 Ağustos’ta bu sınıfları hiçbir endpoint çağırmıyor. Tablolar henüz migration almadı. Login `Users.Role` yazıyor, JWT o string’i taşıyor. Frontend aynı `apiFetch`’i kullanıyor. Seed ve `dotnet ef` ertesi gün (bölüm 25).
+20 Ağustos’ta bu dört sınıfı henüz hiçbir HTTP isteği kullanmıyor. Login yine `Users.Role` kolonunu okuyup JWT’ye basıyor. React tarafı aynı `apiFetch`. Tablolar SQL’e dökülmedi; `dotnet ef` ve seed ertesi gün gelecek (bölüm 25). Yani bugünün kazancı model. Kapı değişmedi. Karakter yazmak hâlâ token’daki Admin string’ine bakıyor.
 
-Kolonu silip JWT’yi unutmak kolay bir hata. `Users.Role` duruyor, claim hâlâ oradan geliyor. Join’e ayrı `Id` koyup aynı çifti iki kez eklemek de ikinci hata. `ICollection` yok diye ilişkinin yok sanılması üçüncü. Permission’ı JWT’ye gömmedik; istekte DB’den bakılacak (bölüm 26).
+Kolayı şudur: `Users.Role` kolonunu silip JWT’nin hâlâ o claim’i beklediğini unutmak. Join tablosuna ayrı bir `Id` Guid koyup aynı kullanıcı-rol çiftini iki kez yazabilmek de ikinci tuzak. `User`’da `ICollection<UserRole>` yok diye ilişkinin hiç kurulmadığını sanmak üçüncü. `ICollection` olmayınca tablo yok olmaz. EF bağı `UserRoleConfiguration` içindeki `HasOne` / `HasForeignKey` ile kurar. Handler `_db.UserRoles` ile satır yazar. Navigation property kolaylıktır; asıl bağ yabancı anahtardır.
 
-`User` sınıfında `ICollection<UserRole>` yok diye tablo yok olmaz. EF ilişkiyi `UserRoleConfiguration` içindeki `HasOne` / `HasForeignKey` ile kurar. Join tablosu `UserRoles`. Handler `_db.UserRoles` ile yazar. Navigation property kolaylık; FK asıl bağdır.
-
-Permission listesini token’a koymadık. Rol string’ini 28 Temmuz’da koyduk:
+Fiil listesini token’a koymadık. Rol string’ini 28 Temmuz’da koyduk:
 
 ```22:28:ReactBattleArena/ReactBattleArena.Infrastructure/Security/JwtTokenService.cs
         var claims = new[]
@@ -859,8 +861,429 @@ Permission listesini token’a koymadık. Rol string’ini 28 Temmuz’da koyduk
         };
 ```
 
-`user.Role` `Users.Role` kolonudur. Login anında basılır. SSMS’te kolonu Admin yapsan eski JWT hâlâ Player der. `[Authorize(Roles = Admin)]` o claim’e bakar; yeniden login şart (bölüm 9).
+`user.Role` `Users.Role` kolonudur ve login anında basılır. SSMS’te kolonu Admin yapsan eski JWT hâlâ Player der. `[Authorize(Roles = Admin)]` o claim’e bakar; yeniden login şart (bölüm 9).
 
-Fiil başka. 22 Ağustos’tan sonra `[HasPermission]` her istekte `UserRoles` → `RolePermissions` join’ler (bölüm 26). Token içindeki Role claim’ini okumaz. `UserRoles` satırını değiştirirsen bir sonraki POST yeni tabloya bakar; JWT süresinin dolmasını beklemezsin. `Users.Role` kolonu ve token’daki claim bayat kalabilir. Login hâlâ kolondan basar. İkisini birlikte tutmak ayrı iş.
+22 Ağustos’tan sonra yazma kapısı başka yerden bakar. `[HasPermission]` her istekte `UserRoles` ile `RolePermissions`’ı join eder (bölüm 26). Token’ın içindeki Role claim’ini okumaz. `UserRoles` satırını değiştirirsen bir sonraki POST yeni tabloya bakar; JWT’nin süresinin dolmasını beklemezsin. `Users.Role` kolonu ve token’daki claim bayat kalabilir. Login hâlâ kolondan basar. Kolon ile claim’i birlikte tutmak ayrı bir iş.
 
 Sonuçta modelde rol ve fiil nesneleri var. SQL ve seed yok. Endpoint hâlâ Admin string’ine bakıyor. 21 Ağustos’ta tablo ve seeder (bölüm 25).
+
+---
+
+## E. Tablolar SQL’de, katalog seed — bölüm 25 (21 Ağustos)
+
+24’te entity ve configuration vardı; SQL yoktu. 21 Ağustos’ta sırayla şunlar geldi: `PermissionCodes` sabitleri, `AddRbacTables` migration’ı, `AuthSeeder`, `Program.cs` içinde `CreateScope` ile seed. `[HasPermission]` henüz yok (bölüm 26). Login hâlâ JWT’ye `Users.Role` yazar. Register hâlâ yalnız string `Player` yazar; `UserRoles` satırı bir sonraki Api açılışında seed’den gelir (bölüm 27’de Register doğrudan yazacak).
+
+### `PermissionCodes` — fiil adı tek yerde
+
+```1:9:ReactBattleArena/ReactBattleArena.Domain/Authorization/PermissionCodes.cs
+namespace ReactBattleArena.Domain.Authorization;
+
+public static class PermissionCodes
+{
+    public const string CharactersCreate = "characters.create";
+    public const string CharactersUpdate = "characters.update";
+    public const string CharactersDelete = "characters.delete";
+    public const string ShopItemsCreate = "shop.items.create";
+}
+```
+
+Bu string’ler DB’deki `Permissions.Code` ile aynıdır. Attribute ve seeder bu sabitleri kullanır. `"characters.create"`’i üç dosyada elle yazmak typo üretir. `ShopItemsCreate` shop ekranı yokken kayıt içindir; seed’de ShopOwner’a bağlanır. `Roles.Admin` rol adı sabitiydi (bölüm 9); burada fiil kodu sabiti.
+
+### Migration — dört tablo, `Users.Role` duruyor
+
+`dotnet ef migrations add AddRbacTables` dünün configuration’ını SQL’e döker. `Users.Role` kolonuna dokunulmaz. Designer / snapshot alıntılanmaz; `Up` yeter.
+
+```14:24:ReactBattleArena/ReactBattleArena.Infrastructure/Migrations/20260821102302_AddRbacTables.cs
+            migrationBuilder.CreateTable(
+                name: "Permissions",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Code = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Permissions", x => x.Id);
+                });
+```
+
+`Roles` aynı fikir, `Name` max 50. Ara tabloda composite PK ve 24’teki silme kuralları:
+
+```70:83:ReactBattleArena/ReactBattleArena.Infrastructure/Migrations/20260821102302_AddRbacTables.cs
+                    table.PrimaryKey("PK_UserRoles", x => new { x.UserId, x.RoleId });
+                    table.ForeignKey(
+                        name: "FK_UserRoles_Roles_RoleId",
+                        column: x => x.RoleId,
+                        principalTable: "Roles",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_UserRoles_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+```
+
+FK bağ tablosundadır; `Users`’ta `RoleId` kolonu yoktur. Unique index’ler `IX_Permissions_Code` ve `IX_Roles_Name`. `Down` dört tabloyu düşürür; `Users`’a dokunmaz.
+
+### `AuthSeeder` — yoksa ekle
+
+Her `dotnet run`’da katalog dolsun diye seed çalışır. Bu geçici test datası değildir.
+
+```9:29:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/AuthSeeder.cs
+    public static async Task SeedAsync(ApplicationDbContext db, CancellationToken cancellationToken = default)
+    {
+        await EnsureRoleAsync(db, Roles.Admin, cancellationToken);
+        await EnsureRoleAsync(db, Roles.Player, cancellationToken);
+        await EnsureRoleAsync(db, Roles.ShopOwner, cancellationToken);
+
+        await EnsurePermissionAsync(db, PermissionCodes.CharactersCreate, cancellationToken);
+        await EnsurePermissionAsync(db, PermissionCodes.CharactersUpdate, cancellationToken);
+        await EnsurePermissionAsync(db, PermissionCodes.CharactersDelete, cancellationToken);
+        await EnsurePermissionAsync(db, PermissionCodes.ShopItemsCreate, cancellationToken);
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.CharactersCreate, cancellationToken);
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.CharactersUpdate, cancellationToken);
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.CharactersDelete, cancellationToken);
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.ShopItemsCreate, cancellationToken);
+
+        await EnsureRolePermissionAsync(db, Roles.ShopOwner, PermissionCodes.ShopItemsCreate, cancellationToken);
+
+        await db.SaveChangesAsync(cancellationToken);
+```
+
+İlk `SaveChanges` rol ve fiil Guid’lerinin oluşması içindir. `RolePermission` o Guid’leri ister; insert olmamış satırda Id yok. Admin dört fiili alır. ShopOwner yalnız shop alır. Player’a `RolePermission` satırı yok: katalog GET zaten açık, yazma 403 kalır. O gün kapı hâlâ `[Authorize(Roles = Admin)]`; yarın fiil join’ine geçecek.
+
+```59:75:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/AuthSeeder.cs
+    private static async Task EnsureRoleAsync(
+        ApplicationDbContext db,
+        string name,
+        CancellationToken cancellationToken)
+    {
+        if (!await db.Roles.AnyAsync(r => r.Name == name, cancellationToken))
+            db.Roles.Add(Role.Create(name));
+    }
+
+    private static async Task EnsurePermissionAsync(
+        ApplicationDbContext db,
+        string code,
+        CancellationToken cancellationToken)
+    {
+        if (!await db.Permissions.AnyAsync(p => p.Code == code, cancellationToken))
+            db.Permissions.Add(Permission.Create(code));
+    }
+```
+
+Idempotent: aynı işlemi ikinci kez çalıştırınca sonuç değişmez. İkinci `dotnet run` ikinci bir `Admin` satırı eklemez; `Name` unique index de patlardı. `EnsureRolePermissionAsync` `(RoleId, PermissionId)` var mı diye bakar.
+
+Sonra eski `Users.Role` string’i join’e kopyalanır:
+
+```31:56:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/AuthSeeder.cs
+        var rolesByName = await db.Roles.ToDictionaryAsync(r => r.Name, cancellationToken);
+        var users = await db.Users.ToListAsync(cancellationToken);
+
+        // Composite PK çiftleri — "bu kullanıcıya bu rol zaten verilmiş mi?"
+        var existingPairs = (await db.UserRoles.ToListAsync(cancellationToken))
+            .Select(x => (x.UserId, x.RoleId))
+            .ToHashSet();
+
+        foreach (var user in users)
+        {
+            // Eski kolon Users.Role (string) → yeni UserRoles satırı
+            var roleName = string.IsNullOrWhiteSpace(user.Role) ? Roles.Player : user.Role;
+            if (!rolesByName.TryGetValue(roleName, out var role))
+                role = rolesByName[Roles.Player];
+
+            if (existingPairs.Contains((user.Id, role.Id)))
+                continue;
+
+            db.UserRoles.Add(UserRole.Create(user.Id, role.Id));
+            existingPairs.Add((user.Id, role.Id)); // aynı kullanıcı döngüde iki kez eklenmesin
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+```
+
+`ToDictionaryAsync` her rol adı için Guid’i hazır tutar; döngüde tekrar `Roles` sorgusu atılmaz. SSMS’te `Role = Admin` yapılmış kullanıcı `UserRoles`’a Admin Guid’i alır. Bilinmeyen string Player’a düşer. HashSet aynı çifti ikinci kez eklemesin diye durur.
+
+### `CreateScope` — kökten scoped alınmaz
+
+```69:75:ReactBattleArena/ReactBattleArena.Api/Program.cs
+// DbContext scoped (istek ömrü). Program kökü request değil → CreateScope ile kısa ömürlü kapsül;
+// using bitince context Dispose. Yoksa root provider'dan scoped alınamaz.
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await AuthSeeder.SeedAsync(db);
+}
+```
+
+`ApplicationDbContext` DI’da scoped’dur: bir HTTP isteği boyunca bir instance. `Program.cs` bir istek değildir; `app.Services` kök provider’dır. Kökten scoped çekmek runtime hatası verir. `CreateScope()` kısa ömürlü bir kapsül açar; seed bitince `using` Dispose eder. Bugünkü `Program.cs` üstte provider kayıtları da vardır (bölüm 26); 21 Ağustos’ta eklenen parça bu `using` bloğudur.
+
+### Bu günün sınırı
+
+`dotnet ef database update` tabloları kurar. Her `dotnet run` seed’i çalıştırır. Frontend yeni endpoint görmez. Karakter POST hâlâ `[Authorize(Roles = Admin)]`. Scalar’da Roles / Permissions dolu görünür; JWT claim hâlâ string `role`.
+
+Kolayı şudur: `RolePermission` yazmadan önce `SaveChanges` unutmak (FK Guid boş); migration’sız seed (tablo yok); seed’i controller’a gömmek; Api açıkken kaydolup `UserRoles` beklemek — 21 Ağustos’ta Register join yazmaz, satır bir sonraki restart’ta gelir (bölüm 27 kapatır); `Users.Role` kolonunu drop etmek — JWT claim bozulur, kolon kasıtlı durdu.
+
+Sonuçta dört tablo SQL’de, fiil kodları sabit, her açılışta idempotent katalog, eski string roller join’e kopyalanır. Endpoint hâlâ “Admin misin?”. Ertesi gün her istekte DB join (bölüm 26).
+
+---
+
+## F. Yazma kapısı fiile bakıyor — bölüm 26 (22 Ağustos)
+
+24’te tabloları modelledik. 25’te `AddRbacTables` dört tabloyu SQL’e döktü, `AuthSeeder` Admin / Player / fiil satırlarını bastı. 22 Ağustos’ta kapı değişti. Karakter POST / PUT / DELETE artık `[Authorize(Roles = Admin)]` değil; üç ayrı `[HasPermission(...)]`. GET liste ve detay attribute’siz kaldı. React aynı `apiFetch` URL’lerini kullanıyor; değişen şey Api’nin sorusu.
+
+### Fiil listesi nereden geliyor
+
+Handler’ın “bu kullanıcının kodları neler” diye sorduğu yer Application sözleşmesi:
+
+```3:6:ReactBattleArena/ReactBattleArena.Application/Abstractions/IUserPermissionService.cs
+public interface IUserPermissionService
+{
+    Task<IReadOnlyList<string>> GetCodesAsync(Guid userId, CancellationToken cancellationToken = default);
+}
+```
+
+Infrastructure’daki uygulama o join’i çalıştırır. `Users.Role` string’i bu sorguda yoktur. Kullanıcıya doğrudan fiil tablosu da yoktur. Yol, 24’teki şema: `UserRoles` → `RolePermissions` → `Permissions.Code`. `Roles` satırına uğramaz çünkü iki ara tabloda zaten aynı `RoleId` Guid’i durur.
+
+```15:26:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/UserPermissionService.cs
+    public async Task<IReadOnlyList<string>> GetCodesAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await (
+            from ur in _db.UserRoles
+            join rp in _db.RolePermissions on ur.RoleId equals rp.RoleId
+            join p in _db.Permissions on rp.PermissionId equals p.Id
+            where ur.UserId == userId
+            select p.Code
+        ).Distinct().ToListAsync(cancellationToken);
+    }
+```
+
+`Distinct` şunu keser: Mehmet hem Admin hem başka bir role üye olsa ve ikisi de `characters.create` verse listeye kod bir kez girer. Servis istek başına Scoped kaydolur (`DependencyInjection.cs`), çünkü altında `DbContext` vardır.
+
+Burada bilinçli bir tercih var. Fiilleri JWT claim’lerine gömmek (stateless access token) ayrı bir model olurdu: login anında kodları claim yapar, her istekte DB’ye bakmazsın, token süresi dolana kadar liste bayat kalır. Bizde token yalnız kimlik taşır (`sub` / `NameIdentifier`). Fiil her yazma isteğinde tablodan okunur. SSMS’te Player’a `characters.create` satırı eklersen aynı Bearer ile bir sonraki POST 201 olabilir; yeniden login şart değildir. Satırı silersen bir sonraki POST 403 olur.
+
+### `[HasPermission]` ile `[Authorize(Policy = ...)]` aynı kapı mı
+
+Evet, aynı yerde aynı iş. `HasPermissionAttribute` `AuthorizeAttribute`’tan türer. Constructor’da framework’ün beklediği `Policy` string’ini doldurur:
+
+```5:11:ReactBattleArena/ReactBattleArena.Api/Authorization/HasPermissionAttribute.cs
+public sealed class HasPermissionAttribute : AuthorizeAttribute
+{
+    public HasPermissionAttribute(string permission)
+    {
+        Policy = "Permission:" + permission;
+    }
+}
+```
+
+`[HasPermission(PermissionCodes.CharactersCreate)]` yazmak, elle `[Authorize(Policy = "Permission:characters.create")]` yazmakla aynı anlama gelir. İkisini yan yana koymana gerek yok; biri yeter. Kısa attribute typo’yu ve `"Permission:"` önekini unutmayı azaltır. `PermissionCodes.CharactersCreate` sabiti `"characters.create"` string’idir (`PermissionCodes.cs`).
+
+Framework bu policy adını DI’daki tek `IAuthorizationPolicyProvider`’a sorar. Bizim provider `Permission:` ile başlayan adları kendi çevirir; diğer adları ASP.NET’in default provider’ına bırakır.
+
+```6:37:ReactBattleArena/ReactBattleArena.Api/Authorization/PermissionPolicyProvider.cs
+public sealed class PermissionPolicyProvider : IAuthorizationPolicyProvider
+{
+    private const string Prefix = "Permission:";
+    private readonly DefaultAuthorizationPolicyProvider _fallback;
+
+    public PermissionPolicyProvider(IOptions<AuthorizationOptions> options)
+    {
+        _fallback = new DefaultAuthorizationPolicyProvider(options);
+    }
+
+    public Task<AuthorizationPolicy> GetDefaultPolicyAsync()
+        => _fallback.GetDefaultPolicyAsync();
+
+    public Task<AuthorizationPolicy?> GetFallbackPolicyAsync()
+        => _fallback.GetFallbackPolicyAsync();
+
+    public Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
+    {
+        if (policyName.StartsWith(Prefix, StringComparison.Ordinal))
+        {
+            var code = policyName[Prefix.Length..];
+            var policy = new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .AddRequirements(new PermissionRequirement(code))
+                .Build();
+
+            return Task.FromResult<AuthorizationPolicy?>(policy);
+        }
+
+        return _fallback.GetPolicyAsync(policyName);
+    }
+}
+```
+
+`Permission:characters.create` gelince iki kural üretilir: önce giriş yapmış ol (`RequireAuthenticatedUser`), sonra `PermissionRequirement` içindeki kodu kanıtla. `Permission:` değilse — örneğin boş `[Authorize]` veya eski Roles policy — `_fallback` cevaplar. Böylece `/me` gibi yalnız token isteyen action’lar bozulmaz.
+
+Requirement bir zarftır; içinde yalnız fiil kodu durur:
+
+```5:12:ReactBattleArena/ReactBattleArena.Api/Authorization/PermissionRequirement.cs
+public sealed class PermissionRequirement : IAuthorizationRequirement
+{
+    public string Code { get; }
+    public PermissionRequirement(string code)
+    {
+        Code = code;
+    }
+}
+```
+
+Handler o zarfı açar. Token’dan `NameIdentifier` ile kullanıcı id’sini alır. `GetCodesAsync` ile DB listesini çeker. Listede `requirement.Code` varsa `Succeed` der. Yoksa veya id parse olmazsa `Succeed` demeden çıkar; framework bunu başarısız sayar. Token yoksa policy’deki `RequireAuthenticatedUser` yüzünden 401. Token var, fiil yoksa 403. Token içinde permission claim aranmaz.
+
+```7:28:ReactBattleArena/ReactBattleArena.Api/Authorization/PermissionAuthorizationHandler.cs
+public sealed class PermissionAuthorizationHandler : AuthorizationHandler<PermissionRequirement>
+{
+    private readonly IUserPermissionService _permissions;
+
+    public PermissionAuthorizationHandler(IUserPermissionService permissions)
+    {
+        _permissions = permissions;
+    }
+
+    protected override async Task HandleRequirementAsync(
+        AuthorizationHandlerContext context,
+        PermissionRequirement requirement)
+    {
+        var idValue = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(idValue, out var userId))
+            return;
+
+        var codes = await _permissions.GetCodesAsync(userId);
+        if (codes.Contains(requirement.Code))
+            context.Succeed(requirement);
+    }
+}
+```
+
+Zincir tek cümlede şöyle: attribute bir isim yazar → provider o ismi “login + şu kod” politikasına çevirir → handler kodu DB listesinde arar.
+
+### `AddAuthorization` ile `UseAuthorization`
+
+```21:23:ReactBattleArena/ReactBattleArena.Api/Program.cs
+builder.Services.AddAuthorization();
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
+```
+
+Bunlar iki farklı katmandır. `UseAuthorization()` boru hattındaki middleware’dir; istek action’a gelmeden önce authorization çalışsın diye durur. JWT login gününden beri vardı ve silinmez. `AddAuthorization()` ise DI kaydıdır. Provider constructor’ı `IOptions<AuthorizationOptions>` ister; o options’ı bu çağrı üretir. Kendi `IAuthorizationPolicyProvider`’ını kaydedince framework’ün dolaylı varsayılanına güvenmek yetmez; `AddAuthorization()` açık yazılır.
+
+Provider Singleton’dır çünkü yalnız string çevirir, DbContext tutmaz. Handler Scoped’dur çünkü `IUserPermissionService` ve onun `DbContext`’i istek ömründedir. Singleton handler Scoped DbContext çekse yaşam süresi çatışırdı.
+
+### Üç action, üç kapı
+
+```46:47:ReactBattleArena/ReactBattleArena.Api/Controllers/CharactersController.cs
+    [HasPermission(PermissionCodes.CharactersCreate)]  // POST
+    [HttpPost]
+```
+
+```69:70:ReactBattleArena/ReactBattleArena.Api/Controllers/CharactersController.cs
+    [HasPermission(PermissionCodes.CharactersUpdate)]  // PUT
+    [HttpPut("{id:guid}")]
+```
+
+```95:96:ReactBattleArena/ReactBattleArena.Api/Controllers/CharactersController.cs
+    [HasPermission(PermissionCodes.CharactersDelete)]  // DELETE
+    [HttpDelete("{id:guid}")]
+```
+
+Sınıfın tepesine tek `[HasPermission(CharactersCreate)]` koymuyoruz. Koysaydık class’taki her action o fiili isterdi; GET liste ve detay da kapanırdı, ya da her GET’e `[AllowAnonymous]` yağardı. Create, Update ve Delete zaten farklı kodlar. Birinin düzenleyip silememesi ürün kararıdır; üç kapı bunu mümkün kılar. Üç attribute’u aynı metoda üst üste yazarsan ASP.NET hepsini ister (AND). Player’a yalnız create verirsen PUT yine 403 kalır — bu istenen davranış olabilir, ama yanlışlıkla class’a yığınca GET’leri de kilitlersin.
+
+`GetPaged` ve `GetById` attribute’siz. Tokensız 200 gelir; katalog bilerek açık (bölüm 4, 13).
+
+Scalar veya React ile test: Admin Bearer POST → 201. Player aynı POST → 403. SSMS’te Player + `characters.create` `RolePermissions` satırı, **aynı token** ile tekrar POST → 201. Satırı sil → 403. ShopOwner’da `shop.items.create` varken `characters.create` yoksa karakter POST yine 403. JWT decode’da permission arama; yoktur.
+
+### Bu günün sınırı
+
+22 Ağustos’ta Register hâlâ yalnız `Users.Role = Player` yazıyordu; `UserRoles` satırı Api açılışındaki seed’e kalıyordu. RolePermissions dolu, UserRoles boşsa join boş döner, POST 403. O boşluğu Register’ın ikinci `SaveChanges` ile doldurması 24 Ağustos (bölüm 27). Frontend buton gizleme de yok; o 28.
+
+Kolayı şudur: karakter JSON’unu register’a göndermek; join’in `Users.Role` string’ine bakacağını sanmak; provider yazıp `AddAuthorization()` unutmak; `UseAuthorization` silmek; class-level `HasPermission`; fiilleri JWT’ye gömüp SSMS değişince eski token’ın yetkisini taşımak.
+
+Sonuçta yazma fiilleri DB join’den gelir. JWT kimlik taşır. `/me` permissions listesi ve Register’ın `UserRoles` yazması bölüm 27.
+
+---
+
+## G. Register join’e girer, `/me` fiilleri söyler — bölüm 27 (24 Ağustos)
+
+26’da kapı `UserRoles` → `RolePermissions` join’ine bakıyordu. Testte Player’a fiil yazılmış olsa bile yeni kayıtlı kullanıcı POST create’de 403 alıyordu. Sebep fiil satırının yokluğu değildi. Register yalnız `Users.Role = Player` string’ini yazıyordu. `UserRoles` satırı Api açılışındaki seed’e kalıyordu. Join `UserRoles`’tan başlar; o satır yoksa liste boş döner, `HasPermission` 403 der. 24 Ağustos’ta Register hemen `UserRoles` yazar. Aynı gün `GET /api/auth/me` cevaba `permissions` dizisini ekler. React o gün bu endpoint’i henüz çağırmaz; Scalar ve ertesi gün UI kullanır (bölüm 28).
+
+### Register neden iki kez `SaveChanges` yapar
+
+```42:60:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/RegisterCommandHandler.cs
+        var entity = User.Create(
+            request.UserName,
+            request.Email,
+            request.DisplayName,
+            passwordHash,
+            Roles.Player,
+            DateTime.UtcNow);
+
+        _db.Users.Add(entity);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        var playerRole = await _db.Roles.SingleAsync(
+            r => r.Name == Roles.Player, cancellationToken);
+        //Rol yoksa (seed çalışmamış) sessizce geçme, patlat ki fark edesin.
+
+        _db.UserRoles.Add(UserRole.Create(entity.Id, playerRole.Id));
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return entity.Id;
+```
+
+İlk `SaveChanges` kullanıcıyı `Users`’a basar. Böylece `entity.Id` veritabanında gerçek bir satır olur. `UserRoles.UserId` yabancı anahtardır; kullanıcı satırı yokken üyelik satırı yazılamaz. İkinci `SaveChanges` Player rolünün Guid’ini alır (`Roles` tablosundan `SingleAsync`) ve `UserRoles`’a Mehmet–Player bağını yazar. `Roles`’ta Player yoksa (seed hiç çalışmamışsa) `SingleAsync` patlar. Sessizce yutmuyoruz; eksik katalog fark edilsin diye.
+
+`Users.Role` kolonu hâlâ `"Player"` yazılır. Login JWT’deki `ClaimTypes.Role` claim’ini o kolondan basar (bölüm 8). `[HasPermission]` o claim’e bakmaz; join’e bakar. Yani yeni kullanıcı kaydolur olmaz create yapamaz — seed Player’a CUD vermez, bu ürün kararıdır. Ama join artık çalışır: `UserRoles` doludur, `GetCodesAsync` boş dizi döner, 403 “üyelik yok” değil “fiil yok” anlamına gelir. Api’yi yeniden başlatmana gerek kalmaz. SSMS’te Player’a `characters.create` eklersen aynı oturumda POST 201 olabilir.
+
+`RegisterPage` hâlâ `apiFetch('/api/auth/register', { auth: false, ... })` atar (bölüm 14, 22). Değişen taraf backend’dir.
+
+### `/me` ne döner, ne hata verir
+
+Yeni kullanıcıyla login olduktan sonra `GET /api/auth/me` Bearer ile çalışır. Action `[Authorize]` ister; token yoksa veya bozuksa 401. Id claim’i parse olmazsa yine 401. Token sağlamsa controller aynı `GetCodesAsync`’i çağırır ve JSON döner.
+
+```98:123:ReactBattleArena/ReactBattleArena.Api/Controllers/AuthController.cs
+    [Authorize]
+    [HttpGet("me")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Me(CancellationToken cancellationToken)
+    {
+        var idValue = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue("sub");
+
+        //Aynı controller’da GET / api / auth / me, [Authorize].Token’daki id’den kim olduğunu döner.
+        //27 Temmuz’da id, userName, email. Bugünkü permissions 24 Ağustos.Sayfa yenilenince login JSON’u uçmuştur; token duruyorsa / me kim olduğunu söyler.
+
+        if (!Guid.TryParse(idValue, out var userId))
+            return Unauthorized();
+
+        var codes = await _permissions.GetCodesAsync(userId, cancellationToken);
+
+        return Ok(new
+        {
+            id = userId,// out var daki userId
+            userName = User.Identity?.Name,
+            email = User.FindFirst(ClaimTypes.Email)?.Value
+                ?? User.FindFirst("email")?.Value,
+            permissions = codes
+        });
+    }
+```
+
+`permissions` string dizisidir. Seed’deki düz Player için dizi boştur (`[]`). Admin için `characters.create` / `update` / `delete` ve `shop.items.create` gelir. Bu liste JWT’nin içinden okunmaz; her `/me` anında join yeniden çalışır. SSMS’te `RolePermissions` değişince bir sonraki `/me` yeni listeyi getirir; yeniden login şart değildir.
+
+Boş dizi hata değildir. “Bu kullanıcının şu an hiç fiili yok” demektir. Katalog GET attribute’siz kaldığı için liste hâlâ 200 döner. Karakter POST hâlâ `[HasPermission]`; Player’da create yoksa 403. 24 Ağustos’ta React `/me`’yi bağlamadığı için UI buton gizlemez; formdan 403 görürsün. Link gizleme bölüm 28.
+
+### Bu günün sınırı
+
+Kolayı şudur: `/me`’nin JWT’deki eski permission listesini döndüğünü sanmak; Register’da `UserRoles`’u yine seed’e bırakmak; Player yokken `SingleAsync`’i try/catch ile yutmak; `/me`’ye `[AllowAnonymous]` koymak.
+
+Sonuçta yeni kullanıcı kaydolunca join’de görünür. `/me` o anki fiilleri söyler. UI gizleme ve sayfa kapıları Blok D (bölüm 28).

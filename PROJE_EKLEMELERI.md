@@ -312,16 +312,16 @@ Yapılış sırası (back → back → … → front):
 
 
 
-### Adım 31 — Eski rol modelinin temizliği (sırayla yapılacak)
+### Adım 31 — Eski rol modelinin temizliği (18 Eylül, tamam)
 
 17 Eylül'de fark edildi: RBAC'a geçtik ama 27–28 Temmuz'un string rol modeli
 birkaç noktada duruyor. Sıra önemli; ters sırada `UsersController` korumasız kalır.
 
-- [ ] `UsersController` `[Authorize(Roles = Roles.Admin)]` → izin kodu (`users.read` / `users.manage` gibi) + `PermissionCodes`'a ekleme + `AuthSeeder`'da Admin rolüne izin satırı
-- [ ] `JwtTokenService`'ten `new Claim(ClaimTypes.Role, user.Role)` kaldır (yetki JWT'de değil kararının son adımı)
-- [ ] `RegisterCommandHandler` / `CreateUserCommandHandler` `Users.Role`'e yazmayı bıraksın; `User.Role` property + `SetRole` + `UserConfiguration` eşlemesi kalksın
-- [ ] Migration `DropUserRoleColumn` + `database update`
-- [ ] `AuthSeeder`'daki `Users.Role` → `UserRoles` tek seferlik aktarım bloğu kalksın (kolon gidince anlamsız)
+- [x] `UsersController` `[Authorize(Roles = Roles.Admin)]` → `HasPermission(PermissionCodes.UsersDelete)` + seed Admin — 18 Eyl
+- [x] `JwtTokenService`'ten `ClaimTypes.Role` claim’i kaldırıldı — 18 Eyl
+- [x] `RegisterCommandHandler` / `CreateUserCommandHandler` `Users.Role`'e yazmayı bıraktı; `User.Role` property + `SetRole` + `UserConfiguration` eşlemesi kalktı — 18 Eyl
+- [x] Migration `DropUserRoleColumn` + `database update` — 18 Eyl
+- [x] `AuthSeeder`'daki `Users.Role` → `UserRoles` tek seferlik aktarım bloğu kalktı — 18 Eyl
 - [x] Belge: `PROJE_MANTIGI.md`'ye "Yetkilendirme Modeli" ve "Oturum Modeli" bölümleri yazıldı — 17 Eyl
 
 ### Güvenlik & Git
@@ -562,6 +562,14 @@ birkaç noktada duruyor. Sıra önemli; ters sırada `UsersController` koruması
 - Düzeltme: `activeTokens.Count > 0` kontrolü DB turunu engellemiyor — EF değişiklik yoksa `SaveChanges`’te veritabanına hiç gitmiyor; kontrol isteğe bağlı
 - **Auth kod tarafı bitti.** Açık konu yalnız `HttpOnly` cookie kararı (danışman)
 - `REACT-OGRENIM-V2` bölüm 36 yazıldı
+
+### 18 Eylül 2026
+
+- Eski string rol modeli koddan çıktı: `User.Role` / `SetRole` / EF eşlemesi, JWT `ClaimTypes.Role`, Register/CreateUser’ın kolona `"Player"` yazması
+- `UsersController` Delete `HasPermission(users.delete)`; seed yalnız Admin (yorum satırındaki `[Authorize(Roles)]` korumasız bırakıyordu)
+- `AuthSeeder` `Users.Role` → `UserRoles` aktarım bloğu kalktı
+- Migration `DropUserRoleColumn` uygulandı (`Users.Role` kolonu düştü)
+- `REACT-OGRENIM-V2` bölüm 37 (auth üçlüsünün son hâli) ve 38 (`Users.Role` temizliği) yazıldı
 
 ---
 
