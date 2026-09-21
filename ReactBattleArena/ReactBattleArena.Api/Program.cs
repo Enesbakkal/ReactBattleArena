@@ -18,9 +18,12 @@ builder.Services.AddControllers();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(); //AddAuthorization() ise DI kaydıdır
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
+//Provider Singleton’dır çünkü yalnız string çevirir, DbContext tutmaz.
+//Handler Scoped’dur çünkü IUserPermissionService ve onun DbContext’i istek ömründedir.
+//Singleton handler Scoped DbContext çekse yaşam süresi çatışırdı.
 
 builder.Services.AddCors(options =>
 {
@@ -90,7 +93,7 @@ app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthentication();
 //İstemci Authorization: Bearer eyJ... koyar.UseAuthentication JwtBearer ile bakar.İmza ve süre tutmazsa veya header yoksa kullanıcı boştur.
-app.UseAuthorization();
+app.UseAuthorization();// pipelinedaki middleware
 //Sıra zorunlu: önce kimsin (UseAuthentication token’ı HttpContext.User yapar),
 //sonra ne yapabilirsin (UseAuthorization). Tersi: [Authorize] user’ı boş görür, herkes 401.
 

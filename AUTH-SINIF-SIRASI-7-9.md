@@ -1,8 +1,8 @@
-# Authentication sırası — 7–9, 12–13, 22, 23, 24, 25, 26, 27
+# Authentication sırası — 7–9, 12–13, 22, 23, 24, 25, 26, 27, 28, 30, 32, 33, 34, 35, 36, 37, 38
 
-Bu dosya `REACT-OGRENIM-V2.md` bölüm 7–9, 12–13, 22, 23, 24, 25, 26 ve 27. İstek sırası: kayıt, giriş, token’lı yazma, tarayıcının token’ı saklaması, listeye Bearer, her sayfanın `api.ts` kapısı, hangi ekranın hangi controller metoduna gittiği, RBAC model, tabloların SQL’e dökülmesi ve seed, yazma kapısının fiil join’ine geçmesi, Register’ın `UserRoles` yazması ve `GET /api/auth/me` permissions listesi. Her adımda hangi sınıf ne yapıyor. VS Code’da o sınıfa git.
+Bu dosya `REACT-OGRENIM-V2.md` bölüm 7–9, 12–13, 22–28, 30, 32–38. İstek sırası auth omurgası: kimlik, yetki, oturum süresi, en sonda eski `Users.Role` string kolonunun kalkması. Create/Edit URL kapısı (29) ve Context kalan sayfalar (31) bu dosyada yok. Her adımda hangi sınıf ne yapıyor. VS Code’da o sınıfa git.
 
-12–13’te asıl iş JWT’yi `localStorage`’a koymak ve `GET /api/characters` header’ına takmak. Buton gizleme (`permissions.ts`, `hasPermission`, `&&`) 24 Ağustos, bölüm 28. Burada kısa geçiyor. İnce ayrıntı 28–31.
+12–13’te asıl iş JWT’yi `localStorage`’a koymak ve listeye Bearer. Buton gizleme 28, Context 30. Auth üçlü özet 37. Kolon temizliği 38.
 
 Bugünkü dosyalar şişmiş olabilir. Register handler’da `UserRoles`, login cevabında `RefreshToken`, karakter POST’ta `[HasPermission]` sonradan geldi. 16–28 Temmuz’un parçası değil.
 
@@ -214,7 +214,7 @@ Cevap `{ items, totalCount }`. `CharacterRow` TypeScript yüzü: `id` string (Gu
 
 Alttaki “izin sınıfları” 13 Temmuz’un parçası değil. Bearer’dan ayrı. Bugün aynı `CharactersPage` dosyasında Ekle linki durduğu için burada kısa duruyor. `usePermissions` token okumaz. Fiil listesini okur.
 
-### Frontend izin sınıfları — kısa (asıl anlatım 28–31)
+### Frontend izin sınıfları — kısa (asıl anlatım H / bölüm 28; Context 30)
 
 30 Temmuz’da Ekle / Düzenle / Sil gizleme yoktu. Bugün listede duruyor. Backend `[HasPermission]` kapısı durur. Link yok diye POST açılmaz. Player URL’ye `/characters/new` yazarsa form açılabilir; asıl 403 API’dedir. UI yalnız rahatsız etmemek içindir.
 
@@ -228,7 +228,7 @@ Dizi nereden gelir. `AppLayout` `GET /api/auth/me` atar, `permissions` state’i
 
 `charactersCreate` yani `"characters.create"` listede varsa Karakter ekle çizilir. Aynı fikir: `characters.update` varsa Düzenle, `characters.delete` varsa Sil. `&&`’in solu koşul, sağı `Link` değil. JavaScript: `A && B`. A yanlışsa B’ye bakılmaz, sonuç false. A doğruysa sonuç B. React JSX’te false görünce hiçbir şey basmaz. True ise sağdaki `Link` veya `button` basılır. `hasPermission(...)` kapı. `Link` kapı açıksa çizilecek parça.
 
-Detay, Create/Edit `Navigate` kapısı, `meLoaded`, Context’e geçiş bölüm 28–31.
+Detay, Create/Edit `Navigate` kapısı ve Context geçişi V2 bölüm 29–31.
 
 ### 12–13 tek nefeste
 
@@ -1286,4 +1286,1307 @@ Boş dizi hata değildir. “Bu kullanıcının şu an hiç fiili yok” demekti
 
 Kolayı şudur: `/me`’nin JWT’deki eski permission listesini döndüğünü sanmak; Register’da `UserRoles`’u yine seed’e bırakmak; Player yokken `SingleAsync`’i try/catch ile yutmak; `/me`’ye `[AllowAnonymous]` koymak.
 
-Sonuçta yeni kullanıcı kaydolunca join’de görünür. `/me` o anki fiilleri söyler. UI gizleme ve sayfa kapıları Blok D (bölüm 28).
+Sonuçta yeni kullanıcı kaydolunca join’de görünür. `/me` o anki fiilleri söyler. UI gizleme bölüm 28.
+
+---
+
+## H. Link gizlemek yetki değildir — bölüm 28 (24 Ağustos)
+
+27’de Api `/me` ile `permissions` dizisini döndürüyordu. 5173 hâlâ herkese “Karakter ekle” gösteriyordu. Player forma girip POST’ta 403 yiyordu. 24 Ağustos’un ikinci işi frontend’de o linki (ve detaydaki Düzenle / Sil’i) fiile göre gizlemek. Backend yeni endpoint açmadı. Asıl kapı yine `[HasPermission]` (bölüm 26).
+
+### Sabit ve `hasPermission`
+
+Önce `permissions.ts` geldi. `"characters.create"` üç sayfada elle yazılmasın diye sabit, kontrol için düz fonksiyon:
+
+```1:9:web/src/permissions.ts
+export const PERMISSIONS = {
+  charactersCreate: 'characters.create',
+  charactersUpdate: 'characters.update',
+  charactersDelete: 'characters.delete',
+} as const
+
+export function hasPermission(permissions: string[], code: string): boolean {
+  return permissions.includes(code)
+}
+```
+
+Kodlar backend `PermissionCodes` ile aynı string’dir (bölüm 25). `as const` değerleri literal kilitler; yanlışlıkla `PERMISSIONS.charactersCreate = 'x'` derleme hatası olur. `hasPermission` React hook değildir. Dizi ve kod alır, `includes` ile true/false döner. C# tarafındaki `codes.Contains("characters.create")` ile aynı fikir. Dizinin nereden geldiği ayrı iştir; o gün sayfa `useState` ile tutuyordu, bugün `usePermissions` layout’tan okur (bölüm 30).
+
+### Liste ve detayda `&&`
+
+```95:97:web/src/CharactersPage.tsx
+          {hasPermission(permissions, PERMISSIONS.charactersCreate) && (
+            <Link to="/characters/new">Karakter ekle</Link>
+          )}
+```
+
+`&&`’in solu koşul, sağı çizilecek parçadır. Koşul false ise React hiçbir şey basmaz. True ise `Link` basılır. Razor’da `@if (hasCreate) { <a>…</a> }` gibi. Create, update, delete ayrı fiillerdir: yalnız create varsa Ekle görünür, Düzenle/Sil görünmez.
+
+```148:156:web/src/CharacterDetailPage.tsx
+          {hasPermission(permissions, PERMISSIONS.charactersUpdate) && (
+            <Link to={`/characters/${id}/edit`}>Düzenle</Link>
+          )}
+          {hasPermission(permissions, PERMISSIONS.charactersDelete) && (
+            <button type="button" onClick={handleDelete}>
+              Sil
+            </button>
+          )}
+          <Link to="/characters">Listeye dön</Link>
+```
+
+24 Ağustos’ta liste `load` içinde `GET /api/auth/me` atıp `setPermissions(me.permissions ?? [])` diyordu. Bugün o blok yorumda; dizi Context’ten gelir:
+
+```74:78:web/src/CharactersPage.tsx
+      // const meResponse = await apiFetch('/api/auth/me')
+      // if(meResponse.ok){
+      //   const me = await meResponse.json()
+      //   setPermissions(me.permissions ?? [])
+      // }  
+```
+
+`?? []` şunu keser: API `permissions` göndermezse `undefined` kalmasın, `.includes` patlamasın. O gün detay kendi `/me`’sini unutursa dizi `[]` kalırdı; Admin dahil butonlar gizlenirdi. Liste `setPermissions` şarttı. Bugün ikisi de layout’tan okur; unutulan sayfa tuzağı 31’de kapanır.
+
+### Gizleme ≠ yetki
+
+Link yok diye Player’ın `/characters/new` yazamayacağını sanmak yanlış. Adres çubuğu durur; sayfa açılır. Asıl kapı `POST /api/characters` üzerindeki `[HasPermission]`’dır (bölüm 26): 403. Gizleme UX’tir; yetkisiz kişi formu doldurmasın diye. ASP.NET’te butonu Razor’da gizlesen action attribute yine durur. URL’den forma girişi kesmek ayrı adımdır (V2 bölüm 29); bu dosyada yok.
+
+Kolayı şudur: `me.permission` (tekil) yazmak — API `permissions` çoğul; `undefined ?? []` herkesi yetkisiz gösterir. Detayda `/me` unutmak. Link gizleyince API’nin kapandığını sanmak. `hasPermission`’ı hook sanmak.
+
+Sonuçta Player’da Ekle görünmez, Admin’de görünür. POST hâlâ 403 ile durur. Tek `/me` kutusu (Context) bölüm 30.
+
+---
+
+## I. Tek `/me`, `PermissionContext` — bölüm 30 (26 Ağustos)
+
+28’de her sayfa kendi `GET /api/auth/me` isteğini atıyordu. Liste atıyordu, detay atıyordu, Create ve Edit de atıyordu. Backend’de `/me` her seferinde aynı `GetCodesAsync` join’ini çalıştırır: `UserRoles` → `RolePermissions` → `Permission.Code`. Dört sayfa, aynı kullanıcı, aynı dizi, dört HTTP, dört join. Yetki modeli değişmedi; israf değişti.
+
+Bunu layout’a almak nested route yüzünden mümkün. Faz 5’te `AppLayout` parent route oldu, çocuk sayfa `Outlet` deliğinden çiziliyor. Liste’den detaya, detaydan edit’e giderken header ve layout unmount olmaz; değişen yalnız ortadaki çocuk. Layout ayaktayken `/me`’yi orada bir kez atarsan çocuklar aynı `permissions` dizisini okuyabilir. Her sayfayı yeniden mount eden bir yapıda bu işe yaramazdı; layout da her geçişte düşer, istek yine dört kez giderdi.
+
+26 Ağustos’ta dosya sırası şöyle. Önce `PermissionContext.tsx`: `createContext` kutuyu açar, `usePermissions` altındaki sayfanın o kutuyu okumasını sağlar. Kutusu olmayan layout’un diziyi “çocuklara ver” demesinin yolu yok. Sonra `AppLayout`: `permissions` ve `meLoaded` state, `useEffect` içinde `/me`, cevap gelince dizi, `Provider` ile `Outlet`’i sarma. Liste o gün `usePermissions`’a geçti. Create, Edit ve Detail hâlâ kendi `/me`’lerini atıyordu; üç sayfayı aynı commit’te taşımak hangi 403’ün kimin isteği olduğunu karıştırırdı. Onların Context’e bağlanması bölüm 31. Layout `hasPermission` import etmez. Diziyi doldurur, Ekle / Düzenle kapısı sayfada kalır.
+
+### Context ne işe yarar
+
+```1:16:web/src/PermissionContext.tsx
+import { createContext, useContext } from 'react'
+
+type PermissionContextValue = {
+    permissions: string[]
+}
+
+const PermissionContext = createContext<PermissionContextValue | null>(null)
+
+export function usePermissions(): string[] {
+    const ctx = useContext(PermissionContext)
+    if(!ctx){
+        throw new Error('usePermissions yalnızca AppLayout içinde')
+    }
+    return ctx.permissions
+}
+```
+
+`createContext` bir kutu açar. `Provider` o kutuya değeri koyar. Kutunun altındaki bileşenler `usePermissions` ile aynı diziye uzanır; her sayfaya prop ile taşımana gerek kalmaz. Başlangıç değeri `null`’dır çünkü Login ve Register `AppLayout` dışındadır, orada Provider yoktur. O sayfalarda `usePermissions` çağırırsan throw eder. Sessizce boş dizi dönmek hatayı gizler: herkes yetkisiz görünür, asıl hata “Provider yok” kaybolur.
+
+`usePermissions` “şu fiil var mı?” diye sormaz. Yalnız string dizisini verir. Fiil kontrolü hâlâ `hasPermission(permissions, PERMISSIONS.charactersCreate)` düz fonksiyonudur (bölüm 28). C# kabaca şöyle olurdu: istekte bir kez `GetCodesAsync` çalışır, sonuç bir yere konur, action’lar oradan okur. Liste yine veritabanındandır; JWT’ye permission yazılmaz.
+
+### Layout doldurur, çocuk okur
+
+```14:50:web/src/AppLayout.tsx
+  const [permissions, setPermissions] = useState<string[]>([])
+  const [meLoaded, setMeLoaded] = useState(false)
+
+  useEffect(() => {
+  if (!token) {
+    return
+  }
+
+  async function loadMe() {
+    try {
+      const meResponse = await apiFetch('/api/auth/me')
+      if (meResponse.ok) {
+        const me = await meResponse.json()
+        setPermissions(me.permissions ?? [])
+      } else if (meResponse.status === 401) {
+        // apiFetch buraya gelene kadar yenilemeyi denedi ve başaramadı: oturum bitti.
+        clearToken()
+        navigate('/login')
+        return
+      }
+    } catch {
+      // /me gelmese de meLoaded bitsin; yoksa sonsuz Yükleniyor
+    }
+    setMeLoaded(true)
+  }
+
+  loadMe()
+}, [token])
+  
+
+  if (!token) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (!meLoaded) {
+  return <p>Yükleniyor…</p>
+}
+```
+
+`useState` ve `useEffect` `if (!token)` erken `return`’ünden **önce** durur. React hook sırası her render’da aynı olsun diye. Token yokken `return <Navigate …>` üstte olsaydı effect hiç kayıt olmazdı; sonra token gelse bile `/me` atılmaz, `meLoaded` true olmaz, ekran sonsuz “Yükleniyor…” kalırdı (V2 bölüm 29). Token yoksa effect içinden de hemen çıkılır, `/me` atılmaz. Token varken `loadMe` `GET /api/auth/me` atar, `me.permissions` diziyi doldurur.
+
+`meLoaded` ayrı bayraktır. Dizi boş gelmek ile istek henüz bitmemek aynı şey değildir. Player’ın dizisi gerçekten boştur; Admin’in dizisi doludur ama cevap gelene kadar state `[]` durur. `meLoaded` false iken Provider ve `Outlet` çizilmez. Çizilseydi çocuk boş diziyi “yetkin yok” sanır, Create’e `Navigate` eder, istek bitince dizi dolardı. `setMeLoaded(true)` try/catch dışındadır: `/me` ağ atsa bile yükleme bitsin, “Yükleniyor…” sonsuza gitmesin. Bugünkü `401` dalı ve `logout()` sonradan geldi (bölüm 35). 26 Ağustos’un asıl işi dizi ve `meLoaded` idi.
+
+```62:86:web/src/AppLayout.tsx
+  return (
+    <PermissionContext.Provider value={{ permissions }}>
+      <div className="app-shell">
+        <header className="app-header">
+              <div className="app-header__left">
+                  <Link to="/characters" className="app-header__brand">
+                  ReactBattleArena
+                  </Link>
+                  <nav className="app-header__nav">
+                  <Link to="/characters">Karakterler</Link>
+                  </nav>
+              </div>
+              <button
+                type="button"
+                className="app-header__logout"
+                onClick={handleLogout}
+              >
+                Çıkış
+              </button>
+          </header>
+        <main className="app-main">
+          <Outlet />
+        </main>
+    </div>
+    </PermissionContext.Provider>
+```
+
+`Provider` `Outlet`’i sarar. Çocuk sayfa kutunun içindedir, `usePermissions` değeri görür. `Provider`’ı `Outlet`’in içine koysaydın çocuk context görmezdi; `usePermissions` throw ederdi. `value={{ permissions }}` her `setPermissions`’ta yeni obje verir, altındaki hook güncellenir. Listeye dönünce layout unmount olmaz, effect `[token]` yüzünden yeniden çalışmaz, `/me` tekrar atılmaz. Bu doğru.
+
+Liste artık kendi `useState`’inden değil Context’ten okur:
+
+```18:19:web/src/CharactersPage.tsx
+function CharactersPage() {
+  const permissions = usePermissions()
+```
+
+Ekle linki hâlâ bu sayfada `hasPermission(permissions, PERMISSIONS.charactersCreate) && …` ile gizlenir (bölüm 28). Layout o fonksiyonu import etmez; diziyi doldurur, kapı sayfada kalır. 26 Ağustos kanıtı: Admin’de Ekle görünür, Network’te listenin kendi `/me`’si yoktur, yalnız layout’unki vardır. Create’e basınca o gün hâlâ sayfa `/me`’si görünürdü. Create, Edit ve Detail ertesi gün bağlandı (bölüm 31).
+
+### StrictMode’da iki `/me`
+
+```7:12:web/src/main.tsx
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </StrictMode>,
+)
+```
+
+Development’ta ilk açılışta Network’te iki `/me` görmen normaldir. StrictMode effect’i iki kez çalıştırır (bölüm 19). Production’da tek istek kalır. StrictMode kapatılmaz.
+
+### Bu günün sınırı
+
+Kolayı şudur: Login’de `usePermissions` çağırmak; `Provider`’ı `Outlet`’in **içine** koymak; `meLoaded` bitmeden Outlet çizmek; Context’i boş dizi default ile yaratıp throw’u kaldırmak; layout’ta `hasPermission` ile link gizleyip sayfanın diziyi boş sanması.
+
+Sonuçta liste tek `/me` okuyor. Create, Edit ve Detail’in Context’e geçmesi bölüm 31. Refresh token ayrı bloktur (32+): permission “ne yapabilirim”, refresh “oturum ne kadar açık”.
+
+---
+
+## J. RefreshTokens tablosu — bölüm 32 (28 Ağustos)
+
+30’da frontend yetki listesini tek `/me`’ye indirdi. Yetki modeli değişmedi: fiiller hâlâ DB join’de, JWT’de değil. Access JWT ise bölüm 8’den beri duruyor. Login imzalı bir string basar, sunucu o string’i tabloya yazmaz, `ExpireMinutes` (bizde 60) dolunca her korumalı istek 401 verir. Arena’da her saat şifre yazmak rahatsız. Yeni access token’ı şifresiz basmak için ikinci bir sır lazım. O sır veritabanında **ham** durmamalı; sızıntıda çalan kişi yeni access üretebilir.
+
+28 Ağustos’ta yalnız o sır için tabloyu kurduk. Sıra: Domain `RefreshToken`, `RefreshTokenConfiguration`, `IApplicationDbContext` / `ApplicationDbContext` `DbSet`, migration `AddRefreshTokens`. Login henüz satır yazmıyor. Generator yok. React yok. SSMS’te tablo görünür, satır sayısı sıfırdır.
+
+Access JWT kısa ömürlü kimlik belgesidir; süresi token’ın kendi `exp` claim’indedir, sunucu onu satır satır tutmaz. Refresh token uzun ömürlü oturum belgesidir; satır DB’dedir, kolon `TokenHash`’tir, ham metin yoktur. İkisini tek JWT claim’ine sıkıştırmak yetki ile oturumu aynı kutuya koyar; o yüzden ayrı tablo.
+
+### Domain — satır, ham token değil
+
+```1:43:ReactBattleArena/ReactBattleArena.Domain/Authentication/RefreshToken.cs
+namespace ReactBattleArena.Domain.Authentication;
+
+public sealed class RefreshToken
+{
+    private RefreshToken()
+    {
+    }
+
+    public Guid Id { get; private set; }
+
+    public Guid UserId { get; private set; }
+
+    public string TokenHash { get; private set; } = null!;
+
+    public DateTime ExpiresAtUtc { get; private set; }
+
+    public DateTime CreatedAtUtc { get; private set; }
+
+    public DateTime? RevokedAtUtc { get; private set; }
+
+    public static RefreshToken Create(
+        Guid userId,
+        string tokenHash,
+        DateTime expiresAtUtc,
+        DateTime utcNow)
+    {
+        return new RefreshToken
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            TokenHash = tokenHash,
+            ExpiresAtUtc = expiresAtUtc,
+            CreatedAtUtc = utcNow
+        };
+    }
+
+    public void Revoke(DateTime utcNow)
+    {
+        if (RevokedAtUtc is not null)
+            return;
+
+        RevokedAtUtc = utcNow;
+    }
+}
+```
+
+İskelet `User` ile aynıdır (bölüm 6): EF için private boş ctor, `private set`, factory `Create`. Klasör `Domain/Authentication/` — `Authorization` (Role / Permission) değil. Bu satır “oturumu uzatma sırrı”dır; fiil listesi değildir.
+
+Kolon adı `TokenHash` bilinçlidir. `Create` ham string almaz; hash alır. Şifredeki `PasswordHash` ile aynı güvenlik fikri (bölüm 7): DB sızarsa ham refresh elinde olmasın. BCrypt burada kullanılmaz; algoritma 29 Ağustos’ta SHA256 hex olacak (bölüm 33). 28 Ağustos’ta yalnız kolon vardır.
+
+Kendi `Id` Guid’i vardır çünkü bir kullanıcının zaman içinde birçok refresh satırı olur: yeniden login, ileride cihaz. `UserRole` composite PK `(UserId, RoleId)` idi; üyelik tektir. Refresh üyelik değil, oturum satırıdır.
+
+`Revoke` satırı silmez. `RevokedAtUtc` yazar. Çıkış veya rotation (bölüm 34–35) eski satırı öldürür. `RevokedAtUtc` doluysa ikinci `Revoke` no-op’dur. 28 Ağustos’ta kimse `Revoke` çağırmaz.
+
+`ExpiresAtUtc` refresh’in bitişidir. `CreatedAtUtc` ne zaman basıldığıdır. Access JWT’nin `exp`’i bu tabloda yoktur; access zaten kendi içinde ölür.
+
+### EF configuration
+
+```1:24:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/RefreshTokenConfiguration.cs
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using ReactBattleArena.Domain.Authentication;
+using ReactBattleArena.Domain.Users;
+
+namespace ReactBattleArena.Infrastructure.Persistence;
+
+public sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
+{
+    public void Configure(EntityTypeBuilder<RefreshToken> builder)
+    {
+        builder.ToTable("RefreshTokens");
+        builder.HasKey(x => x.Id);
+
+        builder.Property(x => x.TokenHash).IsRequired().HasMaxLength(64);
+        builder.HasIndex(x => x.TokenHash).IsUnique();
+
+        builder.HasIndex(x => x.UserId);
+
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
+```
+
+`ApplyConfigurationsFromAssembly` (bölüm 1) bu sınıfı kendiliğinden alır; `OnModelCreating`’e tek tek yazılmaz. Namespace `Persistence` olmalıdır; `Persistance` yazımı derlenmez, `dotnet ef` de bulamaz.
+
+`HasMaxLength(64)` SHA256 hex içindir (32 byte → 64 karakter). Unique index aynı hash’in iki satır olmasını engeller; 33’te “bu ham token hangi satır?” araması bu index’ten gidecektir. `UserId` index’i “bu kullanıcının refresh satırları” sorgusu içindir (ileride hepsini kapatmak).
+
+`HasOne<User>().WithMany()` — `User` üzerinde `ICollection<RefreshToken>` yoktur; Role tarafında da collection yazmamıştık (bölüm 24). FK yine durur. Cascade: kullanıcı silinince refresh satırları da silinir; yetim hash kalmaz.
+
+Handler’ın tabloya uzanması `IApplicationDbContext` üzerindendir:
+
+```8:17:ReactBattleArena/ReactBattleArena.Application/Abstractions/IApplicationDbContext.cs
+public interface IApplicationDbContext
+{
+    DbSet<Character> Characters { get; }
+    DbSet<User> Users { get; }
+    DbSet<Role> Roles { get; }
+    DbSet<Permission> Permissions { get; }
+    DbSet<UserRole> UserRoles { get; }
+    DbSet<RolePermission> RolePermissions { get; }
+    DbSet<RefreshToken> RefreshTokens { get; }
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+```
+
+```24:24:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/ApplicationDbContext.cs
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+```
+
+20 Ağustos RBAC gününde bu `DbSet` yoktu. 28 Ağustos’ta eklendi. Login handler ertesi gün `Add` edecek (bölüm 33); o gün kimse set’i kullanmıyordu.
+
+### Migration — şema var, satır yok
+
+```14:45:ReactBattleArena/ReactBattleArena.Infrastructure/Migrations/20260828163543_AddRefreshTokens.cs
+            migrationBuilder.CreateTable(
+                name: "RefreshTokens",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    TokenHash = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    ExpiresAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    RevokedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RefreshTokens", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_RefreshTokens_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefreshTokens_TokenHash",
+                table: "RefreshTokens",
+                column: "TokenHash",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefreshTokens_UserId",
+                table: "RefreshTokens",
+                column: "UserId");
+```
+
+`InitialCreate`’e kolon yapıştırmadık (bölüm 1). `Down` tabloyu düşürür. Designer / snapshot alıntılanmaz. `dotnet ef database update` sonrası SSMS’te `RefreshTokens` görünür; satır yoktur çünkü login henüz `Add` etmez.
+
+### Bu gün HTTP yok
+
+Uygulama içinden kimse bu tabloya yazmaz. `POST /api/auth/login` hâlâ yalnız access JWT basar (bölüm 8). Frontend aynı. Tetikleyen şey `dotnet ef migrations add AddRefreshTokens` ve `database update`’tir. `POST /api/auth/refresh` yoktur; o bölüm 34.
+
+Kolayı şudur: namespace’i `Persistance` yazmak; refresh’i `Users`’a tek kolon yapmak (bir kişi bir satır sanmak; yeniden login kırılır); `UserRole` gibi composite PK koymak; ham token’ı `nvarchar` saklamak; `InitialCreate`’i elle düzenlemek; tabloyu görüp “login artık yeniliyor” sanmak.
+
+Sonuçta uzun ömürlü oturum için tablo ve hash kolonu vardır. Kısa ömürlü kimlik hâlâ access JWT’dedir. Login’in hash yazıp hamı JSON’a koyması bölüm 33.
+
+---
+
+## K. Login refresh basar — bölüm 33 (29 Ağustos)
+
+32’de `RefreshTokens` tablosu kurulmuştu ama boştu. Login hâlâ yalnız access JWT basıyordu. 29 Ağustos’ta generator geldi, login hash’i tabloya yazdı, ham refresh’i JSON’a koydu, React ikinci anahtarı `localStorage`’a aldı. Controller’a yeni action eklenmedi; `POST /api/auth/login` 200 body’si bir alan şişti. `POST /api/auth/refresh` ve `apiFetch` içinde 401’de sessiz yenileme bu gün yoktu (bölüm 34). Tarayıcı ikinci anahtarı tutar, henüz kullanmaz.
+
+### Süre config’de, üretim Infrastructure’da
+
+```13:14:ReactBattleArena/ReactBattleArena.Infrastructure/Security/JwtOptions.cs
+    public int ExpireMinutes { get; set; } = 60;
+    public int RefreshExpireDays { get; set; } = 7;
+```
+
+22 Temmuz’da yalnız `ExpireMinutes` vardı. Access dakika ile, refresh gün ile ölçülür; ikisi de `Jwt` section’dan bind olur. `Configure<JwtOptions>` zaten duruyordu; yeni property eklenince `appsettings`’teki `RefreshExpireDays` okunur.
+
+```1:11:ReactBattleArena/ReactBattleArena.Application/Abstractions/IRefreshTokenGenerator.cs
+namespace ReactBattleArena.Abstractions;
+
+public interface IRefreshTokenGenerator
+{
+    string Hash(string Raw);
+    // Login ve refresh aynı SHA256'yı kullansın. BCrypt değil — her seferinde farklı tuz üretir, unique index araması bozulur.
+    // Refresh isteği ham token'ı gönderecek, sunucu onu hash'leyip TokenHash kolonundan arayacak.
+    // Aramanın çalışması için hash formülünün login ile birebir aynı olması şart; o yüzden formülü tek metoda topluyoruz.
+    (string Raw, string Hash, DateTime ExpiresAtUtc) Create(DateTime utcNow);
+    // Yukarıdaki Create üç değeri birden döndürüyor. Buna tuple (demet) denir.
+}
+```
+
+Interface Application tarafındadır; handler Infrastructure class’ını görmesin. Namespace `ReactBattleArena.Abstractions` — `IApplicationDbContext` ise `ReactBattleArena.Application.Abstractions`; tutarsız ama gerçek. `Create` üç değeri bir tuple ile döner: ham string, hash, bitiş zamanı. Bugünkü `Hash` metodu 34’te ortak kullanım için ayrıldı; 29 Ağustos’ta SHA256 `Create` içindeydi. Bugünkü kod `Create` içinde `Hash(raw)` çağırır; formül tek yerde kalsın diye.
+
+```9:31:ReactBattleArena/ReactBattleArena.Infrastructure/Security/RefreshTokenGenerator.cs
+public sealed class RefreshTokenGenerator : IRefreshTokenGenerator
+{
+    private readonly JwtOptions _options;
+
+    public RefreshTokenGenerator(IOptions<JwtOptions> options)
+    {
+        _options = options.Value;
+    }
+
+    public string Hash(string raw)
+    {
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw)));
+    }
+
+    public (string Raw, string Hash, DateTime ExpiresAtUtc) Create(DateTime utcNow)
+    {
+        var bytes = RandomNumberGenerator.GetBytes(32);
+        var raw = Convert.ToBase64String(bytes);
+        var hash = Hash(raw); //Böylece iki yerde iki ayrı formül kalma riski kalkıyor.
+        var expires = utcNow.AddDays(_options.RefreshExpireDays);
+        return (raw, hash, expires);
+        // Şifre hasher’ını (BCrypt) kullanma. BCrypt her seferinde farklı tuz üretir; TokenHash unique index ile arama bozulur. 
+    }
+
+}
+```
+
+32 rastgele byte Base64’e çevrilir; bu **ham** metindir, cevapta bir kez gider. SHA256(UTF8(ham)) hex’e çevrilir; `Convert.ToHexString` 64 karakter üretir, kolon `nvarchar(64)` ile örtüşür. `expires` `RefreshExpireDays` kadar ileridir.
+
+BCrypt burada bilinçli kullanılmaz. Parolada amaç “aynı şifreyi doğrula”: her `Hash` farklı tuz üretir, `Verify` yeter. Refresh’te amaç “istemcinin gönderdiği hamı hash’le, unique index’ten satırı bul”. BCrypt her seferinde başka string üretir; `WHERE TokenHash = @x` tutmaz. Parola BCrypt (bölüm 7), refresh SHA256.
+
+```27:29:ReactBattleArena/ReactBattleArena.Infrastructure/DependencyInjection.cs
+        services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
+        services.AddSingleton<IJwtTokenService, JwtTokenService>();
+        services.AddSingleton<IRefreshTokenGenerator, RefreshTokenGenerator>();
+```
+
+Singleton: istek state’i yok; JWT servisi ile aynı ömür.
+
+### Login artık satır yazar
+
+```8:13:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/LoginCommand.cs
+public sealed record LoginResult(
+    Guid UserId,
+    string UserName,
+    string Email,
+    string Token,
+    string RefreshToken);
+```
+
+22 Temmuz’da dördüncü alan `Token` ile bitiyordu. ASP.NET JSON camelCase ile `refreshToken` basar. Controller imzası aynı `Ok(result)` — yeni endpoint değil, body’se bir property.
+
+```47:57:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/LoginCommandHandler.cs
+        var token = _jwtTokenService.CreateToken(user);
+
+        var utcNow = DateTime.UtcNow;
+        var (rawRefresh, hash, expires) = _refreshTokens.Create(utcNow);
+        _db.RefreshTokens.Add(
+            RefreshToken.Create(user.Id, hash, expires, utcNow));
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+
+        return new LoginResult(user.Id, user.UserName, user.Email, token, rawRefresh);
+```
+
+22 Temmuz’da `CreateToken` sonrası doğrudan `LoginResult` dönülüyordu; JWT için `SaveChanges` yoktu çünkü access tabloda durmaz. Bugün tek `SaveChanges` refresh satırını basar. Access yine yalnız cevapta gider.
+
+Tuple açılımı nettir: `rawRefresh` JSON’a, `hash` `TokenHash` kolonuna. SSMS’teki hash ile F12’deki `refreshToken` **aynı string değildir**. Aynıysa hamı DB’ye yazmışsındır.
+
+`Revoke` hâlâ çağrılmaz. Her login yeni satır ekler; eski satırlar `RevokedAtUtc` null kalır. Rotation bölüm 34’te gelir. Kullanıcı yok veya şifre yanlış yine `null` → 401; satır yazılmaz.
+
+```44:58:ReactBattleArena/ReactBattleArena.Api/Controllers/AuthController.cs
+    [AllowAnonymous]//Böylece ileride global [Authorize] eklesek bile login/register çalışır.
+    [HttpPost("login")]
+    [ProducesResponseType(typeof(LoginResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<LoginResult>> Login(
+    [FromBody] LoginRequest body,
+    CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(
+            new LoginCommand(body.UserNameOrEmail, body.Password),
+            cancellationToken);
+
+        return result is null ? Unauthorized() : Ok(result);
+    }
+```
+
+Action 22 Temmuz’dan beri budur. 200’de artık `refreshToken` de vardır. Bugünkü dosyada altında `POST refresh` ve `logout` görürsen onlar 34–35; 29 Ağustos’un parçası değildir.
+
+### React — ikinci anahtar, henüz kullanılmıyor
+
+```3:21:web/src/api.ts
+export function getToken(): string | null {
+  return localStorage.getItem('token')
+}
+
+export function setToken(token: string) {
+  localStorage.setItem('token', token)
+}
+
+export function clearToken() {
+  localStorage.removeItem('token')
+  localStorage.removeItem('refreshToken')
+}
+
+export function getRefreshToken(): string | null {
+  return localStorage.getItem('refreshToken')
+}
+export function setRefreshToken(token: string) {
+  localStorage.setItem('refreshToken', token)
+}
+```
+
+11 Ağustos’ta `clearToken` yalnız `token` siliyordu. Anahtar adı JSON’daki `refreshToken` (camelCase). 29 Ağustos’ta `apiFetch` 401 görünce login’e atmıyordu, sessiz yenileme de yoktu; sayfa `response.ok`’a bakıyordu. Bugün altında `refreshSession` görürsen bölüm 34’tür. `getRefreshToken` / `setRefreshToken` bu günde kayıt içindir.
+
+```54:57:web/src/LoginPage.tsx
+      const data = await response.json()
+      setToken(data.token)
+      setRefreshToken(data.refreshToken)
+      navigate('/characters')
+```
+
+30 Temmuz / 11 Ağustos’ta yalnız `setToken` vardı. `auth: false` aynıdır; login’de Bearer yoktur. Çıkışta `clearToken` ikisini birden silmelidir. Yalnız `token` silinirse refresh `localStorage`’da kalır; 34 gelince yanlışlıkla kullanılır.
+
+### Bu günün sınırı
+
+`LoginPage` → `POST /api/auth/login` → handler access JWT + refresh satırı + 200 `{ token, refreshToken, ... }`. Karakter GET hâlâ Bearer access kullanır. Access 401 olursa 29 Ağustos’ta sessiz yenileme yoktur; kullanıcı tekrar login olur. 403 permission’dır; refresh 403’ü düzeltmez.
+
+Kolayı şudur: refresh hash’ini BCrypt yapmak; hamı `TokenHash` kolonuna yazmak (SSMS = localStorage); refresh’i JWT claim’ine gömmek; `data.RefreshToken` (Pascal) okumak — JSON camelCase, `undefined` → `setItem("undefined")`; `clearToken`’dan `refreshToken`’ı unutmak; 403’te yenileme beklemek; `apiFetch`’in 401’de zaten yenilediğini sanmak.
+
+Sonuçta login refresh basıyor: hash DB’de, ham tarayıcıda. Kullanılacak yer `POST /api/auth/refresh` + `api.ts` 401 (bölüm 34).
+
+---
+
+## L. Refresh kullanılır — bölüm 34 (8 Eylül / kod 14–15 Eylül)
+
+33’te login refresh basıyordu ama kimse kullanmıyordu. Access 60 dakika bitince karakter GET 401 oluyor, kullanıcı şifreyi yeniden yazıyordu. `localStorage`’daki `refreshToken` duruyordu. Bu adımda sırayla şunlar geldi: `Hash` metodunun ortaklaşması, `RefreshCommand` + validator + handler (rotation), `RefreshRequest` + `AuthController` `POST refresh`, `api.ts` içinde 401’de bir kez yenile + tekrar. Sayfa kodları değişmedi; `apiFetch` içeride halleder. Permission hâlâ DB join’dedir; refresh yetki listesini JWT’ye yazmaz.
+
+V2’de bu bölüm önce hedef not olarak yazılmıştı; kod sonradan yazılıp test edildi. Aşağıdaki alıntılar bugünkü working tree’dendir.
+
+### Aynı hash, ayrı metot
+
+Login hash üretirken kullanılan formül ile refresh ararken kullanılan formül birebir aynı olmalıdır. 33’te SHA256 `Create` içindeydi. Bugün ayrı `Hash` metodu var; `Create` onu çağırır.
+
+```1:11:ReactBattleArena/ReactBattleArena.Application/Abstractions/IRefreshTokenGenerator.cs
+namespace ReactBattleArena.Abstractions;
+
+public interface IRefreshTokenGenerator
+{
+    string Hash(string Raw);
+    // Login ve refresh aynı SHA256'yı kullansın. BCrypt değil — her seferinde farklı tuz üretir, unique index araması bozulur.
+    // Refresh isteği ham token'ı gönderecek, sunucu onu hash'leyip TokenHash kolonundan arayacak.
+    // Aramanın çalışması için hash formülünün login ile birebir aynı olması şart; o yüzden formülü tek metoda topluyoruz.
+    (string Raw, string Hash, DateTime ExpiresAtUtc) Create(DateTime utcNow);
+    // Yukarıdaki Create üç değeri birden döndürüyor. Buna tuple (demet) denir.
+}
+```
+
+```18:29:ReactBattleArena/ReactBattleArena.Infrastructure/Security/RefreshTokenGenerator.cs
+    public string Hash(string raw)
+    {
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw)));
+    }
+
+    public (string Raw, string Hash, DateTime ExpiresAtUtc) Create(DateTime utcNow)
+    {
+        var bytes = RandomNumberGenerator.GetBytes(32);
+        var raw = Convert.ToBase64String(bytes);
+        var hash = Hash(raw); //Böylece iki yerde iki ayrı formül kalma riski kalkıyor.
+        var expires = utcNow.AddDays(_options.RefreshExpireDays);
+        return (raw, hash, expires);
+```
+
+İstemci ham refresh token’ı gönderir. Sunucu `Hash` ile `TokenHash` unique index’ten satırı bulur. BCrypt `Verify` burada yoktur: amaç “bu string’in satırı hangisi?”, “şifre doğru mu?” değildir.
+
+### Rotation — eski satır ölür, yeni çift doğar
+
+```6:8:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/RefreshCommand.cs
+public sealed record RefreshCommand(string RefreshToken) : IRequest<LoginResult?>;
+// null → fiş yok / iptal edilmiş / süresi bitmiş → controller 401 döner.
+// Dönüş tipi login ile aynı LoginResult?, çünkü cevap yine yeni access + yeni refresh çifti olacak.
+```
+
+Dönüş tipi login ile aynı `LoginResult?`’dır: yeni access + yeni refresh. Şifre yoktur. Boş gövde validator’da 400 olur (`NotEmpty`); 401 değildir.
+
+```5:13:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/RefreshCommandValidator.cs
+public sealed class RefreshCommandValidator : AbstractValidator<RefreshCommand>
+{
+    public RefreshCommandValidator()
+    {
+        RuleFor(x => x.RefreshToken).NotEmpty().MaximumLength(200);
+        //Bu sınıfı Program.cs'e kaydetmeyeceksin; AddValidatorsFromAssembly zaten assembly'yi tarıyor.
+        //Boş gövde gelirse 400 döner, 401 değil — "fiş yanlış" ile "fiş hiç yok" ayrı şeyler.
+    }
+}
+```
+
+Handler hamı hash’ler, satırı bulur, geçerliyse eskiyi iptal eder, yeni çift basar:
+
+```25:76:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/RefreshCommandHandler.cs
+    public async Task<LoginResult?> Handle(RefreshCommand request, CancellationToken cancellationToken)
+    {
+        var utcNow = DateTime.UtcNow;
+        var hash = _refreshTokens.Hash(request.RefreshToken);
+
+        var existing = await _db.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash, cancellationToken);
+
+        if (existing is null)
+            return null;
+
+        if (existing.RevokedAtUtc is not null)
+        {
+            // Rotation yüzünden her refresh token tek kullanımlık. İptal edilmiş bir token
+            // ikinci kez geldiyse aynı zinciri iki taraf tutuyor demektir; çalınmış varsayıyoruz.
+
+            var activeTokens = await _db.RefreshTokens
+                .Where(t => t.UserId == existing.UserId && t.RevokedAtUtc == null)
+                .ToListAsync(cancellationToken);
+
+            
+            if (activeTokens.Count > 0)
+            {
+                foreach (var activeToken in activeTokens)
+                    activeToken.Revoke(utcNow);
+
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+                
+            return null;
+        }
+
+
+        if (existing.ExpiresAtUtc <= utcNow)
+            return null;
+
+        var user = await _db.Users
+            .FirstOrDefaultAsync(u => u.Id == existing.UserId, cancellationToken);
+        if (user is null)
+            return null;
+        existing.Revoke(utcNow);
+        //Dört ayrı başarısızlık durumunun hepsi aynı null'u döndürüyor; login'deki "email sızdırmama" mantığının aynısı.
+        //existing.Revoke(utcNow) satırından sonra ayrıca bir Update çağırmıyoruz, çünkü satırı sorguyla çektiğimiz an EF onu takibe alıyor;
+        //SaveChangesAsync değişikliği kendisi UPDATE'e çeviriyor. Aynı SaveChanges hem eski satırın RevokedAtUtc'sini hem yeni satırın INSERT'ünü tek transaction'da yazıyor — rotation tam olarak bu.
+
+        var (rawRefresh, newHash, expires) = _refreshTokens.Create(utcNow);
+        _db.RefreshTokens.Add(RefreshToken.Create(user.Id, newHash, expires, utcNow));
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+        var token = _jwtTokenService.CreateToken(user);
+        return new LoginResult(user.Id, user.UserName, user.Email, token, rawRefresh);
+    }
+```
+
+Satır yok, süresi dolmuş veya kullanıcı yok → `null` → 401. Ayrıntı sızmaz (login’deki email sızdırmazlık, bölüm 8).
+
+`Revoke` 32’de yazılmıştı; ilk anlamlı çağrı burada. Eski satır silinmez; `RevokedAtUtc` dolar. Yeni satır yeni hash alır. Aynı ham ikinci kez gelirse zaten iptaldir → yine 401. Çalınan refresh bir kez işe yarar; asıl tarayıcı bir sonraki 401’de düşer.
+
+Bugünkü dosyada `RevokedAtUtc is not null` dalının içinde kullanıcının **tüm aktif** refresh satırlarını iptal eden blok vardır. Bu reuse detection’dır; ince ayrıntı bölüm 36. 34’ün çekirdeği şudur: geçerli satırı `Revoke` et, yeni çift bas, access’i `CreateToken` ile imzala.
+
+JWT yine tabloda yoktur. Permission hâlâ `/me` join’idir.
+
+```1:6:ReactBattleArena/ReactBattleArena.Api/Contracts/RefreshRequest.cs
+namespace ReactBattleArena.Api.Contracts
+{
+    public sealed class RefreshRequest
+    {
+        public string RefreshToken { get; set; } = string.Empty;
+    }
+}
+```
+
+```62:78:ReactBattleArena/ReactBattleArena.Api/Controllers/AuthController.cs
+    [AllowAnonymous]
+    //[AllowAnonymous] şart: bu endpoint'e gelindiğinde access token çoktan ölmüş olacak,
+    //[Authorize] koyarsak 401 döngüsüne gireriz. [HasPermission] de yok, çünkü bu bir oturum kapısı, bir fiil kapısı değil.
+    [HttpPost("refresh")]
+    [ProducesResponseType(typeof(LoginResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<LoginResult>> Refresh(
+    [FromBody] RefreshRequest body,
+    CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(
+            new RefreshCommand(body.RefreshToken),
+            cancellationToken);
+
+        return result is null ? Unauthorized() : Ok(result);
+    }
+```
+
+`[AllowAnonymous]` şarttır: access zaten ölmüştür; Bearer şartı 401 döngüsü olur. Login gibi 200 / 401 / 400. `[HasPermission]` yoktur; bu oturum kapısıdır, fiil kapısı değildir. Bugünkü dosyada altındaki `logout` bölüm 35’tir.
+
+### `apiFetch` 401 görünce yeniler
+
+İki korumalı istek aynı anda 401 alırsa ikisi de aynı ham refresh’i harcamasın diye `refreshInFlight` tek Promise tutar. İkinci çağrı yeni yenileme başlatmaz; birincinin sonucunu bekler.
+
+```23:60:web/src/api.ts
+let refreshInFlight: Promise<boolean> | null = null
+
+async function refreshSession(): Promise<boolean> {
+  if (refreshInFlight) {
+    return refreshInFlight
+  }
+
+  refreshInFlight = (async () => {
+    const refreshToken = getRefreshToken()
+    if (!refreshToken) {
+      return false
+    }
+
+    const response = await fetch(`${API_BASE}/api/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refreshToken }),
+    })
+
+    if (!response.ok) {
+      clearToken()
+      return false
+    }
+
+    const data = await response.json()
+    setToken(data.token)
+    setRefreshToken(data.refreshToken)
+    return true
+  })()
+
+  try {
+    return await refreshInFlight
+  } finally {
+    refreshInFlight = null
+  }
+}
+```
+
+Refresh isteği **`apiFetch` değil düz `fetch`** olmalıdır. `apiFetch` kullanırsan 401 gelince yine `refreshSession` çağrılır; kendi kuyruğunda kilitlenirsin. Başarısızda `clearToken` hem access’i hem refresh’i siler. Başarıda `data.refreshToken` yeni hamdır; eski localStorage değeri çöptür çünkü sunucu eski satırı revoke etmiştir.
+
+```124:145:web/src/api.ts
+  const response = await fetch(`${API_BASE}${path}`, {
+  method,
+  headers,
+  body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+  if (response.status !== 401 || auth === false) {
+    return response
+  }
+  const refreshed = await refreshSession()
+  if (!refreshed) {
+    return response
+  }
+  const retryHeaders: Record<string, string> = { ...headers }
+  const newToken = getToken()
+  if (newToken) {
+    retryHeaders.Authorization = `Bearer ${newToken}`
+  }
+  return fetch(`${API_BASE}${path}`, {
+    method,
+    headers: retryHeaders,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+```
+
+11 Ağustos’ta `apiFetch` 401’i olduğu gibi dönerdi. Bugün `auth: true` ve 401 ise bir kez yenile, sonra aynı path’i yeni Bearer ile bir kez tekrarla. Login/register `auth: false` olduğu için yanlış şifre 401’inde refresh denenmez. **403’e dokunulmaz**: yetki yoktur, süre dolmamış olabilir; refresh 403’ü 201 yapmaz.
+
+Tekrar istekte **yeni** `Authorization` şarttır. Eski `headers` nesnesini olduğu gibi göndermek en sık hatadır; içinde ölü JWT kalır, ikinci kez 401 alırsın. Body aynı JSON’dır; PUT yarım kalmaz.
+
+Sayfa kodu (`CharactersPage`, layout `/me`) değişmedi. StrictMode çift `/me` hâlâ iki GET atabilir; ikisi 401 olursa `refreshInFlight` tek yenileme yapar.
+
+### Bu günün sınırı
+
+Ölü access ile `GET /api/characters` (veya `/me`) → JwtBearer 401 → `refreshSession` → `POST /api/auth/refresh` → handler hash + rotation → 200 yeni çift → aynı path ikinci kez yeni Bearer ile. Kullanıcı form görmez. Refresh de 7 gün dolmuşsa refresh 401, `clearToken`, sayfa gerçek 401 görür.
+
+Kolayı şudur: refresh’i `apiFetch` ile atmak (döngü); 403’te yenilemek; login 401’inde yenilemek; rotation’suz eski refresh’i canlı bırakmak; BCrypt ile aramak; refresh’e `Authorization: Bearer` koymak; `refreshInFlight` olmadan paralel 401 (ikinci istek revoke edilmiş hamı yollar); yeni `refreshToken`’ı `setRefreshToken` etmemek.
+
+Sonuçta access bitince şifresiz yeni çift gelir. Permission hâlâ DB’dedir. Logout (DB’de satırı öldürmek) bölüm 35. Reuse detection’ın ince testi bölüm 36.
+
+---
+
+## M. Çıkış sunucuda da biter — bölüm 35 (16 Eylül)
+
+34’te access bitince sessiz yenileme çalışıyordu. Çıkış düğmesi ise hâlâ yalnız `clearToken()` çağırıyordu. Tarayıcıdaki iki anahtar siliniyor, veritabanındaki `RefreshTokens` satırı `RevokedAtUtc = null` kalıyordu; yedi gün daha geçerli sayılıyordu. Ham refresh token bir yere kopyalanmışsa “çıkış yaptım” onu geçersiz kılmıyordu. `RefreshToken.Revoke` 32’den beri duruyordu ama yalnız rotation’da kullanılıyordu.
+
+16 Eylül’de sıra şöyleydi: önce `LogoutCommand` + validator + handler, sonra `LogoutRequest` + `AuthController` action, en sonda `api.ts` `logout` ve `AppLayout` `handleLogout`. Backend önce yazıldı; endpoint olmadan frontend’in çağıracağı adres yoktu, Scalar’dan da tek başına test edilebiliyordu. Aynı gün ikinci düzeltme: `/me` gerçek 401 dönünce login’e yönlendirme.
+
+### Command ve validator
+
+```1:5:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/LogoutCommand.cs
+using MediatR;
+
+namespace ReactBattleArena.Application.Authentication.Commands;
+
+public sealed record LogoutCommand(string RefreshToken) : IRequest<bool>;
+```
+
+Girdi `RefreshCommand` ile aynıdır: ham refresh token. Fark dönüş tipindedir. Burada `LoginResult?` yoktur; çıkışta yeni çift üretilmez. `true` “satır bulundu ve iptal edildi” demektir, ama controller bu bilgiyi dışarı vermez; her hâlükârda 204 döner.
+
+```5:10:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/LogoutCommandValidator.cs
+public sealed class LogoutCommandValidator : AbstractValidator<LogoutCommand>
+{
+    public LogoutCommandValidator()
+    {
+        RuleFor(x => x.RefreshToken).NotEmpty().MaximumLength(200);
+    }
+}
+```
+
+Kural `RefreshCommandValidator` ile aynıdır. `Program.cs`’e kayıt satırı yazılmaz; `AddValidatorsFromAssembly` bulur (bölüm 2). Boş gövde 400 üretir.
+
+### Handler — `Revoke`’un ikinci kullanımı
+
+```22:36:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/LogoutCommandHandler.cs
+    public async Task<bool> Handle(LogoutCommand request, CancellationToken cancellationToken)
+    {
+        var hash = _refreshTokens.Hash(request.RefreshToken);
+
+        var existing = await _db.RefreshTokens
+            .FirstOrDefaultAsync(t => t.TokenHash == hash, cancellationToken);
+
+        if (existing is null || existing.RevokedAtUtc is not null)
+            return false;
+
+        existing.Revoke(DateTime.UtcNow);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return true;
+    }
+```
+
+İlk adımlar refresh handler ile aynıdır: hamı `Hash` ile SHA256’ya çevir, `TokenHash` unique index’ten satırı bul. Fark, bulunan satırdan sonra yeni satır üretilmemesidir. Oturumu uzatmıyoruz; kapatıyoruz.
+
+Süre kontrolü bilinçli yoktur. Refresh’te `ExpiresAtUtc` kontrolü şarttır; süresi dolmuş token ile yeni access vermek yanlış olur. Çıkışta süresi dolmuş satırı iptal etmek zararsızdır; fazladan `if` getirisi yoktur.
+
+`Revoke` sonrası `Update` çağrılmaz. Satır sorguyla çekildiği anda EF onu takip eder; `SaveChangesAsync` UPDATE üretir. Bu, refresh handler’daki davranışın aynısıdır.
+
+Burada iptal edilen yalnızca o refresh satırıdır (o cihazın oturumu). Kullanıcı başka cihazdan da girmişse o satır ayrı durur. “Tüm cihazlardan çık” `UserId` ile tüm satırları dolaşmak ister; o ayrı özelliktir.
+
+### Api katmanı
+
+```1:5:ReactBattleArena/ReactBattleArena.Api/Contracts/LogoutRequest.cs
+namespace ReactBattleArena.Api.Contracts;
+
+public sealed class LogoutRequest
+{
+    public string RefreshToken { get; set; } = string.Empty;
+}
+```
+
+```80:91:ReactBattleArena/ReactBattleArena.Api/Controllers/AuthController.cs
+    [AllowAnonymous]
+    [HttpPost("logout")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult> Logout(
+        [FromBody] LogoutRequest body,
+        CancellationToken cancellationToken = default)
+    {
+        await _mediator.Send(new LogoutCommand(body.RefreshToken), cancellationToken);
+
+        return NoContent();
+    }
+```
+
+`[AllowAnonymous]` refresh ile aynı sebeptendir: access çoktan ölmüş olabilir. `[Authorize]` koysaydık “çıkış yapamıyorum” durumu çıkardı. Kimlik kanıtı gövdedeki refresh token’ın satırla eşleşmesidir.
+
+Dönüş `NoContent` (204). Handler `false` dönse bile 204 verilir; “bu token sistemde yoktu” sızmaz. Login’deki sızdırmazlık (bölüm 8) ile aynı mantık. `_mediator.Send` dönüş değeri kullanılmaz; `bool` ileride log için durur.
+
+Scalar testi: login ol, `refreshToken`’ı logout gövdesine koy, 204 al, SSMS’te `RevokedAtUtc` dolsun. Aynı ham ile `POST /api/auth/refresh` 401 verir.
+
+### Frontend — `logout` ve Çıkış düğmesi
+
+```62:83:web/src/api.ts
+export async function logout(): Promise<void> {
+  const refreshToken = getRefreshToken()
+
+  if (refreshToken) {
+    try {
+      await fetch(`${API_BASE}/api/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken }),
+      })
+    } catch {
+      // API kapalıysa bile yerel temizlik yapılmalı; kullanıcı ekranda kalmasın
+      //Üç ayrıntı var burada. Token yoksa isteği hiç atmıyoruz, çünkü validator boş değere 400 döner ve çıkış yaparken hata görmek anlamsız. 
+      // İstek apiFetch değil düz fetch; apiFetch kullanırsak 401 ihtimalinde refresh denemesi yapar, oysa biz tam tersini istiyoruz. 
+      // clearToken() de try/catch'in dışında, yani sunucuya ulaşılamasa bile tarayıcı temizlenir.
+    }
+  }
+
+  clearToken()
+}
+```
+
+Üç karar vardır. Refresh yoksa istek atılmaz; validator boş değere 400 döner, çıkışta hata anlamsızdır. İstek düz `fetch` ile gider; `apiFetch` kullanılsa 401’de `refreshSession` çalışır, yani kapatırken yenilemeye çalışırdın. `clearToken()` `try/catch` dışındadır; API kapalı olsa bile tarayıcı temizlenir.
+
+```57:60:web/src/AppLayout.tsx
+  async function handleLogout() {
+    await logout()
+    navigate('/login')
+  }
+```
+
+Eski hâllerde önce `removeItem('token')`, sonra `clearToken()` vardı. Bugün `logout()` çağrılır ve `async`’tir. `await` olmadan `navigate` istek yarıda kesilebilir. `onClick={handleLogout}` aynı kalır; React async handler’ı kabul eder.
+
+### `/me` 401’inde login’e dönüş
+
+Testte ölü access ve hiç refresh token olmayan durum oluştu. `/me` 401 verdi; `refreshSession` ağa çıkmadan `if (!refreshToken) return false` dedi. Sayfa login’e gitmedi; `loadMe` yalnız `ok` bakıyordu.
+
+```22:38:web/src/AppLayout.tsx
+  async function loadMe() {
+    try {
+      const meResponse = await apiFetch('/api/auth/me')
+      if (meResponse.ok) {
+        const me = await meResponse.json()
+        setPermissions(me.permissions ?? [])
+      } else if (meResponse.status === 401) {
+        // apiFetch buraya gelene kadar yenilemeyi denedi ve başaramadı: oturum bitti.
+        clearToken()
+        navigate('/login')
+        return
+      }
+    } catch {
+      // /me gelmese de meLoaded bitsin; yoksa sonsuz Yükleniyor
+    }
+    setMeLoaded(true)
+  }
+```
+
+`apiFetch` buraya 401 ile geldiyse yenilemeyi zaten denemiş ve başaramamıştır. `clearToken` + `navigate('/login')` gerekir. `return` önemlidir; `setMeLoaded(true)` çalışmasın ki yönlendirme sırasında yetkisiz sayfa bir an görünmesin. ASP.NET MVC’de `[Authorize]` başarısız olunca `LoginPath`’e redirect benzeri bir şey vardır; React’te bunu sen yazarsın.
+
+### Bu günün sınırı
+
+Kolayı şudur: `logout` import edip `api.ts`’e yazmayı unutmak (“does not provide an export named 'logout'”); logout’u `apiFetch` ile atmak; 204’ü hata sanmak; handler `false`’u 404 yapmak (token varlığını sızdırır); `localStorage`’ı elle bozup “kod bozuldu” sanmak.
+
+Sonuçta çıkış sunucuda da gerçektir: satır iptal edilir, o ham bir daha access basamaz. Oturumu bitmiş kullanıcı yetkisiz sayfada kalmaz; login’e gider. Reuse detection (iptal token tekrar gelirse tüm aktif satırlar) bölüm 36.
+
+---
+
+## N. Reuse detection — bölüm 36 (17 Eylül)
+
+34’te rotation şunu yaptı: her başarılı yenilemede kullanılan refresh token satırı `Revoke` edilir ve kullanıcıya yeni bir refresh token verilir. Yani refresh token tek kullanımlıktır. Normal istemci iptal edilmiş hamı bir daha göndermez. Gönderildiyse iki açıklama vardır: token sızmış ve hem saldırgan hem gerçek kullanıcı aynı zinciri kullanmaya çalışıyordur, ya da istemci aynı hamı iki kez yollayan bir hata yapıyordur. (Buradaki her “token” refresh token’dır; access JWT bu tabloda tutulmaz.)
+
+16 Eylül’e kadar iptal satır ikinci kez gelince handler yalnız `null` dönüyordu: istek 401 alıyor, saldırganın elindeki **yeni** zincir (rotation’da basılan B) yaşamaya devam ediyordu. 17 Eylül’de tek dosya değişti: `RefreshCommandHandler`. Frontend’e dokunulmadı; 34’teki `refreshInFlight` bu özelliği yanlış alarmdan korur.
+
+### Rotation’ı bir kez daha
+
+```64:72:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/RefreshCommandHandler.cs
+        existing.Revoke(utcNow);
+        //Dört ayrı başarısızlık durumunun hepsi aynı null'u döndürüyor; login'deki "email sızdırmama" mantığının aynısı.
+        //existing.Revoke(utcNow) satırından sonra ayrıca bir Update çağırmıyoruz, çünkü satırı sorguyla çektiğimiz an EF onu takibe alıyor;
+        //SaveChangesAsync değişikliği kendisi UPDATE'e çeviriyor. Aynı SaveChanges hem eski satırın RevokedAtUtc'sini hem yeni satırın INSERT'ünü tek transaction'da yazıyor — rotation tam olarak bu.
+
+        var (rawRefresh, newHash, expires) = _refreshTokens.Create(utcNow);
+        _db.RefreshTokens.Add(RefreshToken.Create(user.Id, newHash, expires, utcNow));
+
+        await _db.SaveChangesAsync(cancellationToken);
+```
+
+Sızmış refresh’in ömrü bir sonraki yenilemeye kadar kısalır. Daha önemlisi: iptal edilmiş ham ikinci kez gelince bunun anormal olduğunu anlayabilirsin. Bu bölüm o bilgiyi kullanır.
+
+### Kod — iptal satır tekrar gelirse tüm aktifler
+
+```35:54:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/RefreshCommandHandler.cs
+        if (existing.RevokedAtUtc is not null)
+        {
+            // Rotation yüzünden her refresh token tek kullanımlık. İptal edilmiş bir token
+            // ikinci kez geldiyse aynı zinciri iki taraf tutuyor demektir; çalınmış varsayıyoruz.
+
+            var activeTokens = await _db.RefreshTokens
+                .Where(t => t.UserId == existing.UserId && t.RevokedAtUtc == null)
+                .ToListAsync(cancellationToken);
+
+            
+            if (activeTokens.Count > 0)
+            {
+                foreach (var activeToken in activeTokens)
+                    activeToken.Revoke(utcNow);
+
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+                
+            return null;
+        }
+```
+
+Sorgu, gelen satırın `UserId`’si üzerinden o kullanıcının **iptal edilmemiş** tüm refresh satırlarını çeker. `RevokedAtUtc == null` olmasa eski iptalli satırlar da gelirdi; `Revoke` içinde zaten no-op vardır ama boşuna satır çekilir.
+
+Çekilen satırlar EF change tracking’e girer; `foreach` içinde `Revoke` yeter, `Update` gerekmez. Tek `SaveChangesAsync` hepsini UPDATE yazar. SQL kabaca `WHERE UserId = @p AND RevokedAtUtc IS NULL`.
+
+`return null` her durumda çalışır: aktif satır bulunsa da bulunmasa da istek 401’dir. Neden başarısız olduğu sızmaz (bölüm 8).
+
+`if (activeTokens.Count > 0)` isteğe bağlıdır. EF takipte değişiklik yoksa `SaveChangesAsync` veritabanına gitmez. Asıl niyet `foreach` + `SaveChanges`’tir.
+
+### Yanlış alarm ve `refreshInFlight`
+
+İki istek aynı anda 401 alıp ikisi de aynı ham refresh’i gönderse, birincisi rotation yapar, ikincisi iptal satırla gelir. Reuse detection ikinciyi “çalınma” sanır ve kullanıcının tüm aktif satırlarını kapatır. Sebepsiz her yerden çıkış.
+
+```23:28:web/src/api.ts
+let refreshInFlight: Promise<boolean> | null = null
+
+async function refreshSession(): Promise<boolean> {
+  if (refreshInFlight) {
+    return refreshInFlight
+  }
+```
+
+34’te yazılan bu üç satır tam bunu engeller: paralel 401’lerde ikinci çağrı yeni yenileme başlatmaz, birincinin sonucunu bekler. StrictMode’un `/me`’yi iki kez atması (bölüm 19) bu yüzden sorun çıkarmaz.
+
+### Kim tetikler, nasıl test edilir
+
+Gerçek kullanıcı akışında bu isteği kimse atmaz. Scalar’dan elle veya sızmış token ile gelir. Frontend sonucu: refresh 401 → `refreshSession` `clearToken` → layout `/me` kapısı (35) login’e gider. Kullanıcı şifreyle yeniden girer; saldırganda şifre yoktur, zincir kopar.
+
+17 Eylül testi: (1) Uygulamadan giriş, `localStorage`’daki refresh’i kopyala — **A**. (2) Scalar `POST /refresh` gövdesine A → **200**, cevapta yeni refresh — **B**; SSMS’te A’nın `RevokedAtUtc` dolar (rotation). (3) Aynı istek A ile ikinci kez → **401**; SSMS’te B de iptal (reuse detection). (4) B gönder → **401**. (5) O kullanıcının tüm satırlarında `RevokedAtUtc` dolu. Üçüncü adım özelliğin kanıtıdır: eskiden orada yalnız 401 olurdu, B yaşardı.
+
+### İptal ile süre dolması ayrıdır
+
+Süresi dolan refresh kendi kendine `Revoke` olmaz. Arka plan işi yoktur; `RefreshExpireDays` yalnız `ExpiresAtUtc` hesaplar. Kontrol istek anındadır:
+
+```57:58:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/RefreshCommandHandler.cs
+        if (existing.ExpiresAtUtc <= utcNow)
+            return null;
+```
+
+İkisi de 401 üretir ama SSMS’te farklı görünür: birinde `RevokedAtUtc` dolu, öbüründe boş ama `ExpiresAtUtc` geçmişte. Çalınan token en fazla yedi gün işe yarar; rotation varsa genelde daha az — gerçek kullanıcı bir kez yenileyince çalınan satır iptal olur, sonraki kullanım reuse detection’a düşer. Eski satırlar tabloda birikir; üretimde temizlik ayrı iştir, şimdilik yok.
+
+### Bu günün sınırı
+
+Kolayı şudur: `return null`’u atlamak; yalnız gelen satırı iptal edip diğerlerini bırakmak (saldırganın B’si yaşar); `RevokedAtUtc == null` filtresini yazmamak; `refreshInFlight` olmadan reuse açmak (paralel 401 kullanıcıyı atar).
+
+Sonuçta çalınmış refresh ikinci kullanımda o kullanıcının bütün aktif oturumlarını kapatır. Auth kod tarafında açık madde kalmaz. Özet: kimlik JWT, yetki DB, oturum refresh — bölüm 37.
+
+---
+
+## O. Üç kelimeyi yerleştir — bölüm 37 (18 Eylül)
+
+Bu bölüm yeni endpoint yazmaz. 16 Temmuz Register’dan 17 Eylül reuse detection’a kadar olan işin bugünkü hâlidir. Amaç üç kelimeyi kodda nereye denk geldiğini unutmamaktır: authentication (kimsin), authorization (ne yapabilirsin), refresh token (oturum ne kadar sürer).
+
+Kronoloji tek cümle: önce kimlik (Register, Login, JWT, `[Authorize]`), sonra arayüz (React login / Bearer / `/me`), sonra yetki tabloları (RBAC + `HasPermission`), sonra oturum süresi (refresh + rotation + logout + reuse detection). JWT login bitince arayüzsüz test zorlaştığı için React’e geçmiştik. Yetki JWT’ye gömülmesin diye RBAC’te backend’e dönmüştük. Access 60 dakikada ölünce yine backend’e refresh için dönmüştük.
+
+### Authentication — kimsin
+
+Kimlik `AuthController`’daki action’lardadır. Register ve Login şifreyle kim olduğunu kanıtlar. Refresh ve Logout elindeki ham refresh token ile oturumu uzatır veya kapatır. `/me` access JWT olmadan çalışmaz.
+
+```29:32:ReactBattleArena/ReactBattleArena.Api/Controllers/AuthController.cs
+    [AllowAnonymous]//Böylece ileride global [Authorize] eklesek bile login/register çalışır.
+    [HttpPost("register")]
+    [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+```
+
+```44:46:ReactBattleArena/ReactBattleArena.Api/Controllers/AuthController.cs
+    [AllowAnonymous]//Böylece ileride global [Authorize] eklesek bile login/register çalışır.
+    [HttpPost("login")]
+    [ProducesResponseType(typeof(LoginResult), StatusCodes.Status200OK)]
+```
+
+```62:65:ReactBattleArena/ReactBattleArena.Api/Controllers/AuthController.cs
+    [AllowAnonymous]
+    //[AllowAnonymous] şart: bu endpoint'e gelindiğinde access token çoktan ölmüş olacak,
+    //[Authorize] koyarsak 401 döngüsüne gireriz. [HasPermission] de yok, çünkü bu bir oturum kapısı, bir fiil kapısı değil.
+    [HttpPost("refresh")]
+```
+
+```80:83:ReactBattleArena/ReactBattleArena.Api/Controllers/AuthController.cs
+    [AllowAnonymous]
+    [HttpPost("logout")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+```
+
+Refresh ve Logout’ta `[AllowAnonymous]` bilinçlidir: access ölmüşken de yenilemek ve çıkış yapmak gerekir. `[Authorize]` koysan 401 döngüsü olur.
+
+```98:101:ReactBattleArena/ReactBattleArena.Api/Controllers/AuthController.cs
+    [Authorize]
+    [HttpGet("me")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+```
+
+`/me` tam tersidir: token’daki `NameIdentifier` (veya `sub`) olmadan kullanıcı id’si yoktur.
+
+Access JWT’nin içinde bugün rol yoktur. Claim listesi kimlik bilgisidir:
+
+```22:28:ReactBattleArena/ReactBattleArena.Infrastructure/Security/JwtTokenService.cs
+        var claims = new[]
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName),
+            new Claim(JwtRegisteredClaimNames.Email, user.Email),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+        };
+```
+
+22 Temmuz’da burada `ClaimTypes.Role` de vardı; 18 Eylül’de kalktı (bölüm 38). Sunucu access token’ı tabloda saklamaz; imza `Jwt:Key` ile doğrulanır. Süre `ExpireMinutes` (60). Parola BCrypt ile `PasswordHash` kolonunda durur; JWT imzası ile karıştırılmaz.
+
+Frontend: `LoginPage` → `POST /api/auth/login` → `setToken` + `setRefreshToken`; korumalı sayfalar `apiFetch` ile `Authorization: Bearer`. Cookie auth yok; Bearer header var.
+
+### Authorization — ne yapabilirsin
+
+Yetki access JWT’de değildir. Zincir `UserRoles` → `RolePermissions` → `Permissions.Code`. Her istekte join:
+
+```15:25:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/UserPermissionService.cs
+    public async Task<IReadOnlyList<string>> GetCodesAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await (
+            from ur in _db.UserRoles
+            join rp in _db.RolePermissions on ur.RoleId equals rp.RoleId
+            join p in _db.Permissions on rp.PermissionId equals p.Id
+            where ur.UserId == userId
+            select p.Code
+        ).Distinct().ToListAsync(cancellationToken);
+```
+
+`Distinct` aynı izni iki rol verse bir kez döner. Controller’da rol adı yazılmaz; izin kodu yazılır:
+
+```46:47:ReactBattleArena/ReactBattleArena.Api/Controllers/CharactersController.cs
+    [HasPermission(PermissionCodes.CharactersCreate)]  // POST
+    [HttpPost]
+```
+
+```4:10:ReactBattleArena/ReactBattleArena.Api/Authorization/HasPermissionAttribute.cs
+public sealed class HasPermissionAttribute : AuthorizeAttribute
+{
+    public HasPermissionAttribute(string permission)
+    {
+        Policy = "Permission:" + permission;
+    }
+}
+```
+
+`HasPermission` bir `AuthorizeAttribute` türevidir; policy adı `"Permission:" + kod`. Provider requirement üretir, handler `IUserPermissionService`’e sorar. JWT’de izin claim’i olmadığı için yetki değişince yeniden login gerekmez.
+
+Frontend gizleme yetki değildir. `hasPermission` dizide kod var mı diye bakar; API yine 403 dönebilir. Liste `/me`’nin `permissions` alanından gelir, `AppLayout` `PermissionContext` ile paylaşır. `&&` ile link gizlemek, URL’yi elle yazanın POST’unu durdurmaz.
+
+### Refresh token — oturum ne kadar sürer
+
+Access 60 dakikada ölür. Refresh ham hâli `localStorage`’da, hash’i `RefreshTokens.TokenHash`’te (SHA256, unique). Login hash’i yazar, hamı JSON’a koyar. `POST /api/auth/refresh` rotation yapar: eski satır `Revoke`, yeni çift cevapta. İptal edilmiş refresh tekrar gelirse reuse detection o kullanıcının tüm aktif satırlarını iptal eder (36). `POST /api/auth/logout` yalnız o cihazın satırını iptal eder.
+
+`apiFetch` 401’de `refreshSession` çağırır; refresh’in kendisi düz `fetch` (döngü olmasın). `refreshInFlight` paralel 401’lerde tek yenileme. 403’e dokunulmaz — o yetki yok demektir, süre değil. Yenileme de başarısızsa `AppLayout` `/me` 401’inde `clearToken` + `/login` (35).
+
+### 401 / 403 / refresh
+
+Authentication 401’dir: token yok, bozuk veya süresi dolmuş. Authorization 403’tür: token geçerli, izin kodu yok. Refresh üçüncü şeydir: yeni access üretir, izin listesini değiştirmez. Refresh’i `HttpOnly` cookie’ye taşımak ayrı karar; bugün saklama yeri `localStorage`.
+
+### Sonuç
+
+Kimlik JWT, yetki DB join, oturum süresi refresh token. 27 Temmuz’daki `Users.Role` string modeli Characters yazmada Ağustos’ta `HasPermission` ile, kolon olarak 18 Eylül’de (bölüm 38) kapandı.
+
+---
+
+## P. `Users.Role` kolonu kalkar — bölüm 38 (18 Eylül)
+
+37 özetledi: kimlik JWT, yetki join, oturum refresh. Ama 27–28 Temmuz’un string rolü üç yerde hâlâ duruyordu: `Users.Role` kolonu, JWT’deki `ClaimTypes.Role`, ve `UsersController` Delete’teki `[Authorize(Roles = Roles.Admin)]` (veya yorumlanmış hâli). 18 Eylül’de o artıklar silindi.
+
+Sıra bilinçliydi. Önce Delete’i `users.delete` izin koduna bağladık, sonra claim’i ve kolonu kaldırdık. Tersi olsaydı: `[Authorize(Roles)]` kalkar, JWT’de rol kalmaz, Delete attribute’suz herkese açık kalırdı.
+
+Dosya sırası: `PermissionCodes.UsersDelete` + seed Admin’e o izni verdi → `UsersController` `HasPermission` → `JwtTokenService`’ten rol claim’i çıktı → `User.Role` / `SetRole` / `Create`’teki `role` / configuration kalktı → Register ve CreateUser kolona `"Player"` yazmayı bıraktı → seed’deki `Users.Role` → `UserRoles` aktarım döngüsü silindi → `DropUserRoleColumn` migration + `database update`.
+
+### Neden kolon yetmiyordu
+
+Tek string kolon bir kullanıcının tek rolü olduğunu varsayar. RBAC’te kullanıcı birden fazla role girebilir (`UserRoles`) ve yetki rol adına değil izin koduna bağlıdır. Kolon durduğu sürece ikinci doğruluk kaynağı vardı: `Users.Role = "Player"` iken `UserRoles`’ta Admin satırı olabilirdi. JWT claim’i o kolonu taşıdığı için `[Authorize(Roles)]` kolondaki eski değere bakardı; `HasPermission` tabloya bakardı.
+
+### Entity’den kolonun çıkması
+
+```24:40:ReactBattleArena/ReactBattleArena.Domain/Users/User.cs
+    public static User Create(
+        string userName,
+        string email,
+        string? displayName,
+        string passwordHash,
+        DateTime utcNow)
+    {
+        return new User
+        {
+            Id = Guid.NewGuid(),
+            UserName = userName,
+            Email = email,
+            DisplayName = displayName,
+            PasswordHash = passwordHash,
+            Points = 0,
+            CreatedAtUtc = utcNow
+        };
+    }
+```
+
+28 Temmuz’da beşinci parametre `string role` idi ve `Role = role` atanıyordu. `SetRole` da vardı. İkisi gitti. Register hâlâ Player’ı **ayrı tabloya** yazar; kolonla işi kalmadı:
+
+```42:57:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/RegisterCommandHandler.cs
+        var entity = User.Create(
+            request.UserName,
+            request.Email,
+            request.DisplayName,
+            passwordHash,
+            DateTime.UtcNow);
+
+        _db.Users.Add(entity);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        var playerRole = await _db.Roles.SingleAsync(
+            r => r.Name == Roles.Player, cancellationToken);
+        //Rol yoksa (seed çalışmamış) sessizce geçme, patlat ki fark edesin.
+
+        _db.UserRoles.Add(UserRole.Create(entity.Id, playerRole.Id));
+        await _db.SaveChangesAsync(cancellationToken);
+```
+
+İki `SaveChanges`: önce `Users.Id` üretilsin, sonra `UserRoles.UserId` o Guid’i alsın. Rol yoksa `SingleAsync` fırlatır.
+
+`CreateUserCommandHandler` aynı `User.Create` imzasını kullanır ama `UserRoles` satırı yazmaz. Bu bugün açılan boşluk değildir; Admin `POST /api/users` ile eklediği kullanıcıda izin listesi boş kalır. Register akışı etkilenmez. CreateUser’a `UserRoles` eklemek ayrı iştir.
+
+```21:22:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/UserConfiguration.cs
+        builder.Property(x => x.PasswordHash).IsRequired().HasMaxLength(500);
+        //UserName ve Email unique — aynı kullanıcı / mail iki kez eklenemez.
+```
+
+Burada `builder.Property(x => x.Role)...` vardı. Property entity’den düşünce mapping de düşmezse build, mapping durup kolon düşünce runtime patlardı. İkisi birlikte gitti.
+
+### Delete: rol adı yerine izin kodu
+
+`[Authorize(Roles = Roles.Admin)]` yorumlanmış veya kalkmışken Delete attribute’suz kalabilirdi. Temizlik onu açık bırakmak değildir; Characters CUD ile aynı kapıya bağlamaktır:
+
+```77:78:ReactBattleArena/ReactBattleArena.Api/Controllers/UsersController.cs
+    [HasPermission(PermissionCodes.UsersDelete)]
+    [HttpDelete("{id:guid}")]
+```
+
+```8:9:ReactBattleArena/ReactBattleArena.Domain/Authorization/PermissionCodes.cs
+    public const string ShopItemsCreate = "shop.items.create";
+    public const string UsersDelete = "users.delete";
+```
+
+```18:18:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/AuthSeeder.cs
+        await EnsurePermissionAsync(db, PermissionCodes.UsersDelete, cancellationToken);
+```
+
+```26:26:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/AuthSeeder.cs
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.UsersDelete, cancellationToken);
+```
+
+Seed idempotent’tir. Player ve ShopOwner’a `users.delete` verilmedi; eski “yalnız Admin silebilir” davranışı korundu, ama controller’da `Roles.Admin` string’i yoktur. Api açılınca seed çalışır; eski token’da rol claim’i olsa bile handler DB’ye bakar.
+
+Create ve Update hâlâ yalnız `[Authorize]` (giriş yapmış herkes). Bu 18 Eylül’ün kapsamı değildi; eski model yalnız Delete’te Admin string’i kullanıyordu.
+
+### JWT’den rol claim’i
+
+```22:28:ReactBattleArena/ReactBattleArena.Infrastructure/Security/JwtTokenService.cs
+        var claims = new[]
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName),
+            new Claim(JwtRegisteredClaimNames.Email, user.Email),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+        };
+```
+
+`CreateToken` artık `user.Role` okumaz; property yoktur. `[Authorize(Roles = ...)]` hiçbir Characters/Users yazma kapısında kalmadığı için claim’i bırakmanın işlevi yoktu. `/me` id’yi `NameIdentifier` / `sub` ile, izinleri `GetCodesAsync` ile alır.
+
+### Seed aktarım döngüsü ve migration
+
+21 Ağustos’ta `AuthSeeder` her açılışta `Users.Role` string’ini okuyup `UserRoles` yoksa ekliyordu. Kolon gidince o kod derlenmez. Döngü silindi; mevcut kullanıcıların `UserRoles` satırları o seed’den beri duruyor. Yeni kayıt Register handler’dan gelir.
+
+```13:16:ReactBattleArena/ReactBattleArena.Infrastructure/Migrations/20260918112656_DropUserRoleColumn.cs
+            migrationBuilder.DropColumn(
+                name: "Role",
+                table: "Users");
+```
+
+`Up` kolonu düşürür. `Down` `nvarchar(50) NOT NULL default ""` ile geri ekler; geri alınırsa eski string boş gelir, `UserRoles` etkilenmez. Komut: `dotnet ef migrations add DropUserRoleColumn` sonra `database update`.
+
+### Bu günün sınırı
+
+Delete: Bearer + `users.delete` yoksa 403, token yoksa 401. Register kolon yazmaz, `UserRoles` Player yazar. Login JWT’de rol claim’i taşımaz; `/me` yine join’den izin doldurur.
+
+Kolayı şudur: `[Authorize(Roles)]`’i “kaldırdım” sanıp Delete’i açık bırakmak; claim’i silip Roles attribute’unu unutmak; entity’den `Role`’ü silip configuration’da property bırakmak; migration’sız çalıştırıp kolon hatası almak; CreateUser’ın `UserRoles` yazmamasını bu temizlikle karıştırmak.
+
+Kalan (bilinçli): refresh `localStorage`; süresi dolmuş `RefreshTokens` birikir; CreateUser `UserRoles` yazmaz.
+
+### Sonuç
+
+Tek doğruluk kaynağı `UserRoles` + `RolePermissions`. JWT kimlik taşır, yetki taşımaz. Authentication / authorization / refresh üçlüsü kodda da bu dosyada da aynı modeli anlatır. 7–9 auth dosyası burada biter.
