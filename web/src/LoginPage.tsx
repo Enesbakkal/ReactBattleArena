@@ -11,6 +11,7 @@ function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    //e.preventDefault() tarayıcının kendi form GET'ini keser. Ardından hata metni temizlenir ve apiFetch çağrılır. auth: false bu isteğe Bearer koymaz. Gövde userNameOrEmail ve password alanlarıdır.
     setError('')
 
     try {
@@ -62,6 +63,7 @@ function LoginPage() {
     }
   }
 
+  //Kullanıcı adı kutusu controlled input'tur. Metin state'te durur. Parola kutusunda type="password" vardır. Ekranda gizlenir, state'te ve JSON'da düz metin durur.
   return (
     <form onSubmit={handleSubmit}>
       <div>

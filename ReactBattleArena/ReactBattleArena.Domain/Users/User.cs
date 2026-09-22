@@ -1,10 +1,14 @@
-﻿namespace ReactBattleArena.Domain.Users;
+﻿using static System.Net.WebRequestMethods;
+
+namespace ReactBattleArena.Domain.Users;
 
 public sealed class User
 {
     private User()
     {
     }
+    // User.Create yeni bir Guid üretir, puanı 0 yapar, PasswordHash alanına BCrypt çıktısını yazar.
+    // Entity'nin boş constructor'ı EF içindir.Uygulama kodu Create ile nesne kurar.
 
     public Guid Id { get; private set; }
 

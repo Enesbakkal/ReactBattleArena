@@ -4,8 +4,9 @@ using Microsoft.AspNetCore.Mvc;
 namespace ReactBattleArena.Api.Middleware;
 
 public sealed class FluentValidationExceptionMiddleware
-{ //Middleware ValidationException yakalar
+{   //Middleware ValidationException yakalar
     //Hata olunca exception'ı HTTP 400'e çevirir
+    //FluentValidationExceptionMiddleware bu exception'ı (ValidationException) yakalar. Status 400 olur, gövde ValidationProblemDetails olur. Hangi alanın kırıldığı Errors sözlüğündedir.
     private readonly RequestDelegate _next;
 
     public FluentValidationExceptionMiddleware(RequestDelegate next)

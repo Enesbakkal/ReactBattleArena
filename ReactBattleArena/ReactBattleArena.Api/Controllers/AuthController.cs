@@ -29,9 +29,9 @@ public sealed class AuthController : ControllerBase
     [AllowAnonymous]//Böylece ileride global [Authorize] eklesek bile login/register çalışır.
     [HttpPost("register")]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)] // Önyüze gönderilen cevapla ilgili
     public async Task<ActionResult<Guid>> Register(
-        [FromBody] RegisterRequest body,
+        [FromBody] RegisterRequest body, // [FromBody] JSON'u RegisterRequest alanlarına bağlar. ASP.NET Core alan adını büyük-küçük harf duyarsız okur. Frontend'in userName değeri UserName alanına düşer.
         CancellationToken cancellationToken = default)
     {
         var id = await _mediator.Send(
@@ -39,6 +39,7 @@ public sealed class AuthController : ControllerBase
             cancellationToken);
 
         return Created($"/api/users/{id}", id);
+        //Created HTTP 201 yazar, Location header'ına /api/users/{id} koyar, gövdeye de aynı Guid değerini basar.
     }
 
     [AllowAnonymous]//Böylece ileride global [Authorize] eklesek bile login/register çalışır.
@@ -46,8 +47,10 @@ public sealed class AuthController : ControllerBase
     [ProducesResponseType(typeof(LoginResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    //Pipeline kayıt ile aynı sıradadır. Önce UseAuthentication, sonra UseAuthorization. Login metodu [AllowAnonymous] taşır.
+    //Header'da Bearer olmadığı için HttpContext.User boş kalır ve bu metot 401 vermez.
     public async Task<ActionResult<LoginResult>> Login(
-    [FromBody] LoginRequest body,
+    [FromBody] LoginRequest body,//Adres api/auth/login olur. [FromBody] JSON'u LoginRequest alanlarına bağlar. ASP.NET Core alan adını büyük-küçük harf duyarsız okur.
     CancellationToken cancellationToken = default)
     {
         var result = await _mediator.Send(
@@ -55,6 +58,7 @@ public sealed class AuthController : ControllerBase
             cancellationToken);
 
         return result is null ? Unauthorized() : Ok(result);
+        //Controller kullanıcı aramaz ve token basmaz. null gelirse Unauthorized() HTTP 401 yazar, gövde boştur. Dolu gelirse Ok(result) HTTP 200 yazar.
     }
     //Bu kodu kim tetikliyor? Scalar POST /api/auth/login. LoginPage fetch / sonra apiFetch aynı URL,
     //cevaptaki token saklanır.

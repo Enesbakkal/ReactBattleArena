@@ -19,7 +19,7 @@ public sealed class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<
         CancellationToken cancellationToken)
     {
         if (!_validators.Any())
-            return await next();
+            return await next();// Hata yoksa handler'a geç
 
         var context = new ValidationContext<TRequest>(request);
 
@@ -36,4 +36,5 @@ public sealed class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<
     }
 }
 
-//Ne yapar? Handler çalışmadan önce validator kurallarını çalıştırır; hata varsa ValidationException fırlatır.
+// Ne yapar? Handler çalışmadan önce validator kurallarını çalıştırır; hata varsa ValidationException fırlatır.
+// ValidationBehavior bu kuralları handler'dan önce çalıştırır. Hata varsa ValidationException atar ve next() çağrılmaz. Users tablosuna satır gitmez.

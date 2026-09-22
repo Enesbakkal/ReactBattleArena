@@ -89,7 +89,7 @@ type ApiFetchOptions = {
   auth?: boolean
 }
 
-export async function apiFetch(
+export async function apiFetch(// tarayıcının HttpClient'ı olarak düşünebiliriz
   path: string,
   options: ApiFetchOptions = {},
 ): Promise<Response> {
@@ -101,7 +101,7 @@ export async function apiFetch(
     headers['Content-Type'] = 'application/json'
   }
 
-  if (auth) {// Login yaparken auth olmadığı için buraya girmez
+  if (auth) {// Login yaparken auth(false) olmadığı için buraya girmez
     // Backend'e henüz gidilmedi. JWT bu satırda Api'den gelmez.
     // Login'de gelmişti: POST /api/auth/login → data.token → setToken → localStorage 'token'.
     // Şimdi çekmeceden okuyoruz, header'a yazıyoruz, ONDAN SONRA alttaki fetch gider.
@@ -129,6 +129,8 @@ export async function apiFetch(
   if (response.status !== 401 || auth === false) {
     return response
   }
+
+  //apiFetch, cevap 401 ise ve auth true ise POST /api/auth/refresh dener. Register'da auth false olduğu için bu dal çalışmaz. Kayıt cevabı 401 beklemez. Access token bitince yenileme, oturumu uzatma işidir.
   const refreshed = await refreshSession()
   if (!refreshed) {
     return response

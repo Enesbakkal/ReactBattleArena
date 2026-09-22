@@ -20,5 +20,8 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.HasIndex(x => x.Email).IsUnique();
         builder.Property(x => x.PasswordHash).IsRequired().HasMaxLength(500);
         //UserName ve Email unique — aynı kullanıcı / mail iki kez eklenemez.
+        // EF eşlemesi tabloyu Users diye açar. Kullanıcı adı ve e-posta unique'dir.
+        // PasswordHash zorunludur ve en fazla 500 karakterdir.
+        // Validator'daki 100 karakterlik parola sınırı düz metin içindir. Kolondaki 500, BCrypt string'i içindir.
     }
 }

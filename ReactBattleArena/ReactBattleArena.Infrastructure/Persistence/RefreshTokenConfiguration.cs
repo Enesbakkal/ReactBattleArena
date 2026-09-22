@@ -9,6 +9,8 @@ public sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refresh
 {
     public void Configure(EntityTypeBuilder<RefreshToken> builder)
     {
+        //EF tabloyu RefreshTokens diye açar. TokenHash zorunlu, en fazla 64 karakter ve unique'dir.
+        //Aynı hash iki satıra yazılamaz. UserId için ayrıca index vardır. Kullanıcı silinirse onun refresh token satırları da silinir.
         builder.ToTable("RefreshTokens");
         builder.HasKey(x => x.Id);
 

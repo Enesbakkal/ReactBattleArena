@@ -12,6 +12,8 @@ public sealed class UserRoleConfiguration : IEntityTypeConfiguration<UserRole>
     {
         builder.ToTable("UserRoles");
         builder.HasKey(x => new { x.UserId, x.RoleId });
+        //Birincil anahtar bu ikilidir. Aynı kullanıcıya aynı rol ikinci kez yazılamaz.
+        //Kullanıcı silinirse onun UserRoles satırları da silinir. Rol satırı, kendisine bağlı UserRoles varken silinemez.
 
         builder.HasOne<User>()
             .WithMany()

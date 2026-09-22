@@ -33,6 +33,7 @@ public sealed class RefreshToken
             CreatedAtUtc = utcNow
         };
     }
+    // Create RevokedAtUtc atamaz. Yeni satırda bu alan boştur. Revoke doluysa ikinci kez yazmaz. Boşsa utcNow yazar. Çıkış bu metodu çağırır. Giriş çağırmaz.
 
     public void Revoke(DateTime utcNow)
     {

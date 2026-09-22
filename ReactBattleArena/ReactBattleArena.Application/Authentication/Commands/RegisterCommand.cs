@@ -6,4 +6,4 @@ public sealed record RegisterCommand(
     string UserName,
     string Email,
     string? DisplayName,
-    string Password) : IRequest<Guid>;
+    string Password) : IRequest<Guid>; //IRequest<Guid> handler'ın Guid döneceğini söyler.
