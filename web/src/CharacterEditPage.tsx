@@ -6,12 +6,14 @@ import { hasPermission, PERMISSIONS } from './permissions'
 import { usePermissions } from './PermissionContext'
 
 function CharacterEditPage() {
-  const { id } = useParams<{ id: string }>()
+  const { id } = useParams<{ id: string }>() // useParams ile URL'deki id değerini alır.
   const navigate = useNavigate()
   // const token = localStorage.getItem('token')   buna gerek kalmadfı ortak auth yazdık
   const token = getToken()
-  const permissions = usePermissions()
-
+  const permissions = usePermissions() //CharacterEditPage URL'deki id değerini useParams ile alır. 
+  //Access token'ı getToken ile, dizi usePermissions ile okur. Diziyi gönderen istek GET /api/auth/me olur. 
+  // Bu isteği CharacterEditPage atmaz. AppLayout içindeki loadMe atar, cevaptaki permissions alanını state'e yazar ve PermissionContext ile alta verir. 
+  // Düzenleme sayfası o state'i okur.
   const [name, setName] = useState('')
   const [universe, setUniverse] = useState('')
   const [biography, setBiography] = useState('')
@@ -152,7 +154,7 @@ function CharacterEditPage() {
       }
 
       // 204 No Content — body yok; json() çağırma
-      navigate(`/characters/${id}`)
+      navigate(`/characters/${id}`) //sayfa 204 gövdesini json() ile açmaz. Adres /characters/{id} olur.
     } catch {
       setFormError('API’ye ulaşılamadı')
     }
@@ -167,6 +169,8 @@ function CharacterEditPage() {
   if (!hasPermission(permissions, PERMISSIONS.charactersUpdate)) {
     return <Navigate to="/characters" replace />
   }
+  //hasPermission bellekteki diziyi okur. PUT atmaz. Link gizlense de adres elle yazılabilir(çünkü ona ait authorize HAspermission yada if yok). Sayfa kapısı da PUT atmaz. İkisi de /me cevabındaki diziyi kullanır. PUT kararı API'dedir.
+  // Düzenle linkini gizlemek bu 403 kararının yerine geçmez.
 
   return (
     <div className="characters-page">

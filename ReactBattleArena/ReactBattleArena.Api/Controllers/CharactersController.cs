@@ -43,7 +43,7 @@ public sealed class CharactersController : ControllerBase
         return result is null ? NotFound() : Ok(result);
     }
 
-    [HasPermission(PermissionCodes.CharactersCreate)]  // POST
+    [HasPermission(PermissionCodes.CharactersCreate)]  // POST - HasPermissionAttribute - GetPolicyAsync - HandleRequirementAsync
     [HttpPost]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -51,6 +51,8 @@ public sealed class CharactersController : ControllerBase
         [FromBody] CreateCharacterRequest body,
         CancellationToken cancellationToken = default)
     {
+        //Player kullanıcısında join boş kalır. characters.create listede yoktur.
+        //Succeed çağrılmaz. Kimlik geçerlidir, fiil yoktur. Cevap 403 olur. MediatR'a inilmez. Characters tablosuna satır yazılmaz.
         var id = await _mediator.Send(
             new CreateCharacterCommand(
                 body.Name,
@@ -89,7 +91,7 @@ public sealed class CharactersController : ControllerBase
                 body.ImageUrl),
             cancellationToken);
 
-        return updated ? NoContent() : NotFound();
+        return updated ? NoContent() : NotFound(); // controller 204 döner.
     }
 
     [HasPermission(PermissionCodes.CharactersDelete)]  // DELETE

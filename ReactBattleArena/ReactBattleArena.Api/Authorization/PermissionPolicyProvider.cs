@@ -25,8 +25,8 @@ public sealed class PermissionPolicyProvider : IAuthorizationPolicyProvider
         {
             var code = policyName[Prefix.Length..];
             var policy = new AuthorizationPolicyBuilder()
-                .RequireAuthenticatedUser()
-                .AddRequirements(new PermissionRequirement(code))
+                .RequireAuthenticatedUser() // Access token yoksa, imzası bozuksa veya süresi dolmuşsa RequireAuthenticatedUser geçmez. Cevap 401 olur. 
+                .AddRequirements(new PermissionRequirement(code)) // HandleRequirementAsync
                 .Build();
 
             return Task.FromResult<AuthorizationPolicy?>(policy);

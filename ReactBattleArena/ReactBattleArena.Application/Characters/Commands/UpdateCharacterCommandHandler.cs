@@ -19,7 +19,7 @@ public sealed class UpdateCharacterCommandHandler : IRequestHandler<UpdateCharac
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
         if (entity is null)
-            return false;
+            return false; // controller 404 yazar
 
         entity.Update(
             request.Name,

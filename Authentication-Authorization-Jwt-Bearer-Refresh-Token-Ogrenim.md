@@ -161,6 +161,8 @@ Scalar aynı POST'u API'nin kendi adresinden atar. O çağrı bu origin listesin
   }
 ```
 
+
+
 ## Pipeline ve controller
 
 İstek API'ye girince middleware sırası şöyledir. Kimlik bakışı yetki bakışından önce gelir.
@@ -540,6 +542,8 @@ Player'ın hangi fiile sahip olduğu, `RolePermissions` satırı ve permission k
       </p>
 ```
 
+
+
 ## Bu kod yanlış kullanılırsa
 
 `e.preventDefault()` unutulursa tarayıcı formu kendi yönteminde gönderir. `apiFetch` çalışmaz, API'ye JSON gitmez.
@@ -849,7 +853,7 @@ builder.Services
 
 `AddAuthentication` şemayı JwtBearer yapar. `AddJwtBearer` doğrulama kuralını kaydeder. Bu iki satır DI kaydıdır. İsteğin üstünden geçen middleware `UseAuthentication` ve ondan sonra `UseAuthorization` satırlarıdır. `ValidateLifetime` true olduğu için süresi dolmuş access token geçersiz kalır. O durumda `[Authorize]` `401` verir. Yenisini almak refresh token ile olur. O çağrı oturumu uzatma işidir.
 
-BCrypt hash'i ile JWT imzası aynı işlem değildir. BCrypt parolayı `PasswordHash` kolonunda saklar. HMAC-SHA256 access token'ı imzalar. Access token'ın veritabanı satırı yoktur.
+BCrypt parola hash'ler. Bu işlem `BCryptPasswordHasher.Hash` içindedir. Sonuç `Users.PasswordHash` kolonuna yazılır. JWT imzası `JwtTokenService.CreateToken` içindeki `SigningCredentials` satırındadır. Algoritma HMAC-SHA256'dır, anahtar `Jwt:Key` değeridir. Bu imzalı string tabloya yazılmaz.
 
 ## Refresh token ve TokenHash
 
@@ -1142,6 +1146,8 @@ Karakter listesinin GET'i ayrıdır. `GetPaged` üzerinde `[Authorize]` yoktur. 
     }
 ```
 
+
+
 ## Bu kod yanlış kullanılırsa
 
 `auth: true` ile login atılırsa ve tarayıcıda eski bir access token duruyorsa istek Bearer taşır. Login `[AllowAnonymous]` olduğu için bunu şart koşmaz. Asıl karışma `401` dalındadır. Yanlış parola `401` döner. `auth` true ise `apiFetch` bunu bitmiş oturum sanıp `POST /api/auth/refresh` dener. Login `auth: false` ile gider, yanlış parola düz `401` kalır.
@@ -1165,3 +1171,901 @@ Ham refresh token kolona da yazılırsa veritabanını okuyan kişi oturumu uzat
 `setToken` sonrası `navigate` unutulursa token durur, müşteri login formunda kalır. Layout'a geçilmediği için `/me` de atılmaz.
 
 Giriş tutunca tarayıcıda access token ve ham refresh token vardır, `RefreshTokens` satırında SHA256 `TokenHash` vardır, `/me` bu access token'ı Bearer ile gönderir ve `[Authorize]` kimliği kabul eder. Fiil listesi JWT'de değildir, join'den gelir. Sıradaki iş karakter eklemektir.
+
+# Karakter ekle
+
+Müşteri yeni bir karakter yazmak ister. İstek `POST /api/characters` olur. Header'da `Authorization: Bearer` ve access token vardır. API önce kim olduğuna, sonra `characters.create` kodunun onda olup olmadığına bakar. Kod varsa karakter yazılır ve cevap `201` olur. Kod yoksa cevap `403` olur. Ekran aynı kararı iki yerde uygular: listedeki Ekle linki ve `/characters/new` sayfasının kendisi.
+
+İstek şu sırayla yürür:
+
+1. Liste sayfası `hasPermission` ile `characters.create` koduna bakar. Kod dizide yoksa Karakter ekle linki çizilmez. Bu çizim `POST` atmaz.
+2. Adres elle `/characters/new` yazılırsa `CharacterCreatePage` aynı diziye bakar ve `/characters` adresine döner. Bu `if` de `POST` atmaz.
+3. Form `apiFetch` ile `POST /api/characters` atar. `auth` yazılmaz. Varsayılan true olduğu için Bearer gider.
+4. Access token bitmişse `apiFetch` bu `401` üzerinde `POST /api/auth/refresh` dener. `403` bu dala girmez.
+5. Pipeline önce `UseAuthentication`, sonra `UseAuthorization` çalışır. `[HasPermission(PermissionCodes.CharactersCreate)]` policy adını `Permission:characters.create` yapar. Policy `RequireAuthenticatedUser` ile kimliği de şart koşar.
+6. Aynı `PermissionAuthorizationHandler` `GetCodesAsync` ile `UserRoles`, `RolePermissions` ve `Permissions` tablolarını okur. Listede `characters.create` varsa `Succeed` çağrılır.
+7. `ValidationBehavior` kuralları bozulursa cevap `400` olur. Handler çalışmaz.
+8. Handler `Character.Create` ile satır kurar, `SaveChangesAsync` yazar, controller `201` ve `Guid` döner.
+9. Sayfa `201` görünce `/characters` adresine gider. `403` gelirse `Yetkin yok` yazar.
+
+Karakter eklemek için join'in `characters.create` kodunu bulması gerekir. Join iki tablodan geçer. `UserRoles` kullanıcının hangi role bağlı olduğunu söyler. `RolePermissions` o rolün hangi koda bağlı olduğunu söyler. Bu iki satırı yazan metotlar ayrıdır.
+
+`UserRoles` satırını yazan metot `RegisterCommandHandler.Handle` olur. Yeni kullanıcının `Id` değeri ile `Player` rolünün `Id` değerini alır.
+
+```54:61:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/RegisterCommandHandler.cs
+        var playerRole = await _db.Roles.SingleAsync(
+            r => r.Name == Roles.Player, cancellationToken);
+
+        _db.UserRoles.Add(UserRole.Create(entity.Id, playerRole.Id));
+        await _db.SaveChangesAsync(cancellationToken);
+```
+
+`RolePermissions` satırını yazan metot `AuthSeeder.EnsureRolePermissionAsync` olur. `SeedAsync` API açılırken onu çağırır. `Admin` rolüne `characters.create` bağlanır. `Player` rolü için bu çağrı yoktur.
+
+```22:28:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/AuthSeeder.cs
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.CharactersCreate, cancellationToken);
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.CharactersUpdate, cancellationToken);
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.CharactersDelete, cancellationToken);
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.ShopItemsCreate, cancellationToken);
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.UsersDelete, cancellationToken);
+
+        await EnsureRolePermissionAsync(db, Roles.ShopOwner, PermissionCodes.ShopItemsCreate, cancellationToken);
+```
+
+Register kullanıcının `UserRoles.RoleId` kolonuna `Player` yazar. Seed `Player` için `RolePermissions` satırı açmadığı için join `Player` rolüne gelir ve `characters.create` bulamaz. Yeni kayıt olan müşteri karakter ekleyemez. Kullanıcının `UserRoles` satırındaki `RoleId` değeri `Admin` rolünün `Id` değeri olursa join seed'in açtığı `RolePermissions` satırına gelir, kodu bulur ve o müşteri ekler. `Admin` için `UserRoles` satırı yazan bir metot yoktur. O satır tabloda ayrıca durur.
+
+Bu işte HTTP isteğinden önce duran kayıtlar şunlardır. API açılırken `CreateScope` ile `AuthSeeder.SeedAsync` çalışır. Bu bir müşteri isteği değildir. `Roles`, `Permissions` ve `RolePermissions` satırlarını yoksa yazar.
+
+## Tablolar ve seed
+
+Dört tablo vardır. `Roles` rolün adını tutar. `Permissions` fiilin kodunu tutar. `UserRoles` bir kullanıcıyı bir role bağlar. `RolePermissions` bir role bir fiil bağlar.
+
+```14:32:ReactBattleArena/ReactBattleArena.Infrastructure/Migrations/20260821102302_AddRbacTables.cs
+            migrationBuilder.CreateTable(
+                name: "Permissions",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Code = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Permissions", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Roles",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false)
+                },
+```
+
+`RolePermissions` birincil anahtarı `RoleId` ve `PermissionId` ikilisidir. Aynı role aynı fiil ikinci kez yazılamaz.
+
+```39:47:ReactBattleArena/ReactBattleArena.Infrastructure/Migrations/20260821102302_AddRbacTables.cs
+            migrationBuilder.CreateTable(
+                name: "RolePermissions",
+                columns: table => new
+                {
+                    RoleId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    PermissionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RolePermissions", x => new { x.RoleId, x.PermissionId });
+```
+
+Kodlar `PermissionCodes` içindedir. Karakter eklemenin kodu `characters.create` metnidir.
+
+```3:9:ReactBattleArena/ReactBattleArena.Domain/Authorization/PermissionCodes.cs
+public static class PermissionCodes
+{
+    public const string CharactersCreate = "characters.create";
+    public const string CharactersUpdate = "characters.update";
+    public const string CharactersDelete = "characters.delete";
+    public const string ShopItemsCreate = "shop.items.create";
+    public const string UsersDelete = "users.delete";
+```
+
+`Permission` satırında bu metin `Code` kolonuna yazılır. `RolePermission` yalnız iki `Guid` tutar: rolün `Id` değeri ve permission'ın `Id` değeri.
+
+```13:19:ReactBattleArena/ReactBattleArena.Domain/Authorization/RolePermission.cs
+    public static RolePermission Create(Guid roleId, Guid permissionId)
+    {
+        return new RolePermission
+        {
+            RoleId = roleId,
+            PermissionId = permissionId
+        };
+    }
+```
+
+API ayağa kalkınca seed çalışır.
+
+```82:86:ReactBattleArena/ReactBattleArena.Api/Program.cs
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await AuthSeeder.SeedAsync(db);
+}
+```
+
+Seed üç rol yazar: `Admin`, `Player`, `ShopOwner`. Sonra permission kodlarını yazar. İlk `SaveChangesAsync` bu satırları kaydeder. Ardından bağları yazar. `Admin` rolüne `characters.create`, `characters.update`, `characters.delete`, `shop.items.create` ve `users.delete` bağlanır. `ShopOwner` rolüne yalnız `shop.items.create` bağlanır. `Player` için `EnsureRolePermissionAsync` çağrısı yoktur.
+
+```10:28:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/AuthSeeder.cs
+        await EnsureRoleAsync(db, Roles.Admin, cancellationToken);
+        await EnsureRoleAsync(db, Roles.Player, cancellationToken);
+        await EnsureRoleAsync(db, Roles.ShopOwner, cancellationToken);
+
+        await EnsurePermissionAsync(db, PermissionCodes.CharactersCreate, cancellationToken);
+        await EnsurePermissionAsync(db, PermissionCodes.CharactersUpdate, cancellationToken);
+        await EnsurePermissionAsync(db, PermissionCodes.CharactersDelete, cancellationToken);
+        await EnsurePermissionAsync(db, PermissionCodes.ShopItemsCreate, cancellationToken);
+        await EnsurePermissionAsync(db, PermissionCodes.UsersDelete, cancellationToken);
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.CharactersCreate, cancellationToken);
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.CharactersUpdate, cancellationToken);
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.CharactersDelete, cancellationToken);
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.ShopItemsCreate, cancellationToken);
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.UsersDelete, cancellationToken);
+
+        await EnsureRolePermissionAsync(db, Roles.ShopOwner, PermissionCodes.ShopItemsCreate, cancellationToken);
+```
+
+Bağ, rol adı ve kod metniyle aranır. İkisi de tabloda varsa ve bu ikili daha önce yazılmamışsa `RolePermissions` satırı eklenir.
+
+```51:65:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/AuthSeeder.cs
+    private static async Task EnsureRolePermissionAsync(
+        ApplicationDbContext db,
+        string roleName,
+        string permissionCode,
+        CancellationToken cancellationToken)
+    {
+        var role = await db.Roles.SingleAsync(r => r.Name == roleName, cancellationToken);
+        var permission = await db.Permissions.SingleAsync(p => p.Code == permissionCode, cancellationToken);
+
+        var exists = await db.RolePermissions.AnyAsync(
+            x => x.RoleId == role.Id && x.PermissionId == permission.Id,
+            cancellationToken);
+
+        if (!exists)
+            db.RolePermissions.Add(RolePermission.Create(role.Id, permission.Id));
+    }
+```
+
+Bir kullanıcıya fiil vermek için bu projede ayrı bir HTTP endpoint yoktur. İki satır vardır.
+
+`UserRoles` satırını bu solution içinde yazan tek metot `RegisterCommandHandler.Handle` olur. Kod şudur.
+
+```54:61:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/RegisterCommandHandler.cs
+        var playerRole = await _db.Roles.SingleAsync(
+            r => r.Name == Roles.Player, cancellationToken);
+
+        _db.UserRoles.Add(UserRole.Create(entity.Id, playerRole.Id));
+        await _db.SaveChangesAsync(cancellationToken);
+```
+
+`Roles` tablosunda adı `Player` olan satırı bulur. Yeni kullanıcının `Id` değeri ile o rolün `Id` değerinden bir satır kurar. `SaveChangesAsync` bu satırı `UserRoles` tablosuna yazar. `Admin` rolünün `Id` değerini yazan bir metot yoktur. O satır tabloda ayrıca durursa join `Admin` rolünün kodlarına gider.
+
+`RolePermissions` satırını bu solution içinde yazan tek metot `AuthSeeder.EnsureRolePermissionAsync` olur. `SeedAsync` bunu API açılırken şu çağrılarla çalıştırır.
+
+```22:30:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/AuthSeeder.cs
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.CharactersCreate, cancellationToken);
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.CharactersUpdate, cancellationToken);
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.CharactersDelete, cancellationToken);
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.ShopItemsCreate, cancellationToken);
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.UsersDelete, cancellationToken);
+
+        await EnsureRolePermissionAsync(db, Roles.ShopOwner, PermissionCodes.ShopItemsCreate, cancellationToken);
+
+        await db.SaveChangesAsync(cancellationToken);
+```
+
+`Player` rolü için bu metot çağrılmaz. Metot rolün `Id` değeri ile permission'ın `Id` değerinden satır kurar. Satır yoksa bir önceki bloktaki `RolePermissions.Add` satırı ekler. `SaveChangesAsync` tabloya yazar.
+
+JWT'nin claim dizisinde bu kod yoktur. `GetCodesAsync` her kontrolde tabloları yeniden okur. `RolePermissions` veya `UserRoles` değişince aynı access token ile sonuç değişir. Yeni login gerekmez.
+
+Var olan kodlarla yeni bir rol açmak da tablo işidir. `Roles` satırına yeni bir `Name` yazılır. `RolePermissions` satırları o rolün `Id` değerini, tabloda duran permission `Id` değerlerine bağlar. `PermissionCodes` içine yeni sabit eklenmez.
+
+Yeni bir permission kodu kodla birlikte gelir. `PermissionCodes` içine sabit yazılır. Korunacak action'a `[HasPermission]` o sabitle konur. Ekrandaki `PERMISSIONS` nesnesine aynı metin yazılır. Seed `EnsurePermissionAsync` ile `Permissions` satırını, `EnsureRolePermissionAsync` ile rol bağını basar. Veritabanında kod durup action'da attribute durmuyorsa o action bu koda bakmaz.
+
+Bu publish, yeni bir action içindir. `characters.create` zaten `[HasPermission]` ile `POST /api/characters` üzerinde durur. Bu kodu `Player` rolüne vermek veya bir kullanıcının `UserRoles` satırını `Admin` rolüne çevirmek tablo satırıdır. O satır değişince aynı publish ile sonraki istek join'i yeniden okur. Yeni bir HTTP metodu yoksa veritabanındaki yeni kodun bakacağı bir action da yoktur.
+
+## Ekranda aynı dizi
+
+`AppLayout`, access token varken `GET /api/auth/me` atar. Cevaptaki `permissions` dizisini state'e yazar. `meLoaded` true olunca `Outlet` çizilir. Karakter sayfaları bu diziyi kendi isteğiyle yeniden almaz. `PermissionContext.Provider` diziyi alta verir.
+
+```48:50:web/src/AppLayout.tsx
+  if (!meLoaded) {
+  return <p>Yükleniyor…</p>
+  }
+```
+
+```62:63:web/src/AppLayout.tsx
+  return (
+    <PermissionContext.Provider value={{ permissions }}>
+```
+
+```82:86:web/src/AppLayout.tsx
+        <main className="app-main">
+          <Outlet />
+        </main>
+    </div>
+    </PermissionContext.Provider>
+```
+
+`usePermissions` bu diziyi okur. Çağrı `AppLayout` dışında yapılırsa hata verir, çünkü context orada doldurulur.
+
+```9:14:web/src/PermissionContext.tsx
+export function usePermissions(): string[] {
+    const ctx = useContext(PermissionContext)
+    if(!ctx){
+        throw new Error('usePermissions yalnızca AppLayout içinde')
+    }
+    return ctx.permissions
+}
+```
+
+Ekrandaki metinler backend sabitleriyle aynıdır.
+
+```1:8:web/src/permissions.ts
+export const PERMISSIONS = {
+  charactersCreate: 'characters.create',
+  charactersUpdate: 'characters.update',
+  charactersDelete: 'characters.delete',
+} as const
+
+export function hasPermission(permissions: string[], code: string): boolean {
+  return permissions.includes(code)
+}
+```
+
+`hasPermission` dizide `characters.create` var mı diye bakar. Liste sayfası linki buna bağlar. Dizi bu kodu içermiyorsa link çizilmez.
+
+```95:97:web/src/CharactersPage.tsx
+          {hasPermission(permissions, PERMISSIONS.charactersCreate) && (
+            <Link to="/characters/new">Karakter ekle</Link>
+          )}
+```
+
+`&&` sol taraf false ise sağdaki `Link` basılmaz. Bu gizleme yetki kararı değildir. Müşteri adresi elle `/characters/new` yazabilir. Sayfa o zaman kendi kapısını çalıştırır.
+
+`/characters/new` rotası `CharacterCreatePage` açar. Sayfa `usePermissions` ile aynı diziyi alır. Access token yoksa `/login` adresine döner. Dizi `characters.create` içermiyorsa `/characters` adresine döner. Form çizilmez.
+
+```139:149:web/src/CharacterCreatePage.tsx
+   if (!token) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (!hasPermission(permissions, PERMISSIONS.charactersCreate)){
+    return <Navigate to="/characters" replace />
+  }
+```
+
+Düzenle aynı dizinin ikinci kapısıdır. Detay sayfasında `characters.update` yoksa Düzenle linki çizilmez. Adres elle `/characters/{id}/edit` yazılırsa edit sayfası `/characters` adresine döner. PUT gövdesinin kendisi düzenleme işidir. Kapı bu işte durur, çünkü link ve sayfa aynı diziyi kullanır.
+
+```148:154:web/src/CharacterDetailPage.tsx
+          {hasPermission(permissions, PERMISSIONS.charactersUpdate) && (
+            <Link to={`/characters/${id}/edit`}>Düzenle</Link>
+          )}
+          {hasPermission(permissions, PERMISSIONS.charactersDelete) && (
+            <button type="button" onClick={handleDelete}>
+              Sil
+            </button>
+          )}
+```
+
+```167:169:web/src/CharacterEditPage.tsx
+  if (!hasPermission(permissions, PERMISSIONS.charactersUpdate)) {
+    return <Navigate to="/characters" replace />
+  }
+```
+
+Sil düğmesi de `hasPermission` ile `characters.delete` koduna bakar. DELETE isteğinin gövdesi silme işidir.
+
+Üç yer aynı kod adına bakar ve üçü de aynı anda çalışmaz. Liste sayfasındaki `hasPermission` yalnız `Karakter ekle` linkini çizer. Bu çizim `POST` atmaz. `/characters/new` sayfasındaki `hasPermission` formun çizilip çizilmeyeceğine bakar. O `if` de `POST` atmaz. İkisi de `AppLayout`'un `/me` cevabından bellekte tuttuğu `permissions` dizisini okur. `Ekle` düğmesi basılınca `apiFetch` `POST /api/characters` atar. `HasPermission` o anda `GetCodesAsync` ile üç tabloyu okur: `UserRoles`, `RolePermissions`, `Permissions`. Kod metni `Permissions.Code` kolonundadır. Kullanıcıya ulaşması için `UserRoles` satırı bir role, `RolePermissions` satırı o rolü bu koda bağlamış olmalıdır. `Permissions` satırı dururken bu bağ silinirse dizi hâlâ `characters.create` içerir, join kodu döndürmez, API `403` verir. Sayfa bu status için `Yetkin yok` yazar.
+
+## POST ve 403
+
+Form `apiFetch` ile gider. `auth` yazılmaz. Varsayılan true olduğu için header'a `Authorization: Bearer` ve `localStorage` içindeki access token konur.
+
+```99:116:web/src/CharacterCreatePage.tsx
+      const response = await apiFetch('/api/characters', {
+        method: 'POST',
+        body: {
+          name,
+          universe,
+          biography: biography || null,
+          rarity,
+          baseAttack,
+          baseDefense,
+          baseSpeed,
+          imageUrl: imageUrl || null,
+        },
+      })
+
+      if (response.status === 403) {
+        setFormError('Yetkin yok')
+        return
+      }
+```
+
+Access token bitmişse `apiFetch` bu `401` üzerinde `POST /api/auth/refresh` dener(Access token'ın süresi dolunca API `401` döner. `403` bu durumda gelmez.). O denemenin rotation kuralı oturumu uzatma işidir. `403` bu dala girmez. `403` kimlik vardır, fiil yoktur demektir.
+
+İstek API'de önce `UseAuthentication`, sonra `UseAuthorization` içinden geçer. `POST` metodunun üstünde `[HasPermission(PermissionCodes.CharactersCreate)]` vardır.  
+  
+`[HasPermission]` bir `AuthorizeAttribute` türüdür. Ürettiği policy'nin ilk şartı oturum açmış kullanıcıdır. Permission kodu ondan sonra aranır.
+
+Attribute sınıfı JWT'yi kendisi okumaz. Policy adını `Permission:characters.create` diye kurar.
+
+```
+public sealed class HasPermissionAttribute : AuthorizeAttribute
+{
+    public HasPermissionAttribute(string permission)
+    {
+        Policy = "Permission:" + permission;
+    }
+}
+```
+
+`UseAuthentication` bu addan önce çalışır. JwtBearer access token'ı doğrular ve `HttpContext.User`'ı doldurur. Süre dolmuşsa kullanıcı boş kalır.
+
+`UseAuthorization` bu policy'yi açar. Policy iki şey ister. Birincisi `RequireAuthenticatedUser`. İkincisi `PermissionRequirement`.
+
+```
+var policy = new AuthorizationPolicyBuilder()
+    .RequireAuthenticatedUser()
+    .AddRequirements(new PermissionRequirement(code))
+    .Build();
+```
+
+`RequireAuthenticatedUser` geçmezse cevap `401` olur. `GetCodesAsync` çalışmaz. Geçerse handler `characters.create` kodunu join'de arar. Kod yoksa cevap `403` olur.
+
+```46:66:ReactBattleArena/ReactBattleArena.Api/Controllers/CharactersController.cs
+    [HasPermission(PermissionCodes.CharactersCreate)]  // POST
+    [HttpPost]
+    [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<Guid>> Create(
+        [FromBody] CreateCharacterRequest body,
+        CancellationToken cancellationToken = default)
+    {
+        var id = await _mediator.Send(
+            new CreateCharacterCommand(
+                body.Name,
+                body.Universe,
+                body.Biography,
+                body.Rarity,
+                body.BaseAttack,
+                body.BaseDefense,
+                body.BaseSpeed,
+                body.ImageUrl),
+            cancellationToken);
+
+        return Created($"/api/characters/{id}", id);
+    }
+```
+
+`HasPermissionAttribute` bir `AuthorizeAttribute` türüdür. Policy adını `Permission:` artı kod diye kurar. Karakter eklemede bu ad `Permission:characters.create` olur.
+
+```5:10:ReactBattleArena/ReactBattleArena.Api/Authorization/HasPermissionAttribute.cs
+public sealed class HasPermissionAttribute : AuthorizeAttribute
+{
+    public HasPermissionAttribute(string permission)
+    {
+        Policy = "Permission:" + permission;
+    }
+}
+```
+
+`Program.cs` bu policy adını çözen provider'ı ve kontrolü yapan handler'ı kaydeder. Provider tek örnektir. Handler istek ömründedir, çünkü veritabanına gider.
+
+```23:25:ReactBattleArena/ReactBattleArena.Api/Program.cs
+builder.Services.AddAuthorization();
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
+```
+
+Provider ad `Permission:` ile başlıyorsa policy kurar. Policy iki şey ister: oturum açmış kullanıcı ve `PermissionRequirement`. Requirement'ın `Code` alanı `characters.create` olur.
+
+```22:30:ReactBattleArena/ReactBattleArena.Api/Authorization/PermissionPolicyProvider.cs
+    public Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
+    {
+        if (policyName.StartsWith(Prefix, StringComparison.Ordinal))
+        {
+            var code = policyName[Prefix.Length..];
+            var policy = new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .AddRequirements(new PermissionRequirement(code))
+                .Build();
+```
+
+Access token yoksa, imzası bozuksa veya süresi dolmuşsa `RequireAuthenticatedUser` geçmez. Cevap `401` olur. `Create` action'ına ve `CreateCharacterCommandHandler`'a gelinmez.
+
+Token geçerliyse handler çalışır. Kullanıcı `Guid` değerini `ClaimTypes.NameIdentifier` claim'inden okur. `GetCodesAsync` aynı join'i yapar: `UserRoles` satırından `RoleId`, oradan `RolePermissions`, oradan `Permission.Code`. Dönen listede requirement'ın kodu varsa `Succeed` çağrılır.
+
+```16:27:ReactBattleArena/ReactBattleArena.Api/Authorization/PermissionAuthorizationHandler.cs
+    protected override async Task HandleRequirementAsync(
+        AuthorizationHandlerContext context,
+        PermissionRequirement requirement)
+    {
+        var idValue = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(idValue, out var userId))
+            return;
+
+        var codes = await _permissions.GetCodesAsync(userId);
+        if (codes.Contains(requirement.Code))
+            context.Succeed(requirement);
+    }
+```
+
+```19:25:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/UserPermissionService.cs
+        return await (
+            from ur in _db.UserRoles
+            join rp in _db.RolePermissions on ur.RoleId equals rp.RoleId
+            join p in _db.Permissions on rp.PermissionId equals p.Id
+            where ur.UserId == userId
+            select p.Code
+        ).Distinct().ToListAsync(cancellationToken);
+```
+
+`Player` kullanıcısında join boş kalır. `characters.create` listede yoktur. `Succeed` çağrılmaz. Kimlik geçerlidir, fiil yoktur. Cevap `403` olur. MediatR'a inilmez. `Characters` tablosuna satır yazılmaz.
+
+`Admin` kullanıcısında join `characters.create` döner. `Succeed` çağrılır. Ondan sonra `ValidationBehavior` komut kurallarını çalıştırır. Ad veya evren boşsa, rarity 1 ile 5 arasında değilse cevap `400` olur. Kurallar geçince handler karakteri yazar ve `Guid` döner. Controller `201` ve `Location: /api/characters/{id}` yazar.
+
+```19:35:ReactBattleArena/ReactBattleArena.Application/Characters/Commands/CreateCharacterCommandHandler.cs
+    public async Task<Guid> Handle(CreateCharacterCommand request, CancellationToken cancellationToken)
+    {
+        var entity = Character.Create(
+            request.Name,
+            request.Universe,
+            request.Biography,
+            request.Rarity,
+            request.BaseAttack,
+            request.BaseDefense,
+            request.BaseSpeed,
+            request.ImageUrl,
+            DateTime.UtcNow);
+
+        _db.Characters.Add(entity);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return entity.Id;
+    }
+```
+
+Sayfa `201` görünce forma `Karakter eklendi` yazar ve `/characters` adresine gider.
+
+Karakter eklenince bilinen ayrım şudur. `401` kimlik yoktur veya access token geçersizdir. `403` kimlik vardır, `characters.create` join'de yoktur. Linki gizlemek bu `403` kararının yerine geçmez. Aynı access token, `UserRoles` veya `RolePermissions` değişince bir sonraki POST'ta başka sonuç verebilir.
+
+# Karakteri düzenle
+
+Müşteri var olan bir karakterin alanlarını değiştirmek ister. Detay sayfasında Düzenle linkine basar. Adres `/characters/{id}/edit` olur. Sayfa önce `GET /api/characters/{id}` ile karakteri okur, formu doldurur. Kaydet düğmesi `PUT /api/characters/{id}` atar. Header'da `Authorization: Bearer` ve access token vardır. API `characters.update` kodunu join'de arar. Kod varsa satır güncellenir ve cevap `204` olur. Gövde boştur. Kod yoksa cevap `403` olur.
+
+Bu kod `characters.create` ile aynı join'den gelir. Seed `Admin` rolüne `PermissionCodes.CharactersUpdate` bağını da yazar. O sabit `characters.update` metnidir. `Player` rolü için bu çağrı yoktur. Register kullanıcının `UserRoles` satırını `Player` rolüne bağladığı için yeni kayıt olan müşteri düzenleyemez. `UserRoles` satırı `Admin` rolüne bakıyorsa join kodu bulur ve o müşteri düzenler.
+
+İstek şu sırayla yürür:
+
+1. Detay sayfası `hasPermission` ile `characters.update` koduna bakar. Kod dizide yoksa Düzenle linki çizilmez.
+2. Adres elle yazılırsa `CharacterEditPage` aynı diziye bakar ve `/characters` adresine döner.
+3. Sayfa `useParams` ile URL'deki `id` değerini alır. `apiFetch` `GET /api/characters/{id}` atar. Bu GET'in üstünde `[HasPermission]` yoktur.
+4. Form alanları cevapla dolar. Kaydet `PUT` atar. `auth` yazılmaz. Varsayılan true olduğu için Bearer gider.
+5. Pipeline önce `UseAuthentication`, sonra `UseAuthorization` çalışır. `[HasPermission(PermissionCodes.CharactersUpdate)]` policy adını `Permission:characters.update` yapar.
+6. Aynı `PermissionAuthorizationHandler` `GetCodesAsync` ile `UserRoles`, `RolePermissions` ve `Permissions` tablolarını okur. Listede `characters.update` varsa `Succeed` çağrılır.
+7. `ValidationBehavior` kuralları bozulursa cevap `400` olur. Handler çalışmaz.
+8. Handler `Characters` tablosunda `Id` arar. Yoksa `false` döner, controller `404` yazar. Varsa `Character.Update` alanları değiştirir, `SaveChangesAsync` yazar, controller `204` döner.
+9. Sayfa `204` gövdesini `json()` ile açmaz. Adres `/characters/{id}` olur.
+
+
+
+## Düzenle linki ve sayfa kapısı
+
+Rota `App.tsx` içindedir. `/characters/:id/edit`, `/characters/:id` rotasından önce durur. Daha genel rota önce gelseydi `edit` kelimesi bir `id` sanılırdı.
+
+```16:20:web/src/App.tsx
+      <Route element={<AppLayout />}>
+        <Route path="/characters" element={<CharactersPage />} />
+        <Route path="/characters/new" element={<CharacterCreatePage />} />
+        <Route path="/characters/:id/edit" element={<CharacterEditPage />} />
+        <Route path="/characters/:id" element={<CharacterDetailPage />} />
+```
+
+Detay sayfası `AppLayout`'un tuttuğu `permissions` dizisini okur. `characters.update` dizide varsa Düzenle linki çizilir. Bu çizim `PUT` atmaz.
+
+```148:150:web/src/CharacterDetailPage.tsx
+          {hasPermission(permissions, PERMISSIONS.charactersUpdate) && (
+            <Link to={`/characters/${id}/edit`}>Düzenle</Link>
+          )}
+```
+
+`CharacterEditPage` URL'deki `id` değerini `useParams` ile alır. Access token'ı `getToken` ile, dizi `usePermissions` ile okur. Diziyi gönderen istek `GET /api/auth/me` olur. Bu isteği `CharacterEditPage` atmaz. `AppLayout` içindeki `loadMe` atar, cevaptaki `permissions` alanını state'e yazar ve `PermissionContext` ile alta verir. Düzenleme sayfası o state'i okur.
+
+```8:13:web/src/CharacterEditPage.tsx
+function CharacterEditPage() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const token = getToken()
+  const permissions = usePermissions()
+```
+
+Sayfa açılınca `useEffect` karakteri ister. `id` veya token yoksa istek atılmaz. Varsa `apiFetch` `GET /api/characters/{id}` atar. `404` karakter yok demektir. `200` gelince alanlar state'e yazılır.
+
+```29:35:web/src/CharacterEditPage.tsx
+  useEffect(() => {
+    async function load() {
+      if (!token || !id) {
+        setLoadError('Id veya token yok')
+        setLoading(false)
+        return
+      }
+```
+
+```53:75:web/src/CharacterEditPage.tsx
+        const response = await apiFetch(`/api/characters/${id}`)
+
+        if (response.status === 404) {
+          setLoadError('Karakter bulunamadı')
+          setLoading(false)
+          return
+        }
+
+        if (!response.ok) {
+          setLoadError('Karakter alınamadı')
+          setLoading(false)
+          return
+        }
+
+        const data = await response.json()
+        setName(data.name)
+        setUniverse(data.universe)
+        setBiography(data.biography ?? '')
+        setRarity(data.rarity)
+        setBaseAttack(data.baseAttack)
+        setBaseDefense(data.baseDefense)
+        setBaseSpeed(data.baseSpeed)
+        setImageUrl(data.imageUrl ?? '')
+```
+
+Bu GET'in controller metodunda `[HasPermission]` yoktur. Karakteri okumak `characters.update` koduna bakmaz. Düzenleme kodu, formu çizmeden önce sayfada ve `PUT` sırasında API'de aranır.
+
+```35:44:ReactBattleArena/ReactBattleArena.Api/Controllers/CharactersController.cs
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType(typeof(CharacterDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<CharacterDetailDto>> GetById(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(new GetCharacterByIdQuery(id), cancellationToken);
+        return result is null ? NotFound() : Ok(result);
+    }
+```
+
+Çizim sırası şöyledir. Token yoksa `/login` adresine dönülür. Karakter henüz gelmediyse `Yükleniyor…` yazılır. Dizi `characters.update` içermiyorsa `/characters` adresine dönülür. Form bu üçünden biri tutunca çizilir.
+
+```161:169:web/src/CharacterEditPage.tsx
+  if (!token) {
+  return <Navigate to="/login" replace />
+  }
+  if (loading) {
+    return <p>Yükleniyor…</p>
+  }
+  if (!hasPermission(permissions, PERMISSIONS.charactersUpdate)) {
+    return <Navigate to="/characters" replace />
+  }
+```
+
+`hasPermission` bellekteki diziyi okur. `PUT` atmaz. Link gizlense de adres elle yazılabilir. Sayfa kapısı da `PUT` atmaz. İkisi de `/me` cevabındaki diziyi kullanır. `PUT` kararı API'dedir.
+
+## PUT
+
+Kaydet `handleSubmit` içinden gider. `e.preventDefault()` tarayıcının kendi form isteğini keser. `apiFetch` yolu ``/api/characters/${id}`` olur. Metot `PUT` olur. Bearer, `apiFetch` varsayılanı ile eklenir.
+
+```116:138:web/src/CharacterEditPage.tsx
+      const response = await apiFetch(`/api/characters/${id}`, {
+        method: 'PUT',
+        body: {
+          name,
+          universe,
+          biography: biography || null,
+          rarity,
+          baseAttack,
+          baseDefense,
+          baseSpeed,
+          imageUrl: imageUrl || null,
+        },
+      })
+
+      if (response.status === 401) {
+        setFormError('Oturum yok — tekrar giriş yap')
+        return
+      }
+
+      if (response.status === 403) {
+        setFormError('Yetkin yok')
+        return
+      }
+```
+
+Access token bitmişse `apiFetch` bu `401` üzerinde önce `POST /api/auth/refresh` dener. O denemenin rotation kuralı oturumu uzatma işidir. Yenileme tutmazsa sayfa `401` görür ve `Oturum yok` yazar. `403` o dala girmez. `403` kimlik vardır, `characters.update` join'de yoktur demektir. Sayfa bunu `Yetkin yok` diye yazar.
+
+Controller metodu `id` değerini URL'den, gövdeyi `CreateCharacterRequest` ile alır. Üstündeki attribute `CharactersUpdate` sabitini taşır. Policy adı `Permission:characters.update` olur. Aynı `PermissionPolicyProvider` bu adı `PermissionRequirement` yapar. Aynı `PermissionAuthorizationHandler` `ClaimTypes.NameIdentifier` içinden kullanıcı `Guid` değerini okur ve `GetCodesAsync` çağırır.
+
+```69:92:ReactBattleArena/ReactBattleArena.Api/Controllers/CharactersController.cs
+    [HasPermission(PermissionCodes.CharactersUpdate)]  // PUT
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Update(
+    Guid id,
+    [FromBody] CreateCharacterRequest body,
+    CancellationToken cancellationToken = default)
+    {
+        var updated = await _mediator.Send(
+            new UpdateCharacterCommand(
+                id,
+                body.Name,
+                body.Universe,
+                body.Biography,
+                body.Rarity,
+                body.BaseAttack,
+                body.BaseDefense,
+                body.BaseSpeed,
+                body.ImageUrl),
+            cancellationToken);
+
+        return updated ? NoContent() : NotFound();
+    }
+```
+
+Join karakter eklemedeki join'dir. `UserRoles` kullanıcıyı role, `RolePermissions` rolü permission'a, `Permissions.Code` kolonu `characters.update` metnine bağlar. `Succeed` çağrılmazsa controller'a gelinmez. Cevap `403` olur. `Characters` satırı değişmez.
+
+`Succeed` çağrılırsa MediatR `UpdateCharacterCommand` taşır. Dönüş `bool` olur. `true` satır güncellendi demektir. `false` bu `Id` ile satır yok demektir.
+
+```5:14:ReactBattleArena/ReactBattleArena.Application/Characters/Commands/UpdateCharacterCommand.cs
+public sealed record UpdateCharacterCommand(
+    Guid Id,
+    string Name,
+    string Universe,
+    string? Biography,
+    int Rarity,
+    int BaseAttack,
+    int BaseDefense,
+    int BaseSpeed,
+    string? ImageUrl) : IRequest<bool>;
+```
+
+Handler'dan önce `UpdateCharacterCommandValidator` çalışır. `Id` boş olamaz. Ad ve evren boş olamaz. Rarity 1 ile 5 arasındadır. Attack, defense ve speed 0 ile 9999 arasındadır. Kural bozulursa `ValidationException` middleware'de `400` olur. Handler çalışmaz.
+
+```8:17:ReactBattleArena/ReactBattleArena.Application/Characters/Commands/UpdateCharacterCommandValidator.cs
+    public UpdateCharacterCommandValidator()
+    {
+        RuleFor(x => x.Id).NotEmpty();
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
+        RuleFor(x => x.Universe).NotEmpty().MaximumLength(120);
+        RuleFor(x => x.Biography).MaximumLength(2000);
+        RuleFor(x => x.Rarity).InclusiveBetween(1, 5);
+        RuleFor(x => x.BaseAttack).InclusiveBetween(0, 9999);
+        RuleFor(x => x.BaseDefense).InclusiveBetween(0, 9999);
+        RuleFor(x => x.BaseSpeed).InclusiveBetween(0, 9999);
+        RuleFor(x => x.ImageUrl).MaximumLength(500);
+    }
+```
+
+Kurallar geçince handler `Characters` tablosunda `Id` arar. Satır yoksa `false` döner. Controller `NotFound()` ile `404` yazar. Satır varsa `Character.Update` aynı nesnenin alanlarını yeni değerlerle değiştirir. Yeni bir `Guid` üretilmez. `SaveChangesAsync` değişen kolonları yazar. Handler `true` döner. Controller `NoContent()` ile `204` yazar.
+
+```16:35:ReactBattleArena/ReactBattleArena.Application/Characters/Commands/UpdateCharacterCommandHandler.cs
+    public async Task<bool> Handle(UpdateCharacterCommand request, CancellationToken cancellationToken)
+    {
+        var entity = await _db.Characters
+            .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
+
+        if (entity is null)
+            return false;
+
+        entity.Update(
+            request.Name,
+            request.Universe,
+            request.Biography,
+            request.Rarity,
+            request.BaseAttack,
+            request.BaseDefense,
+            request.BaseSpeed,
+            request.ImageUrl);
+
+        await _db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+```
+
+```50:68:ReactBattleArena/ReactBattleArena.Domain/Characters/Character.cs
+    public void Update(
+        string name,
+        string universe,
+        string? biography,
+        int rarity,
+        int baseAttack,
+        int baseDefense,
+        int baseSpeed,
+        string? imageUrl)
+    {
+        Name = name;
+        Universe = universe;
+        Biography = biography;
+        Rarity = rarity;
+        BaseAttack = baseAttack;
+        BaseDefense = baseDefense;
+        BaseSpeed = baseSpeed;
+        ImageUrl = imageUrl;
+    }
+```
+
+`204` gövdesi boştur. Sayfa `response.json()` çağırmaz. `404` için `Karakter bulunamadı` yazar. `400` için `ValidationProblemDetails` içindeki alan mesajlarını birleştirir. `204` gelince adres detay sayfasına döner.
+
+```140:155:web/src/CharacterEditPage.tsx
+      if (response.status === 404) {
+        setFormError('Karakter bulunamadı')
+        return
+      }
+
+      if (!response.ok) {
+        const problem = await response.json().catch(() => null)
+        const messages = problem?.errors
+          ? Object.values(problem.errors).flat().join(' | ')
+          : problem?.title ?? `Hata ${response.status}`
+        setFormError(String(messages))
+        return
+      }
+
+      // 204 No Content — body yok; json() çağırma
+      navigate(`/characters/${id}`)
+```
+
+Düzenleme tutunca aynı karakter satırının alanları değişmiştir. `Id` aynıdır. `401` kimliktir. `403` kimlik vardır, `characters.update` join'de yoktur. Düzenle linkini gizlemek bu `403` kararının yerine geçmez.
+
+# Karakteri sil
+
+Müşteri detay sayfasında Sil düğmesine basar. Tarayıcı `window.confirm` ile sorar. Müşteri vazgeçerse istek gitmez. Onaylarsa `DELETE /api/characters/{id}` gider. Header'da `Authorization: Bearer` ve access token vardır. API `characters.delete` kodunu aynı join'de arar. Kod varsa satır silinir ve cevap `204` olur. Gövde boştur. Kod yoksa cevap `403` olur. Ayrı bir silme sayfası yoktur. Ekrandaki kapı Sil düğmesinin çizilip çizilmemesidir.
+
+Seed `Admin` rolüne bu kodu da bağlar. Sabit `PermissionCodes.CharactersDelete` olur. Metin `characters.delete` olur. `Player` rolü için çağrı yoktur. Register kullanıcının `UserRoles` satırını `Player` rolüne yazdığı için yeni kayıt olan müşteri silemez. `UserRoles` satırı `Admin` rolüne bakıyorsa join kodu bulur.
+
+```24:24:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/AuthSeeder.cs
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.CharactersDelete, cancellationToken);
+```
+
+İstek şu sırayla yürür:
+
+1. Detay sayfası `hasPermission` ile `characters.delete` koduna bakar. Kod dizide yoksa Sil düğmesi çizilmez. Bu çizim `DELETE` atmaz.
+2. Düğme `handleDelete` çağırır. `window.confirm` false dönerse fonksiyon `return` eder.
+3. `apiFetch` `DELETE /api/characters/{id}` atar. `auth` yazılmaz. Varsayılan true olduğu için Bearer gider.
+4. Pipeline önce `UseAuthentication`, sonra `UseAuthorization` çalışır. `[HasPermission(PermissionCodes.CharactersDelete)]` policy adını `Permission:characters.delete` yapar.
+5. Aynı `PermissionAuthorizationHandler` `GetCodesAsync` ile `UserRoles`, `RolePermissions` ve `Permissions` tablolarını okur. Listede `characters.delete` varsa `Succeed` çağrılır.
+6. `DeleteCharacterCommand` için ayrı bir validator sınıfı yoktur. `ValidationBehavior` bu komutta kural çalıştırmaz.
+7. Handler `Characters` tablosunda `Id` arar. Yoksa `false` döner, controller `404` yazar. Varsa `Remove` ile satırı siler, `SaveChangesAsync` yazar, controller `204` döner.
+8. Sayfa `204` gövdesini `json()` ile açmaz. Adres `/characters` olur.
+
+
+
+## Sil düğmesi
+
+Detay sayfası `useParams` ile `id` değerini, `usePermissions` ile `AppLayout`'un tuttuğu diziyi okur. Sil düğmesi `characters.delete` dizide varsa çizilir.
+
+```22:27:web/src/CharacterDetailPage.tsx
+function CharacterDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const token = getToken()
+  const permissions = usePermissions()
+```
+
+```151:154:web/src/CharacterDetailPage.tsx
+          {hasPermission(permissions, PERMISSIONS.charactersDelete) && (
+            <button type="button" onClick={handleDelete}>
+              Sil
+            </button>
+          )}
+```
+
+`hasPermission` bellekteki diziyi okur. `DELETE` atmaz. Düğme gizlense de Scalar'dan aynı URL'ye `DELETE` atılabilir. O çağrıda düğme yoktur. Kararı API verir.
+
+Düğme basılınca `window.confirm` açılır. Müşteri iptal ederse `ok` false olur ve `apiFetch` çağrılmaz.
+
+```94:98:web/src/CharacterDetailPage.tsx
+  async function handleDelete() {
+    if (!id || !token) return
+
+    const ok = window.confirm('Bu karakteri silmek istediğine emin misin?')
+    if (!ok) return
+```
+
+
+
+## DELETE
+
+Onaydan sonra istek gider. Gövde yoktur. `id` URL'dedir.
+
+```113:125:web/src/CharacterDetailPage.tsx
+      const response = await apiFetch(`/api/characters/${id}`, {
+        method: 'DELETE',
+      })
+
+      if (response.status === 401) {
+        setDeleteError('Oturum yok — tekrar giriş yap')
+        return
+      }
+
+      if (response.status === 403) {
+        setDeleteError('Yetkin yok (Admin gerekli)')
+        return
+      }
+```
+
+Access token bitmişse `apiFetch` bu `401` üzerinde önce `POST /api/auth/refresh` dener. O denemenin rotation kuralı oturumu uzatma işidir. Yenileme tutmazsa sayfa `401` görür ve `Oturum yok` yazar. `403` o dala girmez. Sayfadaki metin `Admin gerekli` der. API rol adına bakmaz. `characters.delete` join'de yoksa `403` döner. `Admin` rolü bu kodu seed ile taşıdığı için metin o role işaret eder. Karar `Permission.Code` kolonundadır.
+
+Controller `id` değerini URL'den alır. Üstündeki attribute `CharactersDelete` sabitini taşır. Policy adı `Permission:characters.delete` olur. Aynı provider ve aynı handler çalışır. `GetCodesAsync` üç tabloyu okur. `Succeed` çağrılmazsa `Delete` metoduna gelinmez. Cevap `403` olur. Satır durur.
+
+```95:106:ReactBattleArena/ReactBattleArena.Api/Controllers/CharactersController.cs
+    [HasPermission(PermissionCodes.CharactersDelete)]  // DELETE
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        var deleted = await _mediator.Send(new DeleteCharacterCommand(id), cancellationToken);
+        return deleted ? NoContent() : NotFound();
+    }
+```
+
+`Succeed` çağrılırsa MediatR `DeleteCharacterCommand` taşır. Komut yalnız `Id` tutar. Dönüş `bool` olur.
+
+```5:5:ReactBattleArena/ReactBattleArena.Application/Characters/Commands/DeleteCharacterCommand.cs
+public sealed record DeleteCharacterCommand(Guid Id) : IRequest<bool>;
+```
+
+Bu komutun validator sınıfı yoktur. `ValidationBehavior` validator bulamazsa `next()` ile handler'a geçer. Boş `Guid` için `400` üreten bir kural bu komutta durmaz. `{id:guid}` route kısıtı URL'deki metin `Guid` değilse action'a girmez.
+
+Handler `Characters` tablosunda `Id` arar. Satır yoksa `false` döner. Controller `NotFound()` ile `404` yazar. Satır varsa `Remove` onu silinecek diye işaretler. `SaveChangesAsync` `DELETE` SQL'ini yazar. Handler `true` döner. Controller `NoContent()` ile `204` yazar.
+
+```18:29:ReactBattleArena/ReactBattleArena.Application/Characters/Commands/DeleteCharacterCommandHandler.cs
+    public async Task<bool> Handle(DeleteCharacterCommand request, CancellationToken cancellationToken)
+    {
+        var entity = await _db.Characters
+            .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
+
+        if (entity is null)
+            return false;
+
+        _db.Characters.Remove(entity);
+        await _db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+```
+
+`204` gövdesi boştur. Sayfa `response.json()` çağırmaz. `404` için `Karakter bulunamadı` yazar. Başka bir hata status'ü `Silinemedi` yazar. `204` gelince adres karakter listesine döner. `deleteError` doluysa paragraf basılır.
+
+```127:137:web/src/CharacterDetailPage.tsx
+      if (response.status === 404) {
+        setDeleteError('Karakter bulunamadı')
+        return
+      }
+
+      if (!response.ok) {
+        setDeleteError(`Silinemedi (${response.status})`)
+        return
+      }
+
+      navigate('/characters')
+```
+
+```162:162:web/src/CharacterDetailPage.tsx
+      {deleteError && <p>{deleteError}</p>}
+```
+
+Silme tutunca o `Id` ile `Characters` satırı kalkmıştır. `401` kimliktir. `403` kimlik vardır, `characters.delete` join'de yoktur. Sil düğmesini gizlemek bu `403` kararının yerine geçmez.
