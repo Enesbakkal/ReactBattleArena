@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration.UserSecrets;
 using ReactBattleArena.Api.Contracts;
 using ReactBattleArena.Application.Abstractions;
 using ReactBattleArena.Application.Authentication.Commands;
+using ReactBattleArena.Domain.Authentication;
 using ReactBattleArena.Domain.Authorization;
 using ReactBattleArena.Domain.Users;
 using System.Security;
@@ -63,7 +64,7 @@ public sealed class AuthController : ControllerBase
     //Bu kodu kim tetikliyor? Scalar POST /api/auth/login. LoginPage fetch / sonra apiFetch aynı URL,
     //cevaptaki token saklanır.
 
-    [AllowAnonymous]
+    [AllowAnonymous] // Refresh metodu [AllowAnonymous] taşır. Boş kullanıcı 401 üretmez.
     //[AllowAnonymous] şart: bu endpoint'e gelindiğinde access token çoktan ölmüş olacak,
     //[Authorize] koyarsak 401 döngüsüne gireriz. [HasPermission] de yok, çünkü bu bir oturum kapısı, bir fiil kapısı değil.
     [HttpPost("refresh")]
@@ -81,7 +82,8 @@ public sealed class AuthController : ControllerBase
         return result is null ? Unauthorized() : Ok(result);
     }
 
-    [AllowAnonymous]
+    [AllowAnonymous] // Logout metodu [AllowAnonymous] taşır. Access token yoksa veya süresi dolmuşsa bu metot 401 yazmaz.
+    //Kimlik kanıtı gövdedeki ham refresh token'dır. Access token header'da aranmaz.
     [HttpPost("logout")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -89,7 +91,9 @@ public sealed class AuthController : ControllerBase
         [FromBody] LogoutRequest body,
         CancellationToken cancellationToken = default)
     {
-        await _mediator.Send(new LogoutCommand(body.RefreshToken), cancellationToken);
+        await _mediator.Send(new LogoutCommand(body.RefreshToken), cancellationToken);//  JSON alanı refreshToken olur. ASP.NET Core onu LogoutRequest.
+                                                                                      //  RefreshToken alanına bağlar.Komut aynı string'i taşır.
+        //Send bir bool döner. Satır await ile beklenir ve sonuç bir değişkene yazılmaz. Hemen ardından NoContent() gelir. 204 gövdesi boştur. Sayfa response.json() çağırmaz.
 
         return NoContent();
     }

@@ -28,6 +28,8 @@ public sealed class LogoutCommandHandler : IRequestHandler<LogoutCommand, bool>
 
         if (existing is null || existing.RevokedAtUtc is not null)
             return false;
+        //ValidationBehavior boş gövdede 400 döner. Sayfa boş gövde göndermez. Ham string yoksa istek hiç çıkmaz.Handler ham string'i RefreshTokenGenerator.
+        //Hash ile SHA256 hex yapar. TokenHash kolonunda arar. Satır yoksa veya RevokedAtUtc doluysa false döner. SaveChangesAsync çalışmaz.
 
         existing.Revoke(DateTime.UtcNow);
         await _db.SaveChangesAsync(cancellationToken);

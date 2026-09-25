@@ -41,5 +41,6 @@ public sealed class RefreshToken
             return;
 
         RevokedAtUtc = utcNow;
+        //existing sorgu ile geldiği için EF onu izler. Ayrı bir Update çağrısı yoktur. 
     }
 }

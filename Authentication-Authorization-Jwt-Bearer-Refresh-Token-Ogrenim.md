@@ -161,8 +161,6 @@ Scalar aynı POST'u API'nin kendi adresinden atar. O çağrı bu origin listesin
   }
 ```
 
-
-
 ## Pipeline ve controller
 
 İstek API'ye girince middleware sırası şöyledir. Kimlik bakışı yetki bakışından önce gelir.
@@ -541,8 +539,6 @@ Player'ın hangi fiile sahip olduğu, `RolePermissions` satırı ve permission k
         <Link to="/login">Girişe dön</Link>
       </p>
 ```
-
-
 
 ## Bu kod yanlış kullanılırsa
 
@@ -1146,8 +1142,6 @@ Karakter listesinin GET'i ayrıdır. `GetPaged` üzerinde `[Authorize]` yoktur. 
     }
 ```
 
-
-
 ## Bu kod yanlış kullanılırsa
 
 `auth: true` ile login atılırsa ve tarayıcıda eski bir access token duruyorsa istek Bearer taşır. Login `[AllowAnonymous]` olduğu için bunu şart koşmaz. Asıl karışma `401` dalındadır. Yanlış parola `401` döner. `auth` true ise `apiFetch` bunu bitmiş oturum sanıp `POST /api/auth/refresh` dener. Login `auth: false` ile gider, yanlış parola düz `401` kalır.
@@ -1497,7 +1491,7 @@ Form `apiFetch` ile gider. `auth` yazılmaz. Varsayılan true olduğu için head
 Access token bitmişse `apiFetch` bu `401` üzerinde `POST /api/auth/refresh` dener(Access token'ın süresi dolunca API `401` döner. `403` bu durumda gelmez.). O denemenin rotation kuralı oturumu uzatma işidir. `403` bu dala girmez. `403` kimlik vardır, fiil yoktur demektir.
 
 İstek API'de önce `UseAuthentication`, sonra `UseAuthorization` içinden geçer. `POST` metodunun üstünde `[HasPermission(PermissionCodes.CharactersCreate)]` vardır.  
-  
+
 `[HasPermission]` bir `AuthorizeAttribute` türüdür. Ürettiği policy'nin ilk şartı oturum açmış kullanıcıdır. Permission kodu ondan sonra aranır.
 
 Attribute sınıfı JWT'yi kendisi okumaz. Policy adını `Permission:characters.create` diye kurar.
@@ -1660,8 +1654,6 @@ Bu kod `characters.create` ile aynı join'den gelir. Seed `Admin` rolüne `Permi
 8. Handler `Characters` tablosunda `Id` arar. Yoksa `false` döner, controller `404` yazar. Varsa `Character.Update` alanları değiştirir, `SaveChangesAsync` yazar, controller `204` döner.
 9. Sayfa `204` gövdesini `json()` ile açmaz. Adres `/characters/{id}` olur.
 
-
-
 ## Düzenle linki ve sayfa kapısı
 
 Rota `App.tsx` içindedir. `/characters/:id/edit`, `/characters/:id` rotasından önce durur. Daha genel rota önce gelseydi `edit` kelimesi bir `id` sanılırdı.
@@ -1763,7 +1755,7 @@ Bu GET'in controller metodunda `[HasPermission]` yoktur. Karakteri okumak `chara
 
 ## PUT
 
-Kaydet `handleSubmit` içinden gider. `e.preventDefault()` tarayıcının kendi form isteğini keser. `apiFetch` yolu ``/api/characters/${id}`` olur. Metot `PUT` olur. Bearer, `apiFetch` varsayılanı ile eklenir.
+Kaydet `handleSubmit` içinden gider. `e.preventDefault()` tarayıcının kendi form isteğini keser. `apiFetch` yolu `/api/characters/${id}` olur. Metot `PUT` olur. Bearer, `apiFetch` varsayılanı ile eklenir.
 
 ```116:138:web/src/CharacterEditPage.tsx
       const response = await apiFetch(`/api/characters/${id}`, {
@@ -1949,8 +1941,6 @@ Seed `Admin` rolüne bu kodu da bağlar. Sabit `PermissionCodes.CharactersDelete
 7. Handler `Characters` tablosunda `Id` arar. Yoksa `false` döner, controller `404` yazar. Varsa `Remove` ile satırı siler, `SaveChangesAsync` yazar, controller `204` döner.
 8. Sayfa `204` gövdesini `json()` ile açmaz. Adres `/characters` olur.
 
-
-
 ## Sil düğmesi
 
 Detay sayfası `useParams` ile `id` değerini, `usePermissions` ile `AppLayout`'un tuttuğu diziyi okur. Sil düğmesi `characters.delete` dizide varsa çizilir.
@@ -1982,8 +1972,6 @@ Düğme basılınca `window.confirm` açılır. Müşteri iptal ederse `ok` fals
     const ok = window.confirm('Bu karakteri silmek istediğine emin misin?')
     if (!ok) return
 ```
-
-
 
 ## DELETE
 
@@ -2069,3 +2057,430 @@ Handler `Characters` tablosunda `Id` arar. Satır yoksa `false` döner. Controll
 ```
 
 Silme tutunca o `Id` ile `Characters` satırı kalkmıştır. `401` kimliktir. `403` kimlik vardır, `characters.delete` join'de yoktur. Sil düğmesini gizlemek bu `403` kararının yerine geçmez.
+
+# Oturumu uzat
+
+Müşteri karakter listesinde, detayda veya formda bir iş yapar. Access token'ın süresi dolmuştur. `apiFetch` asıl isteği Bearer ile atar. API `401` döner. `403` bu dala girmez. `apiFetch` `localStorage` anahtarı `refreshToken` içindeki ham string'i `POST /api/auth/refresh` gövdesine koyar. Bu istekte Bearer yoktur. API ham string'i SHA256 ile hash'ler ve `RefreshTokens.TokenHash` kolonunda arar. Satır duruyorsa, iptal edilmemişse ve süresi dolmamışsa eski satırın `RevokedAtUtc` alanı dolar, yeni bir ham refresh token üretilir, onun hash'i yeni satıra yazılır, yeni bir access token basılır. Cevap `200` ve `LoginResult` olur. Sayfa ikisini de `localStorage`'a yazar ve `401` alan isteği yeni access token ile tekrar atar.
+
+İstek şu sırayla yürür:
+
+1. `apiFetch` asıl yolu Bearer ile çağırır. `auth` true'dur. Cevap `401` değilse veya `auth` false ise fonksiyon o cevabı döner. `refreshSession` çağrılmaz.
+2. `401` ve `auth` true ise `refreshSession` çalışır. `refreshInFlight` doluysa ikinci çağrı yeni bir `POST /api/auth/refresh` açmaz. Aynı `Promise`'i bekler.
+3. `refreshSession` düz `fetch` kullanır. `apiFetch` kullanmaz. Gövde `{ refreshToken }` olur. Header'da Bearer yoktur.
+4. Pipeline `UseAuthentication`, sonra `UseAuthorization` çalışır. `Refresh` metodu `[AllowAnonymous]` taşır. Boş kullanıcı `401` üretmez.
+5. `AuthController.Refresh` gövdeyi `RefreshCommand` yapar. `ValidationBehavior` boş gövdede `400` döner.
+6. Handler ham string'i `RefreshTokenGenerator.Hash` ile SHA256 hex yapar. `TokenHash` kolonunda arar.
+7. Satır yoksa, `RevokedAtUtc` doluysa veya `ExpiresAtUtc` geçmişse handler `null` döner. Controller `401` yazar. İptal edilmiş satır tekrar geldiyse o kullanıcının `RevokedAtUtc` alanı boş olan bütün satırları da iptal edilir.
+8. Satır kullanılabilirse handler onu `Revoke` ile iptal eder. `Create` yeni ham token, yeni hash ve yeni bitiş üretir. Yeni satır eklenir. Aynı `SaveChangesAsync` eski satırın `RevokedAtUtc` değerini ve yeni satırı yazar.
+9. `JwtTokenService.CreateToken` yeni access token basar. `LoginResult` hem onu hem yeni ham refresh token'ı taşır. Controller `200` yazar.
+10. `refreshSession` `setToken` ve `setRefreshToken` ile iki anahtarı yazar. `apiFetch` asıl isteği yeni Bearer ile tekrar atar.
+
+## apiFetch 401 görünce
+
+Karakter isteği `apiFetch` ile gider. Varsayılan `auth` true olduğu için ilk header'da eski access token vardır. Cevap geldikten sonra şu `if` çalışır.
+
+```129:146:web/src/api.ts
+  if (response.status !== 401 || auth === false) {
+    return response
+  }
+
+  const refreshed = await refreshSession()
+  if (!refreshed) {
+    return response
+  }
+  const retryHeaders: Record<string, string> = { ...headers }
+  const newToken = getToken()
+  if (newToken) {
+    retryHeaders.Authorization = `Bearer ${newToken}`
+  }
+  return fetch(`${API_BASE}${path}`, {
+    method,
+    headers: retryHeaders,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+```
+
+`||` taraflardan biri true ise `return response` çalışır. `refreshSession` bir alt satırdadır. Login ve register `auth: false` gönderdiği için bu satıra inmez. Karakter isteği `auth` true gider. Status `401` ise iki taraf da false olur ve `refreshSession` çalışır.
+
+`403` bu `if`'i true yapar, çünkü `403 !== 401` true olur. Fonksiyon `403` cevabını sayfaya verir. Yenileme fiil yokluğunu düzeltmez.
+
+`refreshSession` true dönerse `retryHeaders` eski header kopyasıdır. İçindeki Bearer hâlâ süresi dolmuş access token'dır. `getToken` yenilemeden sonra `localStorage`'a yazılmış yeni access token'ı okur. `retryHeaders.Authorization` o yeni string ile değiştirilir. İkinci `fetch` aynı path, aynı metot ve aynı gövde ile gider.  
+  
+Ara Not -------------------------------------
+
+
+
+`GetPaged` bu `if`'e `401` ile gelmez. Metotta `[Authorize]` ve `[HasPermission]` yoktur, sınıfın üzerinde de yoktur. `UseAuthorization` boş kullanıcıyı ancak metot kimlik istiyorsa `401` yapar. Access token süresi dolmuş olsa bile liste isteği `200` döner. `200 !== 401` true olduğu için `refreshSession` bu istekten çalışmaz ve `CharactersPage` `data.items` ile listeyi basar.
+
+
+
+Sayfanın açık kalması bu `200`'e bağlı değildir. Liste `AppLayout` içindedir. `localStorage`'da `token` anahtarı duruyorsa `loadMe` `GET /api/auth/me` atar. O metot `[Authorize]` taşır. Süresi dolmuş access token orada `401` olur. `apiFetch` yenilemeyi o istekte dener. Yenileme tutmazsa `AppLayout` `clearToken` çağırır ve `/login`'e gider. Liste cevabı `200` olsa bile kabuk o `401` yüzünden sayfayı kapatır.
+
+
+
+Ara Not -------------------------------------
+
+## `refreshInFlight` 
+
+`refreshInFlight` `refreshSession` içindedir. İki karakter isteği aynı anda `401` alırsa ikisi de `refreshSession` çağırır. Birincisi `Promise`'i değişkene yazar ve `POST /api/auth/refresh` açar. İkincisi değişken dolu olduğu için aynı `Promise`'i bekler. İkinci bir ham token göndermez.
+
+```23:36:web/src/api.ts
+let refreshInFlight: Promise<boolean> | null = null
+
+async function refreshSession(): Promise<boolean> {
+  if (refreshInFlight) {
+    return refreshInFlight
+  }
+
+  refreshInFlight = (async () => {
+    const refreshToken = getRefreshToken()
+    if (!refreshToken) {
+      return false
+    }
+
+    const response = await fetch(`${API_BASE}/api/auth/refresh`, {
+```
+
+Ham token yoksa fonksiyon `false` döner. `POST` atılmaz. `apiFetch` ilk `401` cevabını sayfaya bırakır.
+
+İstek `apiFetch` değildir. Düz `fetch` olur. `apiFetch` olsaydı bu `POST` da `401` alınca yine `refreshSession` çağırırdı. `refreshSession` kendi isteğinin bitmesini beklerdi.
+
+```36:52:web/src/api.ts
+    const response = await fetch(`${API_BASE}/api/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refreshToken }),
+    })
+
+    if (!response.ok) {
+      clearToken()
+      return false
+    }
+
+    const data = await response.json()
+    setToken(data.token)
+    setRefreshToken(data.refreshToken)
+    return true
+```
+
+Cevap `200` değilse `clearToken` hem `token` hem `refreshToken` anahtarını siler ve `false` döner. `200` ise JSON'daki `token` yeni access token'dır, `refreshToken` yeni ham refresh token'dır. Eski ham string `localStorage`'da kalmaz. `finally` bloğu `refreshInFlight` değişkenini `null` yapar. Bekleyen ikinci çağrı da bu `true` veya `false` sonucunu alır.
+
+## Controller
+
+`POST /api/auth/refresh` `[AllowAnonymous]` taşır. Access token bu isteğe gelindiğinde geçersizdir. Metot `[Authorize]` taşısaydı JwtBearer boş kullanıcı görür ve `401` dönerdi. Yenileme kendi `401`'ini yenilemeye çalışırdı. `[HasPermission]` de yoktur. Bu metot bir fiil kodu aramaz.
+
+```66:81:ReactBattleArena/ReactBattleArena.Api/Controllers/AuthController.cs
+    [AllowAnonymous]
+    [HttpPost("refresh")]
+    [ProducesResponseType(typeof(LoginResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<LoginResult>> Refresh(
+    [FromBody] RefreshRequest body,
+    CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(
+            new RefreshCommand(body.RefreshToken),
+            cancellationToken);
+
+        return result is null ? Unauthorized() : Ok(result);
+    }
+```
+
+Gövde tek alandır. JSON adı `refreshToken` olur. ASP.NET Core onu `RefreshRequest.RefreshToken` alanına bağlar.
+
+```3:6:ReactBattleArena/ReactBattleArena.Api/Contracts/RefreshRequest.cs
+    public sealed class RefreshRequest
+    {
+        public string RefreshToken { get; set; } = string.Empty;
+    }
+```
+
+Komut aynı string'i taşır. Dönüş `LoginResult?` olur. `null` controller'da `401` olur. Dolu sonuç `200` ve login'deki ile aynı gövde olur: `token` ve `refreshToken`.
+
+```6:6:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/RefreshCommand.cs
+public sealed record RefreshCommand(string RefreshToken) : IRequest<LoginResult?>;
+```
+
+Handler'dan önce `RefreshCommandValidator` çalışır. Alan boş olamaz. En fazla 200 karakterdir. Boş gövde `400` olur. `401` olmaz. `401` satır bulunamadı, iptal edildi veya süresi doldu demektir.
+
+```8:11:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/RefreshCommandValidator.cs
+    public RefreshCommandValidator()
+    {
+        RuleFor(x => x.RefreshToken).NotEmpty().MaximumLength(200);
+    }
+```
+
+## Handler, rotation, reuse
+
+Handler gelen ham string'i login'deki `Hash` metodu ile hex yapar. Aynı formül olduğu için login'de yazılan `TokenHash` ile bu hex eşleşir. Ham string tabloda aranmaz.
+
+```27:33:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/RefreshCommandHandler.cs
+        var utcNow = DateTime.UtcNow;
+        var hash = _refreshTokens.Hash(request.RefreshToken);
+
+        var existing = await _db.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash, cancellationToken);
+
+        if (existing is null)
+            return null;
+```
+
+```21:23:ReactBattleArena/ReactBattleArena.Infrastructure/Security/RefreshTokenGenerator.cs
+    public string Hash(string raw)
+    {
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw)));
+```
+
+Satırın `RevokedAtUtc` alanı doluysa bu ham token daha önce kullanılmıştır. Rotation her ham token'ı bir kez kullanır. İptal edilmiş token tekrar geldiyse handler o kullanıcının `RevokedAtUtc` alanı boş olan satırlarını da `Revoke` ile doldurur, kaydeder ve `null` döner. Yeni access token basılmaz. `refreshSession` `200` görmez, `clearToken` çalışır.
+
+```35:53:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/RefreshCommandHandler.cs
+        if (existing.RevokedAtUtc is not null)
+        {
+            var activeTokens = await _db.RefreshTokens
+                .Where(t => t.UserId == existing.UserId && t.RevokedAtUtc == null)
+                .ToListAsync(cancellationToken);
+
+            if (activeTokens.Count > 0)
+            {
+                foreach (var activeToken in activeTokens)
+                    activeToken.Revoke(utcNow);
+
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+
+            return null;
+        }
+```
+
+`Revoke` alan zaten doluysa ikinci kez yazmaz. Boşsa `utcNow` yazar.
+
+```38:44:ReactBattleArena/ReactBattleArena.Domain/Authentication/RefreshToken.cs
+    public void Revoke(DateTime utcNow)
+    {
+        if (RevokedAtUtc is not null)
+            return;
+
+        RevokedAtUtc = utcNow;
+    }
+```
+
+Satır iptal edilmemişse bitişe bakılır. `ExpiresAtUtc` şu andan küçük veya eşitse `null` döner. Kullanıcı satırı yoksa da `null` döner. Controller bu `null` değerlerinin hepsine `401` yazar.
+
+Satır kullanılabilirse handler önce onu iptal eder. Sonra `Create` yeni üçlü döner. Birinci değer yeni ham token'dır. Handler'da adı `rawRefresh` olur. İkinci değer `newHash` olur ve yeni satırın `TokenHash` kolonuna gider. Üçüncü değer `expires` olur ve `ExpiresAtUtc` kolonuna gider. Ham token tabloya yazılmaz.
+
+```57:75:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/RefreshCommandHandler.cs
+        if (existing.ExpiresAtUtc <= utcNow)
+            return null;
+
+        var user = await _db.Users
+            .FirstOrDefaultAsync(u => u.Id == existing.UserId, cancellationToken);
+        if (user is null)
+            return null;
+        existing.Revoke(utcNow);
+
+        var (rawRefresh, newHash, expires) = _refreshTokens.Create(utcNow);
+        _db.RefreshTokens.Add(RefreshToken.Create(user.Id, newHash, expires, utcNow));
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+        var token = _jwtTokenService.CreateToken(user);
+        return new LoginResult(user.Id, user.UserName, user.Email, token, rawRefresh);
+```
+
+`existing` sorgu ile geldiği için EF onu izler. `Revoke` yalnız `RevokedAtUtc` alanını değiştirir. Ayrı bir `Update` çağrısı yoktur. `SaveChangesAsync` eski satır için `UPDATE`, yeni satır için `INSERT` yazar. İkisi aynı kayıtta durur. Access token bu `SaveChanges` ile tabloya gitmez. `CreateToken` onu `SaveChanges` sonrasında basar. `LoginResult.Token` o JWT'dir. `LoginResult.RefreshToken` `rawRefresh` olur.
+
+`200` gelince `refreshSession` iki anahtarı yazar. `apiFetch` asıl karakter isteğini yeni access token ile tekrar atar. Eski ham refresh token bir kez kullanılmıştır. `RevokedAtUtc` doludur. Aynı ham string ikinci kez `POST /api/auth/refresh` olursa handler onu reuse sayar, kullanıcının açık satırlarını iptal eder ve `401` döner.
+
+# Çıkış
+
+Müşteri üst banttaki Çıkış düğmesine basar. `AppLayout` `logout` fonksiyonunu çağırır. Fonksiyon `localStorage` anahtarı `refreshToken` içindeki ham string'i okur. String varsa `POST /api/auth/logout` atar. Bu istekte Bearer yoktur. API ham string'i SHA256 ile hash'ler ve `RefreshTokens.TokenHash` kolonunda arar. Satır duruyorsa ve `RevokedAtUtc` boşsa o alanı doldurur. Yeni ham token üretilmez. Yeni access token basılmaz. Cevap `204` olur. Sayfa cevabın gövdesine bakmaz. `clearToken` hem `token` hem `refreshToken` anahtarını siler. `navigate('/login')` login sayfasına gider.
+
+İstek şu sırayla yürür:
+
+1. Çıkış düğmesinin `onClick` değeri `handleLogout` olur. Fonksiyon önce `logout()` bekler, sonra `/login` yoluna gider.
+2. `logout` `getRefreshToken` okur. Ham string yoksa `POST` atılmaz. `clearToken` yine çalışır.
+3. Ham string varsa istek düz `fetch` olur. `apiFetch` kullanılmaz. Gövde `{ refreshToken }` olur. Header'da Bearer yoktur.
+4. Ağ hatası `catch` içinde yutulur. `clearToken` `try` bloğunun dışındadır. API kapalı olsa da iki anahtar silinir.
+5. Pipeline `UseAuthentication`, sonra `UseAuthorization` çalışır. `Logout` metodu `[AllowAnonymous]` taşır. Access token yoksa veya süresi dolmuşsa bu metot `401` yazmaz.
+6. `AuthController.Logout` gövdeyi `LogoutCommand` yapar. `ValidationBehavior` boş gövdede `400` döner. Sayfa boş gövde göndermez. Ham string yoksa istek hiç çıkmaz.
+7. Handler ham string'i `RefreshTokenGenerator.Hash` ile SHA256 hex yapar. `TokenHash` kolonunda arar. Satır yoksa veya `RevokedAtUtc` doluysa `false` döner. `SaveChangesAsync` çalışmaz.
+8. Satır kullanılabilirse `Revoke` `RevokedAtUtc` alanını doldurur. `SaveChangesAsync` yalnız o satırı `UPDATE` eder. `Create` çağrılmaz. Handler `true` döner.
+9. Controller handler'ın `bool` sonucunu okumaz. `false` da `true` da `204` olur.
+10. `clearToken` tarayıcıdaki access token string'ini ve ham refresh token'ı siler. Access token tabloda bir satır değildir. API o JWT'yi iptal etmez. Süre dolana kadar aynı string `[Authorize]` metotlarda geçer.
+
+## Düğme ve sayfa
+
+Çıkış düğmesi `AppLayout` başlığındadır. `/login` rotası bu layout'un içinde değildir. `navigate('/login')` kabuğu bırakır.
+
+```74:79:web/src/AppLayout.tsx
+              <button
+                type="button"
+                className="app-header__logout"
+                onClick={handleLogout}
+              >
+                Çıkış
+```
+
+```57:60:web/src/AppLayout.tsx
+  async function handleLogout() {
+    await logout()
+    navigate('/login')
+  }
+```
+
+`await logout()` bitmeden `navigate` çalışmaz. `logout` içindeki `clearToken` senkron çalışır. `navigate` çağrıldığında iki anahtar silinmiş olur.
+
+## logout fonksiyonu
+
+```62:83:web/src/api.ts
+export async function logout(): Promise<void> {
+  const refreshToken = getRefreshToken()
+
+  if (refreshToken) {
+    try {
+      await fetch(`${API_BASE}/api/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken }),
+      })
+    } catch {
+      // API kapalıysa bile yerel temizlik yapılmalı; kullanıcı ekranda kalmasın
+      //Üç ayrıntı var burada. Token yoksa isteği hiç atmıyoruz, çünkü validator boş değere 400 döner ve çıkış yaparken hata görmek anlamsız. 
+      // İstek apiFetch değil düz fetch; apiFetch kullanırsak 401 ihtimalinde refresh denemesi yapar, oysa biz tam tersini istiyoruz. 
+      // clearToken() de try/catch'in dışında, yani sunucuya ulaşılamasa bile tarayıcı temizlenir.
+    }
+  }
+
+  clearToken()
+}
+```
+
+`getRefreshToken` `localStorage` anahtarı `refreshToken` okur. Değer `null` ise `if` gövdesi atlanır. `POST` gitmez. `clearToken` yine çalışır.
+
+```11:14:web/src/api.ts
+export function clearToken() {
+  localStorage.removeItem('token')
+  localStorage.removeItem('refreshToken')
+}
+```
+
+İstek `apiFetch` değildir. `apiFetch` olsaydı access token süresi dolmuşken cevap `401` olur ve `refreshSession` yeni bir ham token üretirdi. Çıkış tam tersini ister: mevcut satırı iptal etmek. Düz `fetch` `401` dalına girmez.
+
+`fetch` cevabının status'una bakılmaz. `204` de `400` de `500` de `clearToken`'a düşer. `catch` yalnız ağın hiç cevap vermediği durumu yakalar. O durumda da `clearToken` çalışır.
+
+## Controller
+
+`POST /api/auth/logout` `[AllowAnonymous]` taşır. `[Authorize]` ve `[HasPermission]` yoktur. Kimlik kanıtı gövdedeki ham refresh token'dır. Access token header'da aranmaz.
+
+```84:95:ReactBattleArena/ReactBattleArena.Api/Controllers/AuthController.cs
+    [AllowAnonymous]
+    [HttpPost("logout")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult> Logout(
+        [FromBody] LogoutRequest body,
+        CancellationToken cancellationToken = default)
+    {
+        await _mediator.Send(new LogoutCommand(body.RefreshToken), cancellationToken);
+
+        return NoContent();
+    }
+```
+
+`Send` bir `bool` döner. Satır `await` ile beklenir ve sonuç bir değişkene yazılmaz. Hemen ardından `NoContent()` gelir. `204` gövdesi boştur. Sayfa `response.json()` çağırmaz.
+
+JSON alanı `refreshToken` olur. ASP.NET Core onu `LogoutRequest.RefreshToken` alanına bağlar. Komut aynı string'i taşır.
+
+```3:6:ReactBattleArena/ReactBattleArena.Api/Contracts/LogoutRequest.cs
+public sealed class LogoutRequest
+{
+    public string RefreshToken { get; set; } = string.Empty;
+}
+```
+
+```5:5:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/LogoutCommand.cs
+public sealed record LogoutCommand(string RefreshToken) : IRequest<bool>;
+```
+
+Handler'dan önce `LogoutCommandValidator` çalışır. Alan boş olamaz. En fazla 200 karakterdir. Boş gövde `400` olur. `logout` fonksiyonu boş string'i göndermez. `if (refreshToken)` false ise `fetch` satırı çalışmaz.
+
+```7:10:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/LogoutCommandValidator.cs
+    public LogoutCommandValidator()
+    {
+        RuleFor(x => x.RefreshToken).NotEmpty().MaximumLength(200);
+    }
+```
+
+## Handler
+
+Handler gelen ham string'i oturumu uzatmadaki `Hash` metodu ile hex yapar. Ham string tabloda aranmaz. `TokenHash` eşleşmesi aynı satırı bulur.
+
+```22:36:ReactBattleArena/ReactBattleArena.Application/Authentication/Commands/LogoutCommandHandler.cs
+    public async Task<bool> Handle(LogoutCommand request, CancellationToken cancellationToken)
+    {
+        var hash = _refreshTokens.Hash(request.RefreshToken);
+
+        var existing = await _db.RefreshTokens
+            .FirstOrDefaultAsync(t => t.TokenHash == hash, cancellationToken);
+
+        if (existing is null || existing.RevokedAtUtc is not null)
+            return false;
+
+        existing.Revoke(DateTime.UtcNow);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return true;
+    }
+```
+
+`||` taraflardan biri true ise `false` döner. Satır yoksa veya `RevokedAtUtc` zaten doluysa `Revoke` ve `SaveChangesAsync` çalışmaz. Controller bu `false` değerini okumaz. Cevap yine `204` olur. İstemci "bu ham token tabloda var mıydı" bilgisini status'tan ayırt edemez.
+
+Satır bulunmuş ve `RevokedAtUtc` boşsa `Revoke` çalışır. `ExpiresAtUtc` bu handler'da okunmaz. Süresi dolmuş satır da iptal edilir.
+
+```38:44:ReactBattleArena/ReactBattleArena.Domain/Authentication/RefreshToken.cs
+    public void Revoke(DateTime utcNow)
+    {
+        if (RevokedAtUtc is not null)
+            return;
+
+        RevokedAtUtc = utcNow;
+    }
+```
+
+`existing` sorgu ile geldiği için EF onu izler. Ayrı bir `Update` çağrısı yoktur. `SaveChangesAsync` tek satır için `UPDATE` yazar. `RefreshTokens.Add` yoktur. `JwtTokenService.CreateToken` çağrılmaz. `LoginResult` dönmez.
+
+İptal edilen satır yalnız bu ham string'in hash'ine ait satırdır. Aynı kullanıcının başka cihazlardaki `RevokedAtUtc` alanı boş satırlar durur. O cihazlar kendi ham token'ları ile `POST /api/auth/refresh` yapabilir.
+
+`clearToken` tarayıcıdaki `token` anahtarını siler. Access token `Users` tablosunda ve `RefreshTokens` tablosunda bir kolon değildir. Çıkış onu `Revoke` ile işaretleyemez. Kopyası duran JWT, `ExpireMinutes` dolana kadar `[Authorize]` metotlarda geçer. Ham refresh token ise `RevokedAtUtc` dolduğu için bir daha oturum uzatamaz. Aynı ham string `POST /api/auth/refresh` olursa refresh handler iptal edilmiş satırı görür, o kullanıcının açık satırlarını da iptal eder ve `401` döner.
+
+# Player edit adresini yazınca
+
+Sanji `Player` rolündedir. Adres çubuğuna `/characters/44aeda65-284d-4100-937a-1e1295aa89a0/edit` yazılınca form açılmaz. Sayfa `/characters` listesine döner. Detay adresi `/characters/44aeda65-284d-4100-937a-1e1295aa89a0` değildir. `PUT` bu dönüşte atılmaz.
+
+`AppLayout` `meLoaded` true olmadan `Outlet` çizmez. `CharacterEditPage` o anda `usePermissions` ile bellekteki diziyi okur. Sanji'nin `/me` cevabında `characters.update` yoktur. `Player` rolüne bu kodun `RolePermissions` satırı yazılmaz.
+
+```163:171:web/src/CharacterEditPage.tsx
+  if (!token) {
+  return <Navigate to="/login" replace />
+  }
+  if (loading) {
+    return <p>Yükleniyor…</p>
+  }
+  if (!hasPermission(permissions, PERMISSIONS.charactersUpdate)) {
+    return <Navigate to="/characters" replace />
+  }
+```
+
+Access token durduğu için birinci `if` girmez. `loading` başlangıcı `true` olduğu için ikinci `if` bir an `Yükleniyor…` yazar. `useEffect` bu sırada `GET /api/characters/44aeda65-284d-4100-937a-1e1295aa89a0` atar. Bu GET'in metodunda `[HasPermission]` yoktur. Karakter satırı okunur, `loading` false olur. Üçüncü `if` o zaman çalışır.
+
+```7:9:web/src/permissions.ts
+export function hasPermission(permissions: string[], code: string): boolean {
+  return permissions.includes(code)
+}
+```
+
+`PERMISSIONS.charactersUpdate` metni `characters.update` olur. Dizi bu metni içermez. `includes` false döner. `!` onu true yapar. `Navigate` adresi `/characters` yapar. `replace` edit adresini geçmişten çıkarır. Geri tuşu o edit URL'sine dönmez. Formun `return` satırı bu `if`'in altındadır. O `return` çalışmadığı için düzenleme formu çizilmez.
