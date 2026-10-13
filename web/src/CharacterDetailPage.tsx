@@ -20,11 +20,11 @@ interface CharacterDetail {
 }
 
 function CharacterDetailPage() {
-  const { id } = useParams<{ id: string }>()
+  const { id } = useParams<{ id: string }>() // CharacterEditPage URL'deki id değerini useParams ile alır.
   const navigate = useNavigate()
   // const token = localStorage.getItem('token') ortak auth 
   const token = getToken()
-  const permissions = usePermissions()
+  const permissions = usePermissions() // me loadMe den dönem permission dizisini okumak
 
   const [character, setCharacter] = useState<CharacterDetail | null>(null)
   const [error, setError] = useState('')
@@ -153,7 +153,7 @@ function CharacterDetailPage() {
               Sil
             </button>
           )}
-          <Link to="/characters">Listeye dön</Link>
+          <Link className="characters-page__back" to="/characters">Listeye dön</Link>
         </div>
       </div>
 

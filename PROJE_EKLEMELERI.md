@@ -324,6 +324,18 @@ birkaç noktada duruyor. Sıra önemli; ters sırada `UsersController` koruması
 - [x] `AuthSeeder`'daki `Users.Role` → `UserRoles` tek seferlik aktarım bloğu kalktı — 18 Eyl
 - [x] Belge: `PROJE_MANTIGI.md`'ye "Yetkilendirme Modeli" ve "Oturum Modeli" bölümleri yazıldı — 17 Eyl
 
+### Adım 32 — Light Blue kabuk (13 Ekim, karakter sayfaları)
+
+Şablonu ikinci uygulama veya npm paketi yapmadık. `light-blue-react` klasörü referans. Ürün arayüzü `web/`, port 5173. API .NET’te kaldı. Şablonun sol menüsü ve üst çubuğu `web/src/shell` altına yazıldı. Hamburger her sayfaya ayrı konmadı. `App.tsx` içinde login ve register `AppLayout` dışında, eski mor palette. Karakter listesi, ekleme, detay ve düzenleme `AppLayout` altında `<Outlet />` ile açılıyor. Eski üst şerit (Karakterler linki ve Çıkış butonu) kalktı. Yerine `Sidebar` ve `Header` geldi. Menünün açık hali `sidebarOpen` state’i `AppLayout`’ta duruyor. Header’daki hamburger yalnız `onToggleSidebar` çağırır. Çıkış ikonu `onLogout` ile mevcut `handleLogout`’a gider: `logout()` sonra `/login`. Header kendi içinde `logout()` çağırmaz. Menü `NavLink` kullanır, tam sayfa yenilenmez.
+
+- [x] `bootstrap` ve `sass` yalnız kabuk için kuruldu. Bootstrap CSS `main.tsx` içinde `index.css`’ten önce gelir. Böylece login’deki yazı rengi Bootstrap’in varsayılan koyu gri gövdesinin altında kalmaz — 13 Eki
+- [x] `Sidebar` — Battle Arena ve Karakterler. `Header` — hamburger ve çıkış ikonu. İkisi de `AppLayout` içinde `Outlet`’in çevresine takıldı — 13 Eki
+- [x] Kart genişliği kolonla sabit. Yükseklik resim dosyasının pikselinden değil, en-boy oranından gelir. Resimsiz kutu kare kalır. Izgara masonry değil: bir satırdaki en uzun kart, sonraki satırın başını belirler — 13 Eki
+- [x] Kart, form ve butonlara Bootstrap sınıf adı (`btn`, `form-control`) yazılmadı. Hazır Bootstrap, input’u beyaz zemin yapardı. Mevcut sınıflar şablonun renk rollerine boyandı: iş butonu info, geri linki default, Sil danger — 13 Eki
+- [x] Listeye dön ve Detaya dön önce `.characters-page__actions` dışında durduğu için yalnız genel `a` rengini alıyordu (mor, çerçevesiz). `characters-page__back` ile default hap oldular — 13 Eki
+- [ ] Sil hâlâ şablonun canlı danger rengi. Soluk kırmızı (`$red-dark`) istenmişti, dosyaya yazılmadı — 13 Eki
+- [ ] Giriş ve kayıt kabuğun dışında. Mor palet orada duruyor. Harita, istatistik kartı ve takvim bu adıma girmedi
+
 ### Güvenlik & Git
 
 - [x] `Microsoft.OpenApi` güvenlik güncellemesi
@@ -697,9 +709,11 @@ D:\ReactBattleArena\
 │       ├── api.ts                ← apiFetch + token
 │       ├── App.tsx / AppLayout.tsx
 │       ├── LoginPage / RegisterPage
+│       ├── shell\                 ← Sidebar, Header, hamburger, çıkış (13 Eki)
 │       ├── CharactersPage / CharacterCard
 │       ├── CharacterCreatePage / CharacterDetailPage / CharacterEditPage
-│       └── *.css (palet kilidi)
+│       ├── CharactersPage.css     ← kabuk içi kart, form, buton
+│       └── index.css              ← giriş/kayıt mor paleti (kabuğun dışında)
 └── ReactBattleArena\
     ├── Domain\
     │   ├── Characters\Character.cs

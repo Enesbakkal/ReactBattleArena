@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 18 Eylül 2026 — Auth kod tarafı + eski string rol temizliği bitti (`DropUserRoleColumn` uygulandı). Cookie kararı danışmanda. Permission hâlâ DB. Sıradaki: Battle Arena backend.
+Son güncelleme: 13 Ekim 2026 — Light Blue kabuk karakter sayfalarına oturdu (`AppLayout` + `web/src/shell`). Giriş/kayıt hâlâ mor palet, kabuğun dışında. Cookie kararı danışmanda. Permission hâlâ DB. Sıradaki: günün özeti, sonra projede hangi sayfalar olacağı. Sil’in soluk kırmızısı dosyada yok.
 
 ## Yeni chat’e geçerken oku
 
@@ -46,7 +46,7 @@ Detay: `PROJE_MANTIGI.md`
 - [x] Faz 6 kart grid + Create ayrı sayfa
 - [x] Characters frontend CRUD
 - [x] AppLayout + Outlet
-- [x] UI renk KİLİT (koyu mor 60-30-10)
+- [x] UI renk: giriş/kayıt koyu mor 60-30-10 (`index.css`). Giriş yapılmış sayfalar Light Blue kabuk (13 Eki, Adım 32)
 - [x] **API/auth helper** — `web/src/api.ts`
   - `apiFetch` + `getToken` / `setToken` / `clearToken`
   - Login/Register `auth: false`; diğerleri Bearer varsayılan
@@ -76,12 +76,15 @@ Detay: `PROJE_MANTIGI.md`
   - [x] Temizlik: `RefreshCommand` namespace’i `Authentication.Commands`, 4 gereksiz `using` silindi
   - [x] Reuse detection (17 Eyl) — `RefreshCommandHandler`: iptal edilmiş token gelirse o kullanıcının `RevokedAtUtc == null` satırlarının hepsi iptal, dönüş yine 401. Test A/B ile doğrulandı
   - [ ] `LogoutCommandHandler`’daki kullanılmayan `Domain.Authentication` using’i (küçük)
+- [x] **Light Blue kabuk (13 Eki, Adım 32)** — şablon npm paketi değil, `light-blue-react` referans. Menü ve üst çubuk `web/src/shell`. Hamburger sayfa sayfa değil: `AppLayout` `Outlet` çevresine takıldı, karakter rotaları oradan çiziliyor. Login/register kabuğun dışında
+- [x] Kart: kolon sabit, yükseklik resmin en-boy oranı. İş butonu info, geri linki default (`characters-page__back`), Sil danger. Bootstrap `btn` / `form-control` yok
+- [ ] Sil soluk kırmızı (`$red-dark`) — istenmişti, `CharactersPage.css` hâlâ canlı danger
 - [ ] Battle Arena backend
 
 ## Karar notları
 
 - Mega Grid yok; `CharacterCard` + sayfa CSS grid.
-- **Renk KİLİT:** `#1e1a24` / `#2e2838` / `#b39bc9`.
+- **Renk:** Giriş ve kayıt hâlâ `#1e1a24` / `#2e2838` / `#b39bc9`. Giriş yapılmış karakter sayfaları Light Blue kabukta. Mor token’lar `index.css` `:root` içinde duruyor; kabuk onları ezmiyor çünkü login `AppLayout` dışında.
 - **HTTP:** sayfalarda doğrudan `localhost` + `fetch` yok; sadece `api.ts`.
 - Player CUD: permission yoksa 403; `RolePermissions` + `UserRoles` varsa 201 (yeniden login gerekmez).
 - Scalar’da karakter JSON’u Register’a gitmesin — UserName/Email/Password 400’ü odur.
@@ -123,8 +126,9 @@ Detay: `PROJE_MANTIGI.md`
 ## Yeni thread açılış cümlesi (kopyala)
 
 ```
-ReactBattleArena — CHECKPOINT.md, PROJE_MANTIGI.md ve REACT-OGRENIM.md oku.
-Cursor yönlendirme; kod VS Code’da. Sıradaki: Login refresh token üretimi (hash DB, ham cevapta). Yetki JWT’de değil. Refresh ≠ permission.
+ReactBattleArena — CHECKPOINT.md, PROJE_MANTIGI.md ve PROJE_EKLEMELERI.md oku.
+Cursor yönlendirme; kod VS Code’da. Kabuk Adım 32: menü AppLayout’ta, login dışında.
+Sıradaki: 13 Ekim özeti, sonra hangi sayfalar olacağı. Yetki JWT’de değil. Refresh ≠ permission.
 ```
 
 ## Not düzeltme thread’i açılış cümlesi (kopyala)

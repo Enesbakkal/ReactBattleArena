@@ -131,6 +131,9 @@ function CharacterCreatePage() {
       setImageUrl('')
       await loadPreview()
       navigate('/characters')
+      //Karakter eklenince bilinen ayrım şudur. 401 kimlik yoktur veya access token geçersizdir. 
+      // 403 kimlik vardır, characters.create join'de yoktur. Linki gizlemek bu 403 kararının yerine geçmez. 
+      // Aynı access token, UserRoles veya RolePermissions değişince bir sonraki POST'ta başka sonuç verebilir.
     } catch {
       setFormError('API’ye ulaşılamadı')
     }
@@ -152,7 +155,7 @@ function CharacterCreatePage() {
     <div className="characters-page">
       <div className="characters-page__header">
         <h1>Karakter ekle</h1>
-        <Link to="/characters">Listeye dön</Link>
+        <Link className="characters-page__back" to="/characters">Listeye dön</Link>
       </div>
 
       <form className="characters-form" onSubmit={handleCreate}>

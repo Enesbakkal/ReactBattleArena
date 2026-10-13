@@ -31,18 +31,51 @@
   padding: 0.45rem 0.9rem;
   border-radius: 999px;
   border: 1px solid transparent;
-  background: var(--accent);
-  color: #1e1a24;
+  color: #f4f4f5;
   font: inherit;
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
 }
 
-.characters-page__actions a:hover,
+.characters-page__actions a {
+  background: #4179cf;
+}
+
+.characters-page__actions a:hover {
+  background: #3568b0;
+  color: #f4f4f5;
+}
+
+.characters-page__actions button {
+  background: #d04f4f;
+}
+
 .characters-page__actions button:hover {
-  background: var(--accent-hover);
-  color: #1e1a24;
+  background: #b84545;
+  color: #f4f4f5;
+}
+
+a.characters-page__back,
+.characters-page__actions a.characters-page__back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: #474d84;
+  color: #f4f4f5;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+a.characters-page__back:hover,
+.characters-page__actions a.characters-page__back:hover {
+  background: #3a406e;
+  color: #f4f4f5;
 }
 
 .characters-form {
@@ -50,10 +83,10 @@
   gap: 0.85rem;
   margin-bottom: 2rem;
   padding: 1.25rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow);
+  border: none;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.24);
+  box-shadow: 0 25px 20px -20px rgba(0, 0, 0, 0.1), 0 0 15px rgba(0, 0, 0, 0.06);
   max-width: 480px;
 }
 
@@ -61,20 +94,20 @@
   display: grid;
   gap: 0.35rem;
   font-size: 0.9rem;
-  color: var(--text);
+  color: rgba(244, 244, 245, 0.9);
 }
 
 .characters-form input {
   font: inherit;
   padding: 0.55rem 0.7rem;
-  border: 1px solid var(--border);
+  border: none;
   border-radius: 8px;
-  background: var(--bg);
-  color: var(--text-h);
+  background: #040620;
+  color: #f4f4f5;
 }
 
 .characters-form input:focus {
-  outline: 2px solid var(--accent);
+  outline: 2px solid #4179cf;
   outline-offset: 1px;
 }
 
@@ -83,21 +116,21 @@
   padding: 0.65rem 1rem;
   border: none;
   border-radius: 8px;
-  background: var(--accent);
-  color: #1e1a24;
+  background: #4179cf;
+  color: #f4f4f5;
   font: inherit;
   font-weight: 600;
   cursor: pointer;
 }
-
 .characters-form button[type='submit']:hover {
-  background: var(--accent-hover);
+  background: #3568b0;
 }
 
 .characters-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 1rem;
+  align-items: start;
   list-style: none;
   padding: 0;
   margin: 0;
@@ -109,14 +142,14 @@
 }
 
 .character-card {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 0.75rem;
-  background: var(--surface);
-  box-shadow: var(--shadow);
+  border: none;
+  border-radius: 10px;
+  padding: 15px 20px;
+  background: rgba(0, 0, 0, 0.24);
+  box-shadow: 0 25px 20px -20px rgba(0, 0, 0, 0.1), 0 0 15px rgba(0, 0, 0, 0.06);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
-  height: 100%;
   box-sizing: border-box;
+  color: rgba(244, 244, 245, 0.9);
 }
 
 .character-card-link:hover .character-card {
@@ -126,8 +159,8 @@
 
 .character-card__image {
   width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
+  max-width: 100%;
+  height: auto;
   border-radius: 8px;
   display: block;
   margin-bottom: 0.6rem;
@@ -140,21 +173,21 @@
   place-items: center;
   border-radius: 8px;
   margin-bottom: 0.6rem;
-  background: var(--muted);
-  color: var(--text);
+  background: rgba(0, 0, 0, 0.35);
+  color: rgba(244, 244, 245, 0.7);
   font-size: 0.8rem;
 }
 
 .character-card__name {
   margin: 0 0 0.2rem;
   font-size: 1rem;
-  color: var(--text-h);
+  color: #fff;
 }
 
 .character-card__meta {
   margin: 0;
   font-size: 0.85rem;
-  color: var(--text);
+  color: rgba(244, 244, 245, 0.6);
 }
 
 .characters-hint {
@@ -165,17 +198,18 @@
 
 .character-detail {
   max-width: 420px;
-  padding: 1.25rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow);
+  padding: 15px 20px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.24);
+  box-shadow: 0 25px 20px -20px rgba(0, 0, 0, 0.1), 0 0 15px rgba(0, 0, 0, 0.06);
+  color: rgba(244, 244, 245, 0.9);
 }
 
 .character-detail__image {
   width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
+  max-width: 100%;
+  height: auto;
   border-radius: 8px;
   display: block;
   margin-bottom: 1rem;
@@ -183,6 +217,10 @@
 
 .character-detail h2 {
   margin-bottom: 0.35rem;
+  color: #fff;
+}
+.character-detail .characters-hint {
+  color: rgba(244, 244, 245, 0.6);
 }
 
 .character-detail p {

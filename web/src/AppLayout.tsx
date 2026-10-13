@@ -1,18 +1,28 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, Outlet, useNavigate } from 'react-router-dom'
-import './AppLayout.css'
+// import './AppLayout.css'  burayı kaldırdık çünkü artık complex template'E geçiyoruz
 import { apiFetch, clearToken, getToken, logout } from './api'
 import { PermissionContext } from './PermissionContext'
+import Header from './shell/Header'
+import Sidebar from './shell/Sidebar'
+import shell from './shell/Shell.module.scss'
 
 
-
+//Sayfanın çalışma mantığı çok önemli 
+// Bu iki if aynı anda çalışmaz. AppLayout fonksiyonu yukarıdan aşağı iner. 
+// useEffect satırına gelince loadMe çağrılmaz. React, fonksiyonu saklar. Saklanan fonksiyon, return ile ekran çizildikten sonra çalışır.Çizim sırasında sıra şöyledir. 
+// getToken() localStorage anahtarı token değerini okur. Anahtar yoksa 44. satırdaki if girer ve Navigate ile /login adresine döner. /me bu çizimde atılmaz. 
+// Anahtar varsa 44. satır geçilir. meLoaded hâlâ false olduğu için ekrana Yükleniyor… yazılır.Çizim bitince saklanan useEffect fonksiyonu çalışır. 
+// Onun ilk satırı da if (!token) return olur. Anahtar yoksa loadMe hiç çağrılmaz. Anahtar duruyorsa loadMe çalışır ve GET /api/auth/me atılır. 
+// apiFetch varsayılanı auth: true olduğu için header Authorization: Bearer ve ardından access token olur. Arada bir boşluk vardır. Bearer kelimesi şemanın adıdır.
 
 function AppLayout() {
   const navigate = useNavigate()
   // const token = localStorage.getItem('token') ortak auth
-  const token = getToken()
+  const token = getToken() // Layout önce getToken() okur. Access token yoksa bileşen Navigate ile /login adresine döner. Liste çizilmez.
   const [permissions, setPermissions] = useState<string[]>([])
   const [meLoaded, setMeLoaded] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
 
   useEffect(() => {
   if (!token) {
@@ -43,6 +53,9 @@ function AppLayout() {
 
   if (!token) {
     return <Navigate to="/login" replace />
+    //Bu kontrol sunucuya gitmez. Tarayıcıdaki token anahtarına bakar. 
+    // Anahtar duruyorsa layout GET /api/auth/me atar. apiFetch varsayılanı auth: true olduğu için header Authorization: Bearer ve ardından access token olur. Arada bir boşluk vardır. 
+    // Bearer kelimesi şemanın adıdır.
   }
 
   if (!meLoaded) {
@@ -60,33 +73,21 @@ function AppLayout() {
   }
 
   return (
-    <PermissionContext.Provider value={{ permissions }}>
-      <div className="app-shell">
-        <header className="app-header">
-              <div className="app-header__left">
-                  <Link to="/characters" className="app-header__brand">
-                  ReactBattleArena
-                  </Link>
-                  <nav className="app-header__nav">
-                  <Link to="/characters">Karakterler</Link>
-                  </nav>
-              </div>
-              <button
-                type="button"
-                className="app-header__logout"
-                onClick={handleLogout}
-              >
-                Çıkış
-              </button>
-          </header>
-        <main className="app-main">
+  <PermissionContext.Provider value={{ permissions }}>
+    <div className={shell.root}>
+      <Sidebar open={sidebarOpen} />
+      <div className={sidebarOpen ? shell.wrap : `${shell.wrap} ${shell.wrapClosed}`}>
+        <Header
+          onToggleSidebar={() => setSidebarOpen((open) => !open)}
+          onLogout={handleLogout}
+        />
+        <main className={shell.content}>
           <Outlet />
         </main>
+      </div>
     </div>
-    </PermissionContext.Provider>
-
-    
-  )
+  </PermissionContext.Provider>
+)
 }
 
 export default AppLayout

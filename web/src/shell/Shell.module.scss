@@ -1,0 +1,22 @@
+.root {
+  width: 100vw;
+  min-height: 100vh;
+  margin-left: calc(50% - 50vw);
+  position: relative;
+  color: rgba(244, 244, 245, 0.9);
+  background: radial-gradient(farthest-side ellipse at 10% 0, #333867 20%, #17193b);
+}
+.wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  margin-left: 220px;
+  transition: margin-left 0.3s ease-in-out;
+}
+.wrapClosed {
+  margin-left: 0;
+}
+.content {
+  flex: 1;
+  padding: 25px 40px 60px;
+}

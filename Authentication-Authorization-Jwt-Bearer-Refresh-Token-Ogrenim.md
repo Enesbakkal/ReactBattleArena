@@ -2484,3 +2484,146 @@ export function hasPermission(permissions: string[], code: string): boolean {
 ```
 
 `PERMISSIONS.charactersUpdate` metni `characters.update` olur. Dizi bu metni içermez. `includes` false döner. `!` onu true yapar. `Navigate` adresi `/characters` yapar. `replace` edit adresini geçmişten çıkarır. Geri tuşu o edit URL'sine dönmez. Formun `return` satırı bu `if`'in altındadır. O `return` çalışmadığı için düzenleme formu çizilmez.
+
+# Controller üzerindeki yetki nasıl bakılıyor
+
+`[HasPermission(PermissionCodes.CharactersCreate)]` veritabanına kendisi gitmez. Attribute yalnız policy adını `Permission:characters.create` yapar. Veritabanına giden kod `UserPermissionService.GetCodesAsync` içindeki join'dir. Onu çağıran `PermissionAuthorizationHandler.HandleRequirementAsync` olur.
+
+Bu zincirin durduğu yer ASP.NET Core'un hazır authorization mekanizmasıdır. Hazır olanlar `AuthorizeAttribute`, `UseAuthorization`, `AddAuthorization`, `IAuthorizationPolicyProvider`, `AuthorizationHandler`, `RequireAuthenticatedUser` ve `Succeed` sonrası `401` / `403` kararıdır. Bu projede yazılanlar `HasPermissionAttribute`, `PermissionRequirement`, `PermissionPolicyProvider`, `PermissionAuthorizationHandler` ve `UserPermissionService` olur. Kayıt `Program.cs` ile `AddInfrastructure` içindedir.
+
+`POST /api/characters` şu sırayla yürür:
+
+1. Controller metodunun üstündeki `HasPermissionAttribute` kurucu çalışır. `Policy` alanı `Permission:` ile `characters.create` metnini birleştirir.
+2. İstek pipeline'da `UseAuthentication` sonra `UseAuthorization` görür. `UseAuthorization` hazır middleware'dir. Policy adını `PermissionPolicyProvider.GetPolicyAsync` metoduna sorar.
+3. Provider adı `Permission:` ile başlıyorsa `AuthorizationPolicyBuilder` ile policy kurar. İçinde `RequireAuthenticatedUser` ve `PermissionRequirement` vardır.
+4. Access token yoksa, imzası bozuksa veya süresi dolmuşsa `RequireAuthenticatedUser` geçmez. Hazır mekanizma `401` yazar. Handler'ın join'i bu `401`'in sebebi değildir.
+5. Kimlik geçtiyse hazır mekanizma `PermissionAuthorizationHandler.HandleRequirementAsync` metodunu çağırır. Metot JWT içindeki `ClaimTypes.NameIdentifier` değerini okur. Bu okuma veritabanı değildir.
+6. `GetCodesAsync` `UserId` ile `UserRoles`, `RolePermissions` ve `Permissions` tablolarını join eder. `Permissions.Code` listesini döner.
+7. Listede `characters.create` varsa `context.Succeed` çağrılır. Hazır mekanizma action'a izin verir. MediatR çalışır. Listede yoksa `Succeed` çağrılmaz. Kimlik vardır, fiil yoktur. Cevap `403` olur. `Create` action'ına inilmez.
+
+## Attribute policy adını yazar
+
+`PermissionCodes.CharactersCreate` bir C# sabitidir. Değeri `characters.create` metnidir. Bu sınıf sorgu atmaz.
+
+```3:6:ReactBattleArena/ReactBattleArena.Domain/Authorization/PermissionCodes.cs
+public static class PermissionCodes
+{
+    public const string CharactersCreate = "characters.create";
+    public const string CharactersUpdate = "characters.update";
+```
+
+Create metodunun üstündeki attribute bu sabiti alır.
+
+```46:50:ReactBattleArena/ReactBattleArena.Api/Controllers/CharactersController.cs
+    [HasPermission(PermissionCodes.CharactersCreate)]  // POST - HasPermissionAttribute - GetPolicyAsync - HandleRequirementAsync
+    [HttpPost]
+    [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<Guid>> Create(
+```
+
+`HasPermissionAttribute` hazır `AuthorizeAttribute` sınıfından türer. Kendi işi `Policy` alanına string yazmaktır. `characters.update` ve `characters.delete` aynı kurucudan `Permission:characters.update` ve `Permission:characters.delete` adlarını üretir.
+
+```5:11:ReactBattleArena/ReactBattleArena.Api/Authorization/HasPermissionAttribute.cs
+public sealed class HasPermissionAttribute : AuthorizeAttribute
+{
+    public HasPermissionAttribute(string permission)
+    {
+        Policy = "Permission:" + permission;
+    }
+}
+```
+
+## Kayıt Program.cs ve AddInfrastructure içindedir
+
+`AddAuthorization` hazır servisleri kaydeder. Hemen altındaki iki satır hazır arayüzlerin karşısına bu projenin sınıflarını koyar. `IAuthorizationPolicyProvider` karşılığı `PermissionPolicyProvider` olur. `IAuthorizationHandler` karşılığı `PermissionAuthorizationHandler` olur. İstek geldiğinde `UseAuthorization` bu kayıtları kullanır.
+
+```23:25:ReactBattleArena/ReactBattleArena.Api/Program.cs
+builder.Services.AddAuthorization(); //AddAuthorization() ise DI kaydıdır
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
+```
+
+```106:106:ReactBattleArena/ReactBattleArena.Api/Program.cs
+app.UseAuthorization();// pipelinedaki middleware // Hemen ardından UseAuthorization çalışır. Register metodu [AllowAnonymous] taşıdığı için boş kullanıcı burada 401 üretmez.
+```
+
+Join'i yapan sınıfın kaydı `AddInfrastructure` içindedir. `AddApplication` satırı `AddInfrastructure` çağırdığı için API ayağa kalkarken bu satır da çalışır.
+
+```30:30:ReactBattleArena/ReactBattleArena.Infrastructure/DependencyInjection.cs
+        services.AddScoped<IUserPermissionService, UserPermissionService>();
+```
+
+Provider `Singleton` olur. Yalnız policy adını requirement nesnesine çevirir. `DbContext` tutmaz. Handler `Scoped` olur. Her istekte yeni bir `UserPermissionService` ve onun `DbContext`'i gelir.
+
+## Provider policy'yi kurar
+
+`GetPolicyAsync` hazır arayüzün metodudur. Gövde bu projede yazıldı. Ad `Permission:` ile başlıyorsa kod, önekten sonraki parçadır. `characters.create` bu parçadır. `PermissionRequirement` o metni `Code` alanında tutar. Bu sınıf da sorgu atmaz.
+
+```22:32:ReactBattleArena/ReactBattleArena.Api/Authorization/PermissionPolicyProvider.cs
+    public Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
+    {
+        if (policyName.StartsWith(Prefix, StringComparison.Ordinal))
+        {
+            var code = policyName[Prefix.Length..];
+            var policy = new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser() // Access token yoksa, imzası bozuksa veya süresi dolmuşsa RequireAuthenticatedUser geçmez. Cevap 401 olur. 
+                .AddRequirements(new PermissionRequirement(code)) // HandleRequirementAsync
+                .Build();
+
+            return Task.FromResult<AuthorizationPolicy?>(policy);
+```
+
+```5:12:ReactBattleArena/ReactBattleArena.Api/Authorization/PermissionRequirement.cs
+public sealed class PermissionRequirement : IAuthorizationRequirement
+{
+    public string Code { get; }
+    public PermissionRequirement(string code)
+    {
+        Code = code;
+    }
+}
+```
+
+Ad `Permission:` ile başlamıyorsa metot hazır `DefaultAuthorizationPolicyProvider` örneğine düşer. `[Authorize]` tek başına bu yoldadır. `[HasPermission]` bu yola düşmez.
+
+## Handler join'i çağırır
+
+`PermissionAuthorizationHandler` hazır `AuthorizationHandler<PermissionRequirement>` sınıfından türer. `UseAuthorization` requirement tipine göre bu handler'ı seçer. Seçim `Program.cs` içindeki `AddScoped` kaydından gelir.
+
+```16:27:ReactBattleArena/ReactBattleArena.Api/Authorization/PermissionAuthorizationHandler.cs
+    protected override async Task HandleRequirementAsync(
+        AuthorizationHandlerContext context,
+        PermissionRequirement requirement)
+    {
+        var idValue = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(idValue, out var userId))
+            return;
+
+        var codes = await _permissions.GetCodesAsync(userId);
+        if (codes.Contains(requirement.Code))
+            context.Succeed(requirement);
+    }
+```
+
+`FindFirstValue` o isteğin `HttpContext.User` üzerindeki claim'i okur. `UseAuthentication` access token'daki `ClaimTypes.NameIdentifier` değerini oraya koymuştur. `Guid` çıkmazsa metot `return` eder. `Succeed` çağrılmaz.
+
+`GetCodesAsync` üç tabloyu bağlar. `UserRoles.UserId` JWT'deki `Guid` ile eşleşir. `RoleId` ile `RolePermissions` satırına geçilir. `PermissionId` ile `Permissions` satırına geçilir. Seçilen kolon `Code` olur.
+
+```15:26:ReactBattleArena/ReactBattleArena.Infrastructure/Persistence/UserPermissionService.cs
+    public async Task<IReadOnlyList<string>> GetCodesAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await (
+            from ur in _db.UserRoles
+            join rp in _db.RolePermissions on ur.RoleId equals rp.RoleId
+            join p in _db.Permissions on rp.PermissionId equals p.Id
+            where ur.UserId == userId
+            select p.Code
+        ).Distinct().ToListAsync(cancellationToken);
+```
+
+`Contains` bu listedeki metin ile attribute'tan gelen `requirement.Code` metnini karşılaştırır. İkisi de `characters.create` ise `Succeed` çağrılır. `Succeed` listeyi action'a veya tarayıcıya göndermez. Hazır `UseAuthorization` middleware'ine "bu requirement geçti" der. Action ondan sonra çalışır.
+
+`Contains` false ise `Succeed` satırı atlanır. Handler başka bir status yazmaz. Status'u hazır mekanizma yazar. Kullanıcı authenticated ise cevap `403` olur. `CharactersController.Create` gövdesine girilmez. `_mediator.Send` çalışmaz.

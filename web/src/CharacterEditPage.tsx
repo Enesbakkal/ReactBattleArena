@@ -176,7 +176,7 @@ function CharacterEditPage() {
     <div className="characters-page">
       <div className="characters-page__header">
         <h1>Karakter düzenle</h1>
-        <Link to={`/characters/${id}`}>Detaya dön</Link>
+        <Link className="characters-page__back" to={`/characters/${id}`}>Detaya dön</Link>
       </div>
 
       {loading && <p>Yükleniyor…</p>}
