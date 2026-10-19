@@ -1,6 +1,6 @@
-# Sayfa modeli — 14 Ekim 2026
+# Sayfa modeli — 14 Ekim 2026 (19 Ekim güncellendi)
 
-Giriş yapılmış sayfalar Light Blue kabuktadır. Kabuk `AppLayout` içindedir. Sol menü ve üst çubuk `web/src/shell` altındadır. Giriş ve kayıt kabuğun dışında, mor palette kalır. Menü beş modülü taşır: karakter, takım, kullanıcı, arena, e-ticaret. E-ticaret savaş sayfasından sonra yapılır.
+Giriş yapılmış sayfalar Light Blue kabuktadır. Kabuk `AppLayout` içindedir. Sol menü ve üst çubuk `web/src/shell` altındadır. Giriş ve kayıt kabuğun dışında, mor palette kalır. Menü altı modülü taşır: dashboard, karakter, takım, kullanıcı, arena, e-ticaret. Girişten sonra varsayılan adres Dashboard’dur. E-ticaret dashboard ve savaş tablosundan sonra yapılır. Canlı özet: `CHECKPOINT.md` bölüm 1–2.
 
 ## Karakterler
 
@@ -26,7 +26,7 @@ flowchart TD
 
 ## Takımlar
 
-Bir kullanıcının birden fazla takımı olur. Takımlarım yalnız onun satırlarını alta doğru dizer. Her takım yatay bir satırdır. Satırda sabit sayıda yer vardır. Sayı savaş sayfası kurulurken seçilir. Beklenti beştir. Altı veya yedi çıkarsa bütün takımlar aynı sayıya uyar.
+Bir kullanıcının birden fazla takımı olur. Takımlarım yalnız onun satırlarını alta doğru dizer. Her takım yatay bir satırdır. Satırda sabit 5 yer vardır. Bütün takımlar aynı sayıya uyar. Dövüşe girmek için 5 yer de dolu olmalıdır.
 
 Yeni takım boş satır olarak doğar ve aynı sayfada silinir. Her satırın adı ayrı bir alandan yazılır. O alana basmak düzenlemeye götürmez. Satırın geri kalanına basmak düzenlemeyi açar. Satır boş da olsa dolu da olsa aynı kapı çalışır. Ad alanı takım satırını günceller. Satıra tıklamak adres değiştirir. Düzenleme sayfası kendi `GET` isteğini atar.
 
@@ -67,13 +67,16 @@ flowchart TD
 
 ## Arena
 
-Savaş modülü sayfa olarak durur. Dövüşün iç hesabı bu modelin dışındadır.
+Savaş sayfası kullanıcının takımını seçtirir ve dövüşü başlatır. Kapı sade kalır. Sayfa açılınca takım listesi okunur. Bu okuma Takımlarım’ın listesiyle aynıdır. Başlatma `POST /api/battles` ile `{ teamId }` gider. Rakip, hesap ve sonuç aynı cevapta döner. Sayfa cevabı kendi içinde aralıklı oynatır. Ayrı oyun sayfası açılmaz. Formül, puan ve WebSocket kararı `CHECKPOINT.md` bölüm 2’dedir.
 
-Savaş sayfası kullanıcının takımını seçtirir ve dövüşü başlatır. Kapı sade kalır. Sayfa açılınca takım listesi okunur. Bu okuma Takımlarım’ın listesiyle aynıdır. Başlatma `POST` ile gider. Hesap, rakip ve sonuç bu sayfanın içinde kalır.
+Savaş geçmişi, kullanıcının başlattığı veya rakip olduğu bitmiş dövüşleri grid’de gösterir. İlk dilim çizilir. Listenin sonu görünürse sonraki dilim gelir. Her dilim `page` ve `pageSize` ile bir `GET` olur. ASP.NET bunu `Skip` ve `Take` ile okur. Karta basınca `GET /api/battles/{id}` olay listesini getirir.
 
-Savaş geçmişi kullanıcının kendi bitmiş dövüşlerini grid’de gösterir. İlk dilim çizilir. Listenin sonu görünürse sonraki dilim gelir. Her dilim `page` ve `pageSize` ile bir `GET` olur. ASP.NET bunu `Skip` ve `Take` ile okur.
+En güzel dövüşler `/arena/highlights` rotasındadır. Liste `IsHighlighted` işaretli dövüşleri okur. İşareti kim koyacağı sonraki iştir.
 
-En güzel dövüşler herkesin gördüğü seçilmiş dövüşlerdir. Dashboard’da da durabilir, ayrı bir sayfada da.
+- `/arena` — takım seç, başlat, oynat
+- `/arena/history` — kişisel geçmiş
+- `/arena/highlights` — seçilmiş dövüşler
+- `/arena/battles/:id` — kayıtlı olay listesi
 
 ```mermaid
 flowchart TD
@@ -81,14 +84,35 @@ flowchart TD
   gecmis[SavasGecmisi]
   guzel[EnGuzelDovusler]
   takimlar[TakimListesi]
+  kayit[DovusKaydi]
   savas -->|"takimini sec ve baslat"| savas
   savas -->|"listeyi okur"| takimlar
   gecmis -->|"kaydirinca sonraki dilim"| gecmis
+  gecmis -->|"karta tikla"| kayit
+  guzel -->|"karta tikla"| kayit
+```
+
+## Dashboard
+
+Dashboard Light Blue yerleşimindedir. Üstte özet şeritler, ortada büyük panel, yanında istatistik, altta chart kutuları ve listeler durur. Chart bileşeni bir kez yazılır. Dashboard ve karakter detayı onu kendi sayılarıyla çağırır. SPA’da bileşen import edilir. ASP.NET’te her sayfa kendi `GET` query’sine gider.
+
+Sayılar şablondan kopya yazı olmaz. İki kaynaktan gelir. Birinci kaynak dövüş ve katalog satırlarıdır: kazanma, puan, nadirlik, son dövüşler `GroupBy`, `Count` ve `Sum` ile okunur. İkinci kaynak dashboard seed verisidir: dünya haritası ve karakterin bölge bilgisi gibi paneller tabloya yazılır. Borsa, e-posta ve takvim kopyalanmaz. Yerlerine arena özeti, karakter dağılımı, puan şeridi ve son dövüş listesi konur.
+
+Dashboard ekranı dövüş tablosundan sonra yapılır. Metne 19 Ekim’de girdi. Rota `/` (giriş sonrası varsayılan).
+
+```mermaid
+flowchart TD
+  dash[Dashboard]
+  arena[Arena]
+  karakter[KarakterDetay]
+  dash -->|"ozet ve chart"| dash
+  dash -->|"son dovus"| arena
+  karakter -->|"ayni chart bileseni"| karakter
 ```
 
 ## E-ticaret
 
-E-ticaret savaş sayfasından sonra yapılır. Dört ekran şablondaki yerleşimle durur. Vitrin ürünleri listeler. Puanla veya parayla satın alma bu sıranın ardından gelir. Add to Bag şablonda durur ve bu sırada sepete satır yazmaz.
+E-ticaret dashboard ve savaş tablosundan sonra yapılır. Dört ekran şablondaki yerleşimle durur. Vitrin ürünleri listeler. Puanla veya parayla satın alma bu sıranın ardından gelir. Add to Bag şablonda durur ve bu sırada sepete satır yazmaz.
 
 Product Management yöneticinin tablosudur. Kolonlar kimlik, resim, başlık, alt başlık, fiyat ve yıldızdır. Create Product forma gider. Edit aynı formu doldurur. Delete satırı siler. Arama ve sayfa boyutu vardır. Liste `GET /api/products` ile dolar.
 
@@ -109,16 +133,12 @@ flowchart TD
   grid -->|"karta tikla"| sayfa
 ```
 
-## 2. Arena ve savaş — ön kapı
+## Arena ve savaş — kilit özeti (19 Ekim 2026)
 
-Bu bölüm 14 Ekim akşamı açıldı. Kod yazılmaz. Dövüş hesabı yarın ve sonraki günlerde gelişir. Bugün yalnız kapı konuşulur. Kapının üç seçeneği bu turda kilitlenmedi. Kapı sade kalacak, bir de eğlenceli olacak.
+Ayrıntı `CHECKPOINT.md` bölüm 2’dedir. Kısa özet:
 
-Arena menüden açılır. Sayfa giriş yapmış kullanıcının takımlarını okur. Bu okuma Takımlarım listesiyle aynıdır. Kullanıcı bir takımla dövüşe girer. Rakibin kapıda mı yoksa dövüşün içinde mi kurulacağı sonra konuşulur. Vuruş hesabı ve sonuç bu sayfanın içine sonra oturur.
-
-Eğlence kapının bir köşesine kilitlenmedi. Eğlenceli olan tüm dövüş sistemidir. Fikir, farklı evrenlerden karakterlerin aynı arenada kapışmasıdır. One Piece’ten Luffy ile Game of Thrones’tan Sandor Clegane aynı sahada durur. Beşe beş örnektir. Yer sayısı savaş sayfası kurulurken seçilir.
-
-Dövüş formülü yarın konuşulacak. Güç sayılarının adları bugün konuşuldu. `BaseAttack`, `BaseDefense` ve `BaseSpeed` durur. Yanlarına `BaseHealth`, `BaseTechnique` ve `BaseAccuracy` geldi. `BaseHealth` karakterin dövüşte ne kadar durduğudur. `BaseTechnique` normal vuruştan ayrı ikinci vuruştur. `BaseAccuracy` vuruşun karşıya denk gelmesidir.
-
-Dördüncü iş hasardan kaçmak, daha az hasar almak ya da hasarı hiç yememektir. Bu sayının adı `BaseForesight` oldu. Vuruşu önceden görmektir. `BaseDefense` gelen hasarı azaltmaya devam eder. Kolon bugün yazılmaz. Formül yarın konuşulur.
-
-Savaş geçmişi ve en güzel dövüşler kapının ardından gelir. Geçmiş, bitmiş dövüşleri grid’de ve dilim dilim gösterir. En güzel dövüşlerin dashboard’da mı, ayrı sayfada mı duracağı kapı netleşince bağlanır.
+- 5’e 5; boş takım 400; rakip `POST` içinde (kullanıcı takımı veya sistem dizilimi).
+- İki vuruş: `BaseAttack` sonra `BaseTechnique`. Isabet: `BaseAccuracy` vs `BaseForesight` (kura yok).
+- Hesap tek `POST` cevabında; oynatma React aralığı. WebSocket / SignalR sonra.
+- Kazanan 100, beraberlik 25, sistem dizilimine karşı puan yok.
+- Highlights: `/arena/highlights`. Dashboard sayfa modelinde ayrı modül.
