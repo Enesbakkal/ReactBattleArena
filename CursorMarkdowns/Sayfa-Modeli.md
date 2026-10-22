@@ -1,5 +1,30 @@
 # Sayfa modeli — 14 Ekim 2026 (19 Ekim güncellendi)
 
+## Yazım kuralları (chat ve md)
+
+Türkçe yaz. Cümleler birbirine bağlansın. Neden ve sonuç aynı yerde dursun. İngilizce cümle kalıbı kullanma. Kopuk kısa cümle yığını yazma.
+
+Terim kendi adıyla kalsın. Takma ad kullanma. “Cetvel”, “fiş”, “çanta”, “kâğıt” gibi uydurma ad yok. Benzetme ancak kodu gösterdikten sonra olur ve her cümlede asıl ad durur.
+
+“Bunu zaten biliyorsun” diye kısaltma. Tablo kurup karşılaştırmayı orada bırakma. Düz yazı ile anlat.
+
+React parçasında ASP.NET veya `HttpClient` karşılığını söyle. Backend parçasında bu kodu hangi çağrının tetiklediğini söyle.
+
+Kullanıcı mekanizmayı zaten doğru söylediyse yeniden uzun anlatma. Doğru olduğunu söyle ve hangi koda denk geldiğini göster.
+
+Bir paragraf bir fikir. Birkaç cümle yeter. Sonra kod veya yeni paragraf. Anlatımı kısa diye kesme. Roman da yazma.
+
+Liste yalnız gerçek listedir: dosya adı, komut, bu parçanın yazılacağı sıralı adımlar.
+
+Öğrenim notu yazılacaksa: önce gerçek kod bloğu (`başlangıç:bitiş:dosya`), sonra açıklama. Kod görünmeden soyut anlatıma girme. Detay: `.cursor/rules/ogrenim-yazim.mdc`.
+
+Plan / karar metinleri `CHECKPOINT.md` ve `CursorMarkdowns/` altında güncellenir. Eski `REACT-OGRENIM.md` arşiv; satır silinmez.
+
+Kod VS Code’da yazılır. Cursor yönlendirir; kullanıcı “yaz / uygula” demeden implement etme. WinForms örneği yok.
+
+---
+
+
 Giriş yapılmış sayfalar Light Blue kabuktadır. Kabuk `AppLayout` içindedir. Sol menü ve üst çubuk `web/src/shell` altındadır. Giriş ve kayıt kabuğun dışında, mor palette kalır. Menü altı modülü taşır: dashboard, karakter, takım, kullanıcı, arena, e-ticaret. Girişten sonra varsayılan adres Dashboard’dur. E-ticaret dashboard ve savaş tablosundan sonra yapılır. Canlı özet: `CHECKPOINT.md` bölüm 1–2.
 
 ## Karakterler

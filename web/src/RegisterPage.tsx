@@ -1,3 +1,5 @@
+import AuthLayout from './AuthLayout'
+import s from './AuthForm.module.scss'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { apiFetch } from './api'
@@ -11,12 +13,12 @@ function RegisterPage() {
   const [displayName, setDisplayName] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  // const [success, setSuccess] = useState('') success state'ini sil. Mesaj artık login'de.
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+    e.preventDefault()// Gönder düğmesi formu gönderir. e.preventDefault() tarayıcının kendi GET isteğini keser. Bu satır olmazsa adres query string ile yenilenir ve apiFetch yarıda kalır.
     setError('')
-    setSuccess('')
+    // setSuccess('') success state'ini sil. Mesaj artık login'de.
 
     try {
       // const response = await fetch('https://localhost:7275/api/auth/register', {
@@ -47,67 +49,85 @@ function RegisterPage() {
         setError('Kayıt başarısız (kullanıcı/email dolu veya validation)')
         return
       }
-
-      setSuccess('Kayıt OK — şimdi giriş yap')
-      navigate('/login')
-    } catch {
+      navigate('/login', { state: { registered: true } })
+    } catch { // Ağ yoksa, sertifika veya CORS yüzünden fetch reddederse catch çalışır. O dalda HTTP cevabı yoktur.
       setError('API’ye ulaşılamadı (backend çalışıyor mu?)')
     }
   }
-
+//Input, metni kendi içinde tutmaz. value state'i gösterir, onChange state'i yazar. Buna controlled input denir.
 return (
-    <div>
-      <h1>Kayıt</h1>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>
-            Kullanıcı adı
-            <input
-              type="text"
-              value={userName}
-              onChange={(e) => setUserName(e.target.value)}
-            />
-          </label>
+  <AuthLayout
+    title="Battle Arena"
+    subtitle="Yeni hesap aç."
+  >
+    <form className={s.form} onSubmit={handleSubmit}>
+      <div>
+        <label className={s.label} htmlFor="userName">
+          Kullanıcı adı
+        </label>
+        <div className={s.field}>
+          <input
+            id="userName"
+            className={s.input}
+            type="text"
+            value={userName}
+            onChange={(e) => setUserName(e.target.value)}
+          />
         </div>
-        <div>
-          <label>
-            E-posta
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </label>
+      </div>
+      <div>
+        <label className={s.label} htmlFor="email">
+          E-posta
+        </label>
+        <div className={s.field}>
+          <input
+            id="email"
+            className={s.input}
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
         </div>
-        <div>
-          <label>
-            Görünen ad (opsiyonel)
-            <input
-              type="text"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-            />
-          </label>
+      </div>
+      <div>
+        <label className={s.label} htmlFor="displayName">
+          Görünen ad (opsiyonel)
+        </label>
+        <div className={s.field}>
+          <input
+            id="displayName"
+            className={s.input}
+            type="text"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+          />
         </div>
-        <div>
-          <label>
-            Şifre
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </label>
+      </div>
+      <div>
+        <label className={s.label} htmlFor="password">
+          Şifre
+        </label>
+        <div className={s.field}>
+          <input
+            id="password"
+            className={s.input}
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
         </div>
-        <button type="submit">Kayıt ol</button>
-      </form>
-      {error && <p>{error}</p>}
-      {success && <p>{success}</p>}
-      <p>
-        <Link to="/login">Girişe dön</Link>
-      </p>
-    </div>
-  )
+      </div>
+      <button className={s.submit} type="submit">
+        Kayıt ol
+      </button>
+      {error && <p className={s.error}>{error}</p>}
+      <p className={s.hint}>Zaten hesabın var mı?</p>
+      <Link className={s.link} to="/login">
+        Giriş yap
+      </Link>
+    </form>
+  </AuthLayout>
+)
 }
 
 export default RegisterPage
