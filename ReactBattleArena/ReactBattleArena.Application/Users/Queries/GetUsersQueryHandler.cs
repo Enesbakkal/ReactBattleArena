@@ -33,10 +33,27 @@ public sealed class GetUsersQueryHandler
             .Select(u => new UserRowDto(
                 u.Id,
                 u.UserName,
-                u.Email,
+                u.IsContactPublic || u.Id == request.CallerId ? u.Email : null,
+                //request.CallerId EF için bir SQL parametresidir.Koşul satırın içindedir.u.Id == request.CallerId kendi satırındır.
+                //Kendi e - postan bayrak false olsa da gelir.Başkasında IsContactPublic true değilse iki alan null olur.
                 u.DisplayName,
                 u.Points,
-                u.CreatedAtUtc))
+                u.CreatedAtUtc,
+                u.FirstName,
+                u.LastName,
+                u.IsContactPublic || u.Id == request.CallerId ? u.Phone : null,
+                u.AvatarUrl,
+                u.IsDisabled,
+                u.IsContactPublic,
+                _db.UserRoles //Bu, Selectin içinde ikinci bir sorgudur. EF bunu SQL’de alt sorguya çevirir. Döngü içinde ayrıca GET atılmaz. page ve pageSize aynı kalır. UsersController.GetPaged yine Ok(result) döner.
+                    .Where(ur => ur.UserId == u.Id)
+                    .Join(
+                        _db.Roles,
+                        ur => ur.RoleId,
+                        r => r.Id,
+                        (ur, r) => r.Name)
+                    .OrderBy(name => name)
+                    .ToList()))
             .ToListAsync(cancellationToken);
 
         return new PagedUserRowsResult(items, total);

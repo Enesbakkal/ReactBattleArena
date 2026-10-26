@@ -23,5 +23,11 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         // EF eşlemesi tabloyu Users diye açar. Kullanıcı adı ve e-posta unique'dir.
         // PasswordHash zorunludur ve en fazla 500 karakterdir.
         // Validator'daki 100 karakterlik parola sınırı düz metin içindir. Kolondaki 500, BCrypt string'i içindir.
+        builder.Property(x => x.FirstName).HasMaxLength(100);
+        builder.Property(x => x.LastName).HasMaxLength(100);
+        builder.Property(x => x.Phone).HasMaxLength(30);
+        builder.Property(x => x.AvatarUrl).HasMaxLength(500);
+        builder.Property(x => x.IsDisabled).IsRequired(); // IsRequired bool kolonda NULL bırakmaz. Mevcut satırlar false alır. Eski kullanıcılar giriş yapmaya devam eder.
+        builder.Property(x => x.IsContactPublic).IsRequired();
     }
 }
