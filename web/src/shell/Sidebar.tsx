@@ -22,6 +22,41 @@ function Sidebar({ open }: SidebarProps) {
           </NavLink>
         </li>
       </ul>
+      <h5 className={s.navTitle}>USERS</h5>
+      <ul className={s.nav}>
+        <li>
+          <NavLink
+            to="/users"
+            className={({ isActive }) => (isActive ? `${s.link} ${s.active}` : s.link)}
+          >
+            User Management
+          </NavLink>
+        </li>
+        <li>
+          <NavLink
+            to="/profile"
+            className={({ isActive }) => (isActive ? `${s.link} ${s.active}` : s.link)}
+          >
+            My Profile
+          </NavLink>
+        </li>
+        <li>
+          <NavLink
+            to="/profile/edit"
+            className={({ isActive }) => (isActive ? `${s.link} ${s.active}` : s.link)}
+          >
+            Edit Profile
+          </NavLink>
+        </li>
+        <li>
+          <NavLink
+            to="/profile/password"
+            className={({ isActive }) => (isActive ? `${s.link} ${s.active}` : s.link)}
+          >
+            Change Password
+          </NavLink>
+        </li>
+      </ul>
     </aside>
   )
 }

@@ -334,7 +334,45 @@ birkaç noktada duruyor. Sıra önemli; ters sırada `UsersController` koruması
 - [x] Kart, form ve butonlara Bootstrap sınıf adı (`btn`, `form-control`) yazılmadı. Hazır Bootstrap, input’u beyaz zemin yapardı. Mevcut sınıflar şablonun renk rollerine boyandı: iş butonu info, geri linki default, Sil danger — 13 Eki
 - [x] Listeye dön ve Detaya dön önce `.characters-page__actions` dışında durduğu için yalnız genel `a` rengini alıyordu (mor, çerçevesiz). `characters-page__back` ile default hap oldular — 13 Eki
 - [ ] Sil hâlâ şablonun canlı danger rengi. Soluk kırmızı (`$red-dark`) istenmişti, dosyaya yazılmadı — 13 Eki
-- [ ] Giriş ve kayıt kabuğun dışında. Mor palet orada duruyor. Harita, istatistik kartı ve takvim bu adıma girmedi
+- [x] Giriş ve kayıt kabuğun dışında kaldı; görünüm Adım 33’te Light Blue kartına çekildi — 22 Eki
+- [ ] Harita, istatistik kartı ve takvim bu adıma girmedi
+
+### Adım 33 — Login / Register Light Blue kartı (22 Ekim)
+
+Kabuk dışında kalan giriş ve kayıt, şablonun auth kartına yaklaştırıldı. Sosyal login ve demo kullanıcı kutusu kopyalanmadı. Register gövdesi `userName`, `email`, `displayName`, `password` olarak kaldı.
+
+- [x] `AuthLayout` + `AuthLayout.module.scss` — tam ekran radial gradient (`#333867` → `#17193b`), ortada kart, altta yıl — 22 Eki
+- [x] `AuthForm.module.scss` — ortak form: koyu input, kırmızı submit, hata / başarı satırı — 22 Eki
+- [x] `LoginPage` layout’a taşındı; kullanıcı/kilit SVG; kayıt sonrası `navigate('/login', { state: { registered: true } })` ile yeşil mesaj — 22 Eki
+- [x] `RegisterPage` aynı kart; başarıda login’e state ile dönüş; “Giriş yap” linki state taşımaz — 22 Eki
+- [x] Giriş sonrası rota hâlâ `/characters` (Dashboard sayfası yok) — 22 Eki
+
+### Adım 34 — User profil API + iletişim gizliliği + parola (25–26 Ekim)
+
+Sayfa modeli User ekranlarını tarif ederken yazma yetkisi eksikti. Kilit: hiç kimse (Admin dahil) başka kullanıcının profilini veya parolasını yazamaz. Listeden View salt okunur. E-posta/telefon varsayılan gizli (`IsContactPublic`).
+
+- [x] `User`: `FirstName`, `LastName`, `Phone`, `AvatarUrl`, `IsDisabled`, `IsContactPublic` + `UpdateProfile` — 25 Eki
+- [x] Migration `AddUserProfileFields`; boş `AddUserContactVisibility` geçmişte kaldı; kolon `AddUserContactVisibilityColumn` ile eklendi — 25 Eki
+- [x] Liste/detay DTO: profil alanları + `Roles` alt sorgu (`UserRoles` ⋈ `Roles`) — 25 Eki
+- [x] Eski `PUT /api/users/{id}`: token id ≠ route id → `403` — 26 Eki
+- [x] `PUT /api/users/profile`: id yalnız JWT `NameIdentifier`/`sub`; gövdede id yok; `IsContactPublic` yazılır — 26 Eki
+- [x] `GET /api/users` ve `GET /api/users/{id}` `[Authorize]`; `CallerId` ile e-posta/telefon: sahip veya bayrak açık değilse `null`; `users.delete` bayrağı aşmaz — 26 Eki
+- [x] `PUT /api/users/password`: mevcut parola `Verify`, yeni hash `SetPasswordHash`; id token’dan; yanlış mevcut → 400 — 26 Eki
+
+### Adım 35 — Users menü + User Management tablosu (27 Ekim)
+
+Backend yazma kapıları hazırdı; React menü ve tablo bağlandı. My Profile / Edit / Change Password içerikleri ve salt okunur View gövdesi sırada.
+
+- [x] Sidebar `USERS`: User Management, My Profile, Edit Profile, Change Password — 27 Eki
+- [x] Rotalar `AppLayout` içinde: `/users`, `/profile`, `/profile/edit`, `/profile/password`, `/users/:id` — 27 Eki
+- [x] Stub: `MyProfilePage`, `EditProfilePage`, `ChangePasswordPage`, `UserDetailPage` — 27 Eki
+- [x] `UsersPage` tablo: `GET /api/users`, sayfa boyutu, View + `users.delete` ile Delete; satırda Edit yok — 27 Eki
+- [x] `PERMISSIONS.usersDelete`; aksiyonlar Light Blue tarzı mavi/kırmızı buton — 27 Eki
+- [ ] My Profile içeriği (`/profile`)
+- [ ] Salt okunur View içeriği (`/users/:id`)
+- [ ] Edit Profile formu → `PUT /api/users/profile`
+- [ ] Change Password formu → `PUT /api/users/password`
+- [ ] Liste araması (API’de search yok)
 
 ### Güvenlik & Git
 
@@ -353,9 +391,12 @@ birkaç noktada duruyor. Sıra önemli; ters sırada `UsersController` koruması
 - [x] `ExpireMinutes` 60’a geri al (test için 1’e düşürülmüştü)
 - [x] `POST /api/auth/logout`
 - [x] Reuse detection (iptal edilmiş token tekrar gelirse tüm satırları iptal)
+- [x] Login/Register Light Blue kartı (Adım 33)
+- [x] User profil API + iletişim gizliliği + parola (Adım 34)
+- [x] Users menü + User Management tablosu (Adım 35 — tablo)
+- [ ] My Profile / View / Edit Profile / Change Password sayfa içerikleri
 - [ ] Liste yükleme 3–4 sn gecikmesi (inceleme)
-- [ ] Login/Register UI’yi kilit palete boyama
-- [ ] Battle Arena backend
+- [ ] Battle Arena backend (formül CHECKPOINT bölüm 2’de kilitli)
 - [ ] (İleride) Docker / Kubernetes / CI
 
 
@@ -583,6 +624,27 @@ birkaç noktada duruyor. Sıra önemli; ters sırada `UsersController` koruması
 - Migration `DropUserRoleColumn` uygulandı (`Users.Role` kolonu düştü)
 - `REACT-OGRENIM-V2` bölüm 37 (auth üçlüsünün son hâli) ve 38 (`Users.Role` temizliği) yazıldı
 
+### 13 Ekim 2026
+
+- Adım 32: Light Blue kabuk (`web/src/shell`), karakter sayfaları `AppLayout` altında
+
+### 19 Ekim 2026
+
+- Sayfa modeli + dövüş formülü CHECKPOINT’e kilitlendi; arena/dashboard kodu yok
+
+### 22 Ekim 2026
+
+- Adım 33: `AuthLayout` / `AuthForm`; Login ve Register Light Blue kart; kayıt sonrası login’de `location.state` mesajı
+
+### 25–26 Ekim 2026
+
+- Adım 34: User profil kolonları + `IsContactPublic`; self-only profile/password; GET’te iletişim gizleme; eski PUT IDOR kapatıldı
+- Commit: `users - profil ve parola yalnız token'daki kullanıcıya yazılır`
+
+### 27 Ekim 2026
+
+- Adım 35: Users menü + `/users` tablosu (View / Delete); profil sayfaları stub; Edit satırda yok
+
 ---
 
 
@@ -629,7 +691,8 @@ birkaç noktada duruyor. Sıra önemli; ters sırada `UsersController` koruması
 - [x] Migration `AddUsers`
 - [x] Users API controller
 - [x] PasswordHash (+ CreateUser password)
-- [ ] React: kullanıcı yönetimi ekranları (Admin Users UI — henüz yok; Register/Login var)
+- [x] Profil alanları + `IsContactPublic` + self-only `PUT profile` / `PUT password` (Adım 34)
+- [x] React: Users menü + User Management tablosu (Adım 35); My Profile / Edit / parola içerikleri sırada
 
 ---
 
@@ -642,10 +705,11 @@ birkaç noktada duruyor. Sıra önemli; ters sırada `UsersController` koruması
 - [x] Login endpoint (`POST /api/auth/login`)
 - [x] JWT token üretimi + JwtBearer
 - [x] `[Authorize]` korumalı endpoint’ler
-- [x] Rol tabanlı yetkilendirme (string Role: Admin/Player)
-- [x] React login/register + router + token (`api.ts`) — Adım 17, 19, 21, 28
-- [ ] Rol tabloları (`Roles` / `UserRoles`) — Adım 29 başladı (entity + EF; migration yok)
-- [ ] FE’de Admin linklerini role’e göre gizleme (şimdi link görünür; API 403)
+- [x] Rol tabanlı yetkilendirme → RBAC izin kodları (`HasPermission`, Adım 29–31)
+- [x] React login/register + router + token (`api.ts`) — Adım 17, 19, 21, 28, 33
+- [x] Rol tabloları + seed + FE `hasPermission` / Context — Adım 29–31
+- [x] Refresh / logout / reuse — Adım 30
+- [x] User self-only profil + parola + iletişim gizliliği — Adım 34
 
 ---
 
@@ -690,6 +754,8 @@ birkaç noktada duruyor. Sıra önemli; ters sırada `UsersController` koruması
 | **26 Ağu Edit+Context** | `react - edit guard PermissionContext - AppLayout me usePermissions list only` |
 | **27 Ağu Context sayfalar** | `react - create edit detail usePermissions - page me removed layout context` |
 | **28 Ağu Refresh tablo** | `auth - refresh token table - RefreshToken entity EF AddRefreshTokens` |
+| **22 Eki Auth UI** | `login and register pages` |
+| **26 Eki User profil** | `users - profil ve parola yalnız token'daki kullanıcıya yazılır` |
 
 
 ---
@@ -706,20 +772,20 @@ D:\ReactBattleArena\
 ├── REACT-OGRENIM.md
 ├── web\                          ← React + Vite + TypeScript
 │   └── src\
-│       ├── api.ts                ← apiFetch + token
+│       ├── api.ts                ← apiFetch + token + refresh + logout
 │       ├── App.tsx / AppLayout.tsx
+│       ├── AuthLayout + AuthForm  ← giriş/kayıt kartı (22 Eki)
 │       ├── LoginPage / RegisterPage
-│       ├── shell\                 ← Sidebar, Header, hamburger, çıkış (13 Eki)
-│       ├── CharactersPage / CharacterCard
-│       ├── CharacterCreatePage / CharacterDetailPage / CharacterEditPage
-│       ├── CharactersPage.css     ← kabuk içi kart, form, buton
-│       └── index.css              ← giriş/kayıt mor paleti (kabuğun dışında)
+│       ├── shell\                 ← Sidebar (USERS menü), Header
+│       ├── CharactersPage / CharacterCard / Create / Detail / Edit
+│       ├── UsersPage (+ module scss) / UserDetailPage (stub)
+│       ├── MyProfilePage / EditProfilePage / ChangePasswordPage (stub)
+│       └── index.css              ← kabuk dışı token’lar
 └── ReactBattleArena\
     ├── Domain\
     │   ├── Characters\Character.cs
-    │   ├── Authorization\Roles.cs (eski string sabitler — hâlâ JWT)
     │   ├── Authorization\Role.cs, Permission.cs, UserRole.cs, RolePermission.cs
-    │   └── Users\User.cs (+ PasswordHash, Role string kolonu — henüz taşınmadı)
+    │   └── Users\User.cs (+ profil alanları, IsContactPublic; Role kolonu düştü)
     ├── Application\
     │   ├── Abstractions\... (DbSet: Roles / Permissions / UserRoles / RolePermissions)
     │   ├── Authentication\Commands\ (Register*, Login*)

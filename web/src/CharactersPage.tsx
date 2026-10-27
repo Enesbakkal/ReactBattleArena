@@ -83,9 +83,12 @@ function CharactersPage() {
     }  
   }
 
-  useEffect(() => {
+  useEffect(() => {// sayfa ilk çizilince load çalışsın diye var
     load()
   }, [])
+  //Sayfa ilk çizildiğinde items boş dizidir. Grid boş görünür. Çünkü veri henüz gelmemiştir. 
+  // useEffect bağımlılık dizisi [] olduğu için bu mount’ta bir kez load çalışır. 
+  // load GetPaged’e gider, cevap gelince setItems olur, map CharacterCard çizer. 
 
   return (
     <div className="characters-page">

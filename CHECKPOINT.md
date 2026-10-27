@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 19 Ekim 2026 — Dövüş formülü ve dashboard sayfa modeline kilitlendi (bölüm 2). Kod henüz yok. Yer sayısı 5. WebSocket / SignalR sonra. E-ticaret dashboard’dan sonra. Cookie kararı danışmanda. Permission hâlâ DB. Sil’in soluk kırmızısı dosyada yok.
+Son güncelleme: 27 Ekim 2026 — User profil API + iletişim gizliliği + parola (Adım 34) tamam; React Users menü + User Management tablosu (Adım 35) var. My Profile / Edit / Change Password / View içerikleri sırada. Login-Register Light Blue kart (22 Eki, Adım 33). Dövüş formülü bölüm 2’de kilitli, kod yok. Cookie kararı danışmanda. Permission hâlâ DB.
 
 ## Yeni chat’e geçerken oku
 
@@ -58,13 +58,15 @@ flowchart TD
 
 ### Kullanıcı
 
-User modülü Light Blue şablonundaki ekranlardır. Giriş ve kayıt bu modüle girmez. Menüde Users tabloyu açar. User Management altında My Profile, Edit Profile ve Change Password durur.
+User modülü Light Blue şablonundaki ekranlardır. Giriş ve kayıt bu modüle girmez. Menüde Users grubu dört satırdır: User Management, My Profile, Edit Profile, Change Password. Edit ve parola linkleri My Profile sayfasının içinde değildir; menüdedir.
 
-User Management bir tablodur. Kolonlar avatar, ad, soyad, telefon, e-posta, rol, disabled ve aksiyonlardır. Aksiyonlar View, Edit ve Delete’tir. Tabloda arama ve sayfa boyutu vardır. Liste `GET /api/users` ile dolar. View tek kaydı `GET /api/users/{id}` ile salt okunur açar. Delete `DELETE /api/users/{id}` olur ve `users.delete` iznine bakar.
+User Management bir tablodur. Kolonlar avatar, ad, soyad, telefon, e-posta, rol, disabled ve aksiyonlardır. Tabloda **View** ve (izin varsa) **Delete** vardır; satırda başkasını açan **Edit yoktur**. Liste `GET /api/users` ile dolar (giriş zorunlu). View `/users/{id}` → `GET /api/users/{id}` salt okunur. Delete `users.delete` ister. Sayfa boyutu UI’da var; arama API’de henüz yok.
 
-Edit Profile ad, soyad, telefon, e-posta ve avatar yazar. Save, Reset ve Cancel durur. Aynı form hem tablodan açılan düzenlemede hem kişinin kendi profilinde kullanılır. Change Password mevcut parolayı, yeni parolayı ve tekrarını alır.
+**Yazma kuralı (25–26 Eki kilit):** Hiç kimse (Admin dahil) başka kullanıcının profilini veya parolasını yazamaz. `PUT /api/users/profile` ve `PUT /api/users/password` id’yi yalnız JWT’den alır. Eski `PUT /api/users/{id}` token id ≠ route id ise `403`. Edit Profile ve Change Password adreslerinde Guid yoktur (`/profile/edit`, `/profile/password`).
 
-My Profile iki parçadır. Solda kapak, avatar, ad ve iletişim durur. Sağda Activities kolonu durur. Yazı, yorum ve Post kutusu o kolondadır.
+**İletişim gizliliği:** `IsContactPublic` varsayılan `false`. Kapalıyken liste ve başkasının detayında e-posta/telefon `null`. Sahip kendi kaydında her zaman görür. `users.delete` bayrağı aşmaz.
+
+Edit Profile: ad, soyad, telefon, e-posta, avatar, `isContactPublic`. Change Password: mevcut + yeni + tekrar. My Profile iki parça (kapak/avatar + Activities); içerik henüz stub.
 
 ```mermaid
 flowchart TD
@@ -73,10 +75,12 @@ flowchart TD
   edit[EditProfile]
   profil[MyProfile]
   sifre[ChangePassword]
+  menu[UsersMenu]
   tablo -->|"View"| view
-  tablo -->|"Edit"| edit
-  profil --> edit
-  profil --> sifre
+  menu --> tablo
+  menu --> profil
+  menu --> edit
+  menu --> sifre
 ```
 
 ### Arena
@@ -194,8 +198,8 @@ Kazanan 100 puan alır. Kaybeden 0 alır. Beraberlikte iki taraf 25 alır. Siste
 
 ### Yol haritası konumu (19 Ekim)
 
-1. Görsel template — yarım (kabuk var, modül sayfaları yok).
-2. Sayfa kararı — büyük kısmı kilitli; ekran ve tablolar yazılmadı.
+1. Görsel template — kabuk + auth kartı + Users tablosu; diğer modül sayfaları yok.
+2. Sayfa kararı — büyük kısmı kilitli; User yazma/gizlilik 25–26 Eki kilitli; arena/dashboard kodu yok.
 3. Microservices + Docker — sonra.
 4. K8s (HPA) — Docker’dan sonra.
 5. SignalR / Redis / Queue — dövüş ve dashboard oturunca SignalR ayrı adım; Redis/Queue ihtiyaçta.
@@ -236,16 +240,15 @@ Detay: `PROJE_MANTIGI.md`
 - [x] Faz 6 kart grid + Create ayrı sayfa
 - [x] Characters frontend CRUD
 - [x] AppLayout + Outlet
-- [x] UI renk: giriş/kayıt koyu mor 60-30-10 (`index.css`). Giriş yapılmış sayfalar Light Blue kabuk (13 Eki, Adım 32)
+- [x] UI renk: giriş/kayıt önce koyu mor; 22 Eki’de Light Blue auth kartı (Adım 33). Giriş yapılmış sayfalar Light Blue kabuk (13 Eki, Adım 32)
 - [x] **API/auth helper** — `web/src/api.ts`
-  - `apiFetch` + `getToken` / `setToken` / `clearToken`
+  - `apiFetch` + `getToken` / `setToken` / `clearToken` + refresh + logout
   - Login/Register `auth: false`; diğerleri Bearer varsayılan
-  - Taşınan: Login, Register, Characters, Create, Detail, Edit, AppLayout
-  - Notlar: `REACT-OGRENIM.md` (`apiFetch` öğretimi + helper tamamlandı)
+  - Taşınan: Login, Register, Characters, Create, Detail, Edit, AppLayout, UsersPage
+  - Notlar: `REACT-OGRENIM.md` / V2
 - [ ] Liste yükleme 3–4 sn gecikmesi
-- [ ] UI ince ayar (login/register boyama)
-- [x] **`PROJE_EKLEMELERI.md` ← React Adım 16–28** (14 Ağu; gerçek sırayla)
-- [ ] **Adım 29 RBAC** — Role + Permission (refresh token yok)
+- [x] **`PROJE_EKLEMELERI.md` ← React Adım 16–28** (14 Ağu; gerçek sırayla) + Adım 33–35 (22–27 Eki)
+- [x] **Adım 29 RBAC** — Role + Permission + refresh (aşağıda alt maddeler)
   - [x] Domain entity’ler + EF configuration + DbSet (`dotnet build` OK)
   - [x] Migration `AddRbacTables` + `AuthSeeder` (Users.Role → UserRoles)
   - [x] `IUserPermissionService` (join; UserPermission tablosu yok)
@@ -266,19 +269,24 @@ Detay: `PROJE_MANTIGI.md`
   - [x] Temizlik: `RefreshCommand` namespace’i `Authentication.Commands`, 4 gereksiz `using` silindi
   - [x] Reuse detection (17 Eyl) — `RefreshCommandHandler`: iptal edilmiş token gelirse o kullanıcının `RevokedAtUtc == null` satırlarının hepsi iptal, dönüş yine 401. Test A/B ile doğrulandı
   - [ ] `LogoutCommandHandler`’daki kullanılmayan `Domain.Authentication` using’i (küçük)
-- [x] **Light Blue kabuk (13 Eki, Adım 32)** — şablon npm paketi değil, `light-blue-react` referans. Menü ve üst çubuk `web/src/shell`. Hamburger sayfa sayfa değil: `AppLayout` `Outlet` çevresine takıldı, karakter rotaları oradan çiziliyor. Login/register kabuğun dışında
+- [x] **Light Blue kabuk (13 Eki, Adım 32)** — şablon npm paketi değil, `light-blue-react` referans. Menü ve üst çubuk `web/src/shell`. Hamburger sayfa sayfa değil: `AppLayout` `Outlet` çevresine takıldı. Login/register kabuğun dışında
+- [x] **Adım 33 (22 Eki)** — `AuthLayout` / `AuthForm`; Login + Register Light Blue kart; kayıt → login `location.state`
+- [x] **Adım 34 (25–26 Eki)** — User profil alanları + `IsContactPublic`; `PUT profile` / `PUT password` token id; GET authorize + iletişim gizleme; eski PUT 403
+- [x] **Adım 35 (27 Eki, tablo)** — Sidebar USERS; `/users` tablo View + Delete; `/profile*` ve `/users/:id` stub
+- [ ] My Profile / UserDetail / Edit Profile / Change Password **içerikleri**
 - [x] Kart: kolon sabit, yükseklik resmin en-boy oranı. İş butonu info, geri linki default (`characters-page__back`), Sil danger. Bootstrap `btn` / `form-control` yok
 - [ ] Sil soluk kırmızı (`$red-dark`) — istenmişti, `CharactersPage.css` hâlâ canlı danger
 - [ ] Battle Arena backend — formül 19 Eki kilitli (bölüm 2); entity/handler yok
-- [ ] Dashboard ekranı — sayfa modelinde; dövüş tablosundan sonra
+- [ ] Dashboard ekranı — sayfa modelinde; dövüş tablosundan sonra; giriş varsayılanı hâlâ `/characters`
 
 ## Karar notları
 
+- **User yazma / gizlilik (25–26 Eki):** Başkasının profili veya parolası yazılmaz (Admin dahil). Menüde Edit/Password; tabloda Edit yok. `IsContactPublic` default false; sahip kendi iletişimini her zaman görür. Detay: Adım 34 / plan `profil_yetki_kuralı`.
 - **Dövüş kilidi (19 Eki):** 5 yer, rakip `POST` içinde, iki vuruş, isabet karşılaştırma (kura yok), beraberlik 25 puan, WebSocket sonra. Detay bölüm 2.
 - **Dashboard (19 Eki):** Light Blue yerleşim, gerçek SQL + seed harita verisi; e-ticaretten önce ekran, dövüş tablosundan sonra implement.
 
 - Mega Grid yok; `CharacterCard` + sayfa CSS grid.
-- **Renk:** Giriş ve kayıt hâlâ `#1e1a24` / `#2e2838` / `#b39bc9`. Giriş yapılmış karakter sayfaları Light Blue kabukta. Mor token’lar `index.css` `:root` içinde duruyor; kabuk onları ezmiyor çünkü login `AppLayout` dışında.
+- **Renk:** Giriş/kayıt 22 Eki’den beri kabuk gradient + `#1c2146` kart (`AuthLayout` / `AuthForm`). `index.css` mor token’ları duruyor; kabuk sayfaları onları ezmiyor.
 - **HTTP:** sayfalarda doğrudan `localhost` + `fetch` yok; sadece `api.ts`.
 - Player CUD: permission yoksa 403; `RolePermissions` + `UserRoles` varsa 201 (yeniden login gerekmez).
 - Scalar’da karakter JSON’u Register’a gitmesin — UserName/Email/Password 400’ü odur.
@@ -297,8 +305,7 @@ Detay: `PROJE_MANTIGI.md`
 - **Konuşulacak (unutma):** refresh cookie vs `localStorage` — şimdilik tablo + hash; ham token DB’de yok.
 - **Refresh saklama kararı (14 Eyl):** Şimdilik `localStorage` **kalıyor**; cookie’ye geçilmiyor. Nihai karar projenin danışmanına (Abi) sorulacak — cevap gelmeden mimari değiştirilmeyecek. Not 34 bu hâliyle geçerli: refresh ham token istek gövdesinde, `localStorage`’da saklanıyor.
 - **Cookie’ye geçilirse yapılacaklar (hazır liste, bugün yapılmıyor):** `HttpOnly` + `Secure` + `SameSite=Strict` + `Path=/api/auth/refresh` cookie; access token `localStorage` değil **bellekte** (açılışta bir kez refresh); `Program.cs` CORS’a `AllowCredentials()`; şema farkı (`http:5173` → `https:7275`) cross-site sayıldığı için Vite proxy veya aynı alan adı; `credentials: 'include'`. Gerekçe: XSS’te 7 günlük refresh sızarsa oturum süresiz kaçırılır; `HttpOnly` cookie JS’e okunmaz.
-- **Refresh’in cookie’den bağımsız eksikleri:** `RefreshToken.Revoke` metodu var ama **hiçbir yer çağırmıyor** → rotation yok; gerçek `POST /api/auth/logout` yok (Çıkış sadece `localStorage` siliyor, DB satırı 7 gün geçerli); iptal edilmiş token tekrar kullanılırsa kullanıcının tüm satırlarını geçersiz kılma yok.
-- **Rotation çalışıyor (15 Eyl):** Yukarıdaki maddenin ilk kısmı kapandı — `RefreshCommandHandler` `Revoke` çağırıyor, aynı `SaveChanges` eski satırı iptal edip yeni satırı basıyor. Aynı ham token ikinci kez gelirse 401. Logout revoke ve reuse detection **hâlâ açık**.
+- **Refresh (15–17 Eyl kapandı):** Rotation + logout revoke + reuse detection yazıldı. Açık konu yalnız cookie vs `localStorage` (danışman).
 - **Benzetme kuralı (16 Eyl):** Notlarda ve chat’te takma ad yok. Terim doğrudan yazılır; benzetme şartsa her kullanımda terimle birlikte: “refresh token (fiş)”. Tek başına “fiş / çanta / kâğıt” yazmak yasak — eski notlarda “fiş” = refresh token, “çanta” = rol, “kâğıt” = permission dizisi. Kural dosyası: `.cursor/rules/ogrenim-yazim.mdc` madde 2a.
 - **Eski rol modeli (18 Eyl, kapandı):** `Users.Role` kolonu, JWT rol claim’i ve `[Authorize(Roles = Admin)]` kalktı. Delete artık `users.delete` izni (`HasPermission`); seed yalnız Admin. Migration `DropUserRoleColumn` veritabanına uygulandı.
 - **Belge (17 Eyl):** `PROJE_MANTIGI.md`'de yetki/oturum modeli hiç yazılmamıştı (eskimiş değil, eksikti). "Yetkilendirme Modeli" ve "Oturum Modeli" bölümleri eklendi: RBAC + izin kodu, izinlerin JWT'ye gömülmemesi, refresh/rotation/reuse/logout, `localStorage` kararı.
@@ -322,9 +329,9 @@ Detay: `PROJE_MANTIGI.md`
 ```
 ReactBattleArena — CHECKPOINT.md, PROJE_MANTIGI.md, PROJE_EKLEMELERI.md ve
 CursorMarkdowns/Sayfa-Modeli.md oku. Cursor yönlendirme; kod VS Code’da.
-Dövüş kilidi CHECKPOINT bölüm 2 (19 Eki): 5’e 5, POST hesap, React oynatma, WebSocket sonra.
-Sıradaki: kullanıcı “yaz” demeden kod yok; sonraki iş güç kolonları veya takım/arena sırası.
-Yetki JWT’de değil. Refresh ≠ permission.
+User: profil/parola yalnız token id; tabloda Edit yok; IsContactPublic. Adım 35 tablo var;
+sıradaki My Profile / View / Edit Profile / Change Password içerikleri.
+Dövüş kilidi CHECKPOINT bölüm 2 (19 Eki). Yetki JWT’de değil. Refresh ≠ permission.
 ```
 
 ## Not düzeltme thread’i açılış cümlesi (kopyala)
