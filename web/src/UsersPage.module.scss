@@ -1,5 +1,12 @@
 .page {
   padding: 8px 4px 24px;
+  width: 100%;
+}
+
+.card {
+  background: #1c2146;
+  border-radius: 8px;
+  padding: 16px 20px 20px;
 }
 
 .header {
@@ -12,18 +19,50 @@
   h1 {
     margin: 0;
     font-weight: 300;
+    font-size: 1.25rem;
+  }
+}
+
+.headerRight {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.btnAdd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  background: #2477ff;
+  color: #fff;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  line-height: 1.2;
+
+  &:hover {
+    background: #1a66e0;
+    color: #fff;
   }
 }
 
 .pageSize {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 8px;
   font-size: 14px;
   color: #c1c3cf;
+  white-space: nowrap;
 
   select {
-    background: #1c2146;
+    background: #17193b;
     color: #f4f4f5;
     border: 1px solid rgb(255 255 255 / 12%);
     border-radius: 6px;

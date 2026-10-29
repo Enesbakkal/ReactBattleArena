@@ -7,6 +7,7 @@ import CharacterCreatePage from './CharacterCreatePage'
 import CharacterDetailPage from './CharacterDetailPage'
 import CharacterEditPage from './CharacterEditPage'
 import UsersPage from './UsersPage'
+import UserCreatePage from './UserCreatePage'
 import MyProfilePage from './MyProfilePage'
 import EditProfilePage from './EditProfilePage'
 import ChangePasswordPage from './ChangePasswordPage'
@@ -24,6 +25,7 @@ function App() {
         <Route path="/characters/:id/edit" element={<CharacterEditPage />} />
         <Route path="/characters/:id" element={<CharacterDetailPage />} />
         <Route path="/users" element={<UsersPage />} />
+        <Route path="/users/new" element={<UserCreatePage />} />
         <Route path="/users/:id" element={<UserDetailPage />} />
         <Route path="/profile" element={<MyProfilePage />} />
         <Route path="/profile/edit" element={<EditProfilePage />} />

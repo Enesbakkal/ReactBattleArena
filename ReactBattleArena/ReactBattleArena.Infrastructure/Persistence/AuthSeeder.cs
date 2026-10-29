@@ -15,6 +15,7 @@ public static class AuthSeeder
         await EnsurePermissionAsync(db, PermissionCodes.CharactersUpdate, cancellationToken);
         await EnsurePermissionAsync(db, PermissionCodes.CharactersDelete, cancellationToken);
         await EnsurePermissionAsync(db, PermissionCodes.ShopItemsCreate, cancellationToken);
+        await EnsurePermissionAsync(db, PermissionCodes.UsersCreate, cancellationToken);
         await EnsurePermissionAsync(db, PermissionCodes.UsersDelete, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
@@ -23,6 +24,7 @@ public static class AuthSeeder
         await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.CharactersUpdate, cancellationToken);
         await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.CharactersDelete, cancellationToken);
         await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.ShopItemsCreate, cancellationToken);
+        await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.UsersCreate, cancellationToken);
         await EnsureRolePermissionAsync(db, Roles.Admin, PermissionCodes.UsersDelete, cancellationToken);
 
         await EnsureRolePermissionAsync(db, Roles.ShopOwner, PermissionCodes.ShopItemsCreate, cancellationToken);

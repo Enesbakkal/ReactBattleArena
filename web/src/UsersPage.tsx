@@ -32,7 +32,7 @@ function UsersPage() {
       )
 
       if (!response.ok) {
-        setError('Kullanıcılar alınamadı')
+        setError('Could not load users')
         return
       }
 
@@ -40,7 +40,7 @@ function UsersPage() {
       setItems(data.items)
       setError('')
     } catch {
-      setError('API’ye ulaşılamadı')
+      setError('Could not reach API')
     }
   }
 
@@ -50,14 +50,14 @@ function UsersPage() {
   //useEffect bağımlılığında pageSize var. Select değişince liste yeniden çekilir. Karakterlerde bağımlılık [] idi çünkü sayfa boyutu sabitti.
 
   async function handleDelete(id: string) {
-    if (!window.confirm('Bu kullanıcı silinsin mi?')) return
+    if (!window.confirm('Delete this user?')) return
 
     const response = await apiFetch(`/api/users/${id}`, {
       method: 'DELETE',
     })
 
     if (!response.ok) {
-      setError('Silinemedi')
+      setError('Could not delete user')
       return
     }
 
@@ -66,74 +66,82 @@ function UsersPage() {
 
   return (
     <div className={s.page}>
-      <div className={s.header}>
-        <h1>User Management</h1>
-        <label className={s.pageSize}>
-          Sayfa boyutu
-          <select
-            value={pageSize}
-            onChange={(e) => setPageSize(Number(e.target.value))}
-          >
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-          </select>
-        </label>
-      </div>
+      <div className={s.card}>
+        <div className={s.header}>
+          <h1>Users</h1>
+          <div className={s.headerRight}>
+            {hasPermission(permissions, PERMISSIONS.usersCreate) && (
+              <Link className={s.btnAdd} to="/users/new">
+                Add User
+              </Link>
+            )}
+            <label className={s.pageSize}>
+              Page size
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+            </label>
+          </div>
+        </div>
 
-      {error && <p className={s.error}>{error}</p>}
+        {error && <p className={s.error}>{error}</p>}
 
-      <table className={s.table}>
-        <thead>
-          <tr>
-            <th>Avatar</th>
-            <th>Ad</th>
-            <th>Soyad</th>
-            <th>Telefon</th>
-            <th>E-posta</th>
-            <th>Rol</th>
-            <th>Disabled</th>
-            <th>Aksiyon</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((u) => (
-            <tr key={u.id}>
-              <td>
-                {u.avatarUrl ? (
-                  <img className={s.avatar} src={u.avatarUrl} alt="" />
-                ) : (
-                  <span className={s.avatarEmpty} />
-                )}
-              </td>
-              <td>{u.firstName ?? '—'}</td>
-              <td>{u.lastName ?? '—'}</td>
-              <td>{u.phone ?? '—'}</td>
-              <td>{u.email ?? '—'}</td>
-              <td>{u.roles.length > 0 ? u.roles.join(', ') : '—'}</td>
-              <td>{u.isDisabled ? 'Yes' : 'No'}</td>
-              <td>
-                <div className={s.actions}>
-                  <Link className={s.btnView} to={`/users/${u.id}`}>
-                    View
-                  </Link>
-                  {hasPermission(permissions, PERMISSIONS.usersDelete) && (
-                    <button
-                      type="button"
-                      className={s.btnDelete}
-                      onClick={() => handleDelete(u.id)}
-                    >
-                      Delete
-                    </button>
-                  )}
-                </div>
-              </td>
+        <table className={s.table}>
+          <thead>
+            <tr>
+              <th>Avatar</th>
+              <th>First Name</th>
+              <th>Last Name</th>
+              <th>Phone</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Disabled</th>
+              <th>Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {items.map((u) => (
+              <tr key={u.id}>
+                <td>
+                  {u.avatarUrl ? (
+                    <img className={s.avatar} src={u.avatarUrl} alt="" />
+                  ) : (
+                    <span className={s.avatarEmpty} />
+                  )}
+                </td>
+                <td>{u.firstName ?? '—'}</td>
+                <td>{u.lastName ?? '—'}</td>
+                <td>{u.phone ?? '—'}</td>
+                <td>{u.email ?? '—'}</td>
+                <td>{u.roles.length > 0 ? u.roles.join(', ') : '—'}</td>
+                <td>{u.isDisabled ? 'Yes' : 'No'}</td>
+                <td>
+                  <div className={s.actions}>
+                    <Link className={s.btnView} to={`/users/${u.id}`}>
+                      View
+                    </Link>
+                    {hasPermission(permissions, PERMISSIONS.usersDelete) && (
+                      <button
+                        type="button"
+                        className={s.btnDelete}
+                        onClick={() => handleDelete(u.id)}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
-    //email veya phone null ise hücrede — görünür. Bu, IsContactPublic kapalıyken API’nin döndürdüğü gizlemedir. Link gizleme değildir.
   )
 }
 

@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 27 Ekim 2026 — User profil API + iletişim gizliliği + parola (Adım 34) tamam; React Users menü + User Management tablosu (Adım 35) var. My Profile / Edit / Change Password / View içerikleri sırada. Login-Register Light Blue kart (22 Eki, Adım 33). Dövüş formülü bölüm 2’de kilitli, kod yok. Cookie kararı danışmanda. Permission hâlâ DB.
+Son güncelleme: 29 Ekim 2026 — Adım 36: My Profile / View / Edit Profile / Change Password + Add User (`users.create`, `/users/new`). `IsContactPublic` default true. Self-only yazma (Admin başkasını update etmez). Sıradaki: Users search. UI string’leri EN hedefi (menüde hâlâ TR/EN karışık). Dövüş kilidi bölüm 2. Cookie danışmanda.
 
 ## Yeni chat’e geçerken oku
 
@@ -64,9 +64,9 @@ User Management bir tablodur. Kolonlar avatar, ad, soyad, telefon, e-posta, rol,
 
 **Yazma kuralı (25–26 Eki kilit):** Hiç kimse (Admin dahil) başka kullanıcının profilini veya parolasını yazamaz. `PUT /api/users/profile` ve `PUT /api/users/password` id’yi yalnız JWT’den alır. Eski `PUT /api/users/{id}` token id ≠ route id ise `403`. Edit Profile ve Change Password adreslerinde Guid yoktur (`/profile/edit`, `/profile/password`).
 
-**İletişim gizliliği:** `IsContactPublic` varsayılan `false`. Kapalıyken liste ve başkasının detayında e-posta/telefon `null`. Sahip kendi kaydında her zaman görür. `users.delete` bayrağı aşmaz.
+**İletişim gizliliği:** `IsContactPublic` varsayılan `true` (29 Eki). Kapalıyken liste ve başkasının detayında e-posta/telefon `null`. Sahip kendi kaydında her zaman görür. `users.delete` bayrağı aşmaz.
 
-Edit Profile: ad, soyad, telefon, e-posta, avatar, `isContactPublic`. Change Password: mevcut + yeni + tekrar. My Profile iki parça (kapak/avatar + Activities); içerik henüz stub.
+Edit Profile: ad, soyad, telefon, e-posta, avatar, `isContactPublic`. Change Password: mevcut + yeni + tekrar. My Profile / View: `UserProfilePanel` (kapak/avatar + Activities yer tutucu). Add User: Admin `users.create` → `/users/new` (sayfa; modal değil); CreateUser Player rolü yazar.
 
 ```mermaid
 flowchart TD
@@ -247,7 +247,7 @@ Detay: `PROJE_MANTIGI.md`
   - Taşınan: Login, Register, Characters, Create, Detail, Edit, AppLayout, UsersPage
   - Notlar: `REACT-OGRENIM.md` / V2
 - [ ] Liste yükleme 3–4 sn gecikmesi
-- [x] **`PROJE_EKLEMELERI.md` ← React Adım 16–28** (14 Ağu; gerçek sırayla) + Adım 33–35 (22–27 Eki)
+- [x] **`PROJE_EKLEMELERI.md` ← React Adım 16–28** (14 Ağu) + Adım 33–36 (22–29 Eki)
 - [x] **Adım 29 RBAC** — Role + Permission + refresh (aşağıda alt maddeler)
   - [x] Domain entity’ler + EF configuration + DbSet (`dotnet build` OK)
   - [x] Migration `AddRbacTables` + `AuthSeeder` (Users.Role → UserRoles)
@@ -272,8 +272,9 @@ Detay: `PROJE_MANTIGI.md`
 - [x] **Light Blue kabuk (13 Eki, Adım 32)** — şablon npm paketi değil, `light-blue-react` referans. Menü ve üst çubuk `web/src/shell`. Hamburger sayfa sayfa değil: `AppLayout` `Outlet` çevresine takıldı. Login/register kabuğun dışında
 - [x] **Adım 33 (22 Eki)** — `AuthLayout` / `AuthForm`; Login + Register Light Blue kart; kayıt → login `location.state`
 - [x] **Adım 34 (25–26 Eki)** — User profil alanları + `IsContactPublic`; `PUT profile` / `PUT password` token id; GET authorize + iletişim gizleme; eski PUT 403
-- [x] **Adım 35 (27 Eki, tablo)** — Sidebar USERS; `/users` tablo View + Delete; `/profile*` ve `/users/:id` stub
-- [ ] My Profile / UserDetail / Edit Profile / Change Password **içerikleri**
+- [x] **Adım 35 (27 Eki, tablo)** — Sidebar USERS; `/users` View + Delete; satırda Edit yok
+- [x] **Adım 36 (29 Eki)** — `UserProfilePanel`; Edit Profile; Change Password; `useUserId`; contact default true; `users.create` + `/users/new`
+- [ ] Users list **search**
 - [x] Kart: kolon sabit, yükseklik resmin en-boy oranı. İş butonu info, geri linki default (`characters-page__back`), Sil danger. Bootstrap `btn` / `form-control` yok
 - [ ] Sil soluk kırmızı (`$red-dark`) — istenmişti, `CharactersPage.css` hâlâ canlı danger
 - [ ] Battle Arena backend — formül 19 Eki kilitli (bölüm 2); entity/handler yok
@@ -281,7 +282,10 @@ Detay: `PROJE_MANTIGI.md`
 
 ## Karar notları
 
-- **User yazma / gizlilik (25–26 Eki):** Başkasının profili veya parolası yazılmaz (Admin dahil). Menüde Edit/Password; tabloda Edit yok. `IsContactPublic` default false; sahip kendi iletişimini her zaman görür. Detay: Adım 34 / plan `profil_yetki_kuralı`.
+- **User yazma / gizlilik (25–26 Eki; varsayılan 29 Eki):** Başkasının profili veya parolası yazılmaz (Admin dahil) — şimdilik bilinçli kilit. Menüde Edit/Password; tabloda Edit yok. `IsContactPublic` **default true**. Add User: izinli sayfa `/users/new`, modal değil; Register ayrı. Detay: Adım 34–36.
+- **İsimlendirme nabız (29 Eki):** Dilim sonunda Context/DTO adları gözden geçirilir. Örnek borç: `PermissionContext` içinde `userId` — ileride `MeContext` adayı. Hooks’un doyurucu anlatımı User dilimi bitince.
+- **UI dili (29 Eki):** Tüm kullanıcıya görünen metinler İngilizce olacak (sidebar, sayfa başlıkları, butonlar, hata mesajları, login/register). Şu an karışık (`Karakterler` TR, Users menüsü EN). i18n kütüphanesi şart değil; önce tek dil EN. Bu turda toplu çeviri yok — User dilimi bitince veya ayrı dilimde.
+- **My Profile görsel (29 Eki):** Kapak yüksekliği ve avatar boyutu CSS’te sabit; resmi olmayan profil “boş” görünür. `avatarUrl` / kapak gelince doluluk artar, grid kolon genişliği aynı kalır. Activities yer tutucu (API yok).
 - **Dövüş kilidi (19 Eki):** 5 yer, rakip `POST` içinde, iki vuruş, isabet karşılaştırma (kura yok), beraberlik 25 puan, WebSocket sonra. Detay bölüm 2.
 - **Dashboard (19 Eki):** Light Blue yerleşim, gerçek SQL + seed harita verisi; e-ticaretten önce ekran, dövüş tablosundan sonra implement.
 
@@ -329,8 +333,8 @@ Detay: `PROJE_MANTIGI.md`
 ```
 ReactBattleArena — CHECKPOINT.md, PROJE_MANTIGI.md, PROJE_EKLEMELERI.md ve
 CursorMarkdowns/Sayfa-Modeli.md oku. Cursor yönlendirme; kod VS Code’da.
-User: profil/parola yalnız token id; tabloda Edit yok; IsContactPublic. Adım 35 tablo var;
-sıradaki My Profile / View / Edit Profile / Change Password içerikleri.
+User Adım 36: profil/parola self-only; Add User users.create; contact default true.
+Sıradaki: Users search. Admin başkasını update şimdilik yok.
 Dövüş kilidi CHECKPOINT bölüm 2 (19 Eki). Yetki JWT’de değil. Refresh ≠ permission.
 ```
 

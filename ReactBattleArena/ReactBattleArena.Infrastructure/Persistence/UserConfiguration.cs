@@ -28,6 +28,6 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(x => x.Phone).HasMaxLength(30);
         builder.Property(x => x.AvatarUrl).HasMaxLength(500);
         builder.Property(x => x.IsDisabled).IsRequired(); // IsRequired bool kolonda NULL bırakmaz. Mevcut satırlar false alır. Eski kullanıcılar giriş yapmaya devam eder.
-        builder.Property(x => x.IsContactPublic).IsRequired();
+        builder.Property(x => x.IsContactPublic).IsRequired().HasDefaultValue(true);
     }
 }

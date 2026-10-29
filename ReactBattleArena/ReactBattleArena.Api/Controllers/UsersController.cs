@@ -63,7 +63,7 @@ public sealed class UsersController : ControllerBase
         return result is null ? NotFound() : Ok(result);
     }
 
-    [Authorize]
+    [HasPermission(PermissionCodes.UsersCreate)]
     [HttpPost]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]

@@ -6,5 +6,6 @@ public static class PermissionCodes
     public const string CharactersUpdate = "characters.update";
     public const string CharactersDelete = "characters.delete";
     public const string ShopItemsCreate = "shop.items.create";
+    public const string UsersCreate = "users.create";
     public const string UsersDelete = "users.delete";
 }

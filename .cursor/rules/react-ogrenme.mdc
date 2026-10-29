@@ -15,10 +15,18 @@ alwaysApply: true
 - Kısa kavram → kullanıcı yazar → ASP.NET/HTML/HttpClient eşlemesi → çalıştır → sonraki parça.
 - Öğrenci: web developer (.NET API); WinForms yok — WinForms örneği verme.
 - React’e yeni: takılan JSX/syntax (`&&`, map, hooks…) açıkla; notlara yaz (`REACT-OGRENIM.md`).
+- **Hooks (29 Eki+):** `useState` / `useEffect` / custom hook (`usePermissions`, `useUserId`) kullanılırken kısa hatırlatma yeterli. **Hooks’un ne olduğu, kuralları ve custom hook deseni** User dilimi (menü → tablo → profil → edit → parola) bitince ayrı oturumda doyurucu anlatılır; o güne kadar “sihir” gibi geçiştirme, ama roman da açma.
 - **Açıklama uzunluğu (11 Ağustos+):** doyurucu anlat. Sadece bullet/özet yetmez — neden + ASP.NET/`fetch` eşlemesi + sık hata. Aşırı roman değil; 1–2 kavramı veya soru paketini okumaya değer yaz.
 - **Soru paketleri / test Q&A:** chat’te ve `REACT-OGRENIM.md`’de kısa indeks yetmez; detaylı bölüm zorunlu (13 Ağustos geri bildirimi). “Concise” kuralı öğrenme açıklamasını kısaltmaz.
 - Bir oturumda en fazla 1–2 yeni kavram.
 - Adım adım yaptır; kopyala-yapıştır yığını yok.
+
+## İsimlendirme ve mimari nabız (29 Eki+)
+
+- Dilim veya anlamlı parça bitince (veya kullanıcı “genel bak” deyince) kısa **isimlendirme / tutarlılık** kontrolü yap: Context adı taşıdığı veriyle uyuyor mu, DTO/route/permission kodları aynı dili mi konuşuyor, “her yerde kullanılan” bir parça yanlış yere mi gömüldü.
+- Bulgu varsa o anda büyük refactor dayatma; borcu söyle, kullanıcı isterse ayrı parçada düzelt (ör. `PermissionContext` içinde `userId` → ileride `MeContext`).
+- `PROJE_EKLEMELERI` / `CHECKPOINT` güncellenirken karar değişimleri (ör. `IsContactPublic` varsayılanı) canlı duruma yazılsın.
+- **UI dili (29 Eki+):** Kullanıcıya görünen string’ler İngilizce hedeflenir. Yeni sayfa/buton metni yazarken EN kullan; eski TR metinleri (`Karakterler` vb.) User diliminden sonra veya ayrı dilimde toplu EN’e çekilir. Şimdilik yeni User ekranlarında EN devam.
 
 ## Proje
 

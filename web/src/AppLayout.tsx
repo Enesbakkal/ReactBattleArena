@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, Navigate, Outlet, useNavigate } from 'react-router-dom'
+import { Navigate, Outlet, useNavigate } from 'react-router-dom'
 // import './AppLayout.css'  burayı kaldırdık çünkü artık complex template'E geçiyoruz
 import { apiFetch, clearToken, getToken, logout } from './api'
 import { PermissionContext } from './PermissionContext'
@@ -21,6 +21,7 @@ function AppLayout() {
   // const token = localStorage.getItem('token') ortak auth
   const token = getToken() // Layout önce getToken() okur. Access token yoksa bileşen Navigate ile /login adresine döner. Liste çizilmez.
   const [permissions, setPermissions] = useState<string[]>([])
+  const [userId, setUserId] = useState<string | null>(null)
   const [meLoaded, setMeLoaded] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
@@ -35,6 +36,7 @@ function AppLayout() {
       if (meResponse.ok) {
         const me = await meResponse.json()
         setPermissions(me.permissions ?? [])
+        setUserId(me.id ?? null)
       } else if (meResponse.status === 401) {
         // apiFetch buraya gelene kadar yenilemeyi denedi ve başaramadı: oturum bitti.
         clearToken()
@@ -73,7 +75,7 @@ function AppLayout() {
   }
 
   return (
-  <PermissionContext.Provider value={{ permissions }}>
+  <PermissionContext.Provider value={{ permissions, userId }}>
     <div className={shell.root}>
       <Sidebar open={sidebarOpen} />
       <div className={sidebarOpen ? shell.wrap : `${shell.wrap} ${shell.wrapClosed}`}>

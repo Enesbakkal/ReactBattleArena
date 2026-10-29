@@ -349,7 +349,7 @@ Kabuk dışında kalan giriş ve kayıt, şablonun auth kartına yaklaştırıld
 
 ### Adım 34 — User profil API + iletişim gizliliği + parola (25–26 Ekim)
 
-Sayfa modeli User ekranlarını tarif ederken yazma yetkisi eksikti. Kilit: hiç kimse (Admin dahil) başka kullanıcının profilini veya parolasını yazamaz. Listeden View salt okunur. E-posta/telefon varsayılan gizli (`IsContactPublic`).
+Sayfa modeli User ekranlarını tarif ederken yazma yetkisi eksikti. Kilit: hiç kimse (Admin dahil) başka kullanıcının profilini veya parolasını yazamaz. Listeden View salt okunur. E-posta/telefon başta varsayılan gizliydi; 29 Eki’de varsayılan `IsContactPublic = true` (müşteri gizler).
 
 - [x] `User`: `FirstName`, `LastName`, `Phone`, `AvatarUrl`, `IsDisabled`, `IsContactPublic` + `UpdateProfile` — 25 Eki
 - [x] Migration `AddUserProfileFields`; boş `AddUserContactVisibility` geçmişte kaldı; kolon `AddUserContactVisibilityColumn` ile eklendi — 25 Eki
@@ -361,18 +361,26 @@ Sayfa modeli User ekranlarını tarif ederken yazma yetkisi eksikti. Kilit: hiç
 
 ### Adım 35 — Users menü + User Management tablosu (27 Ekim)
 
-Backend yazma kapıları hazırdı; React menü ve tablo bağlandı. My Profile / Edit / Change Password içerikleri ve salt okunur View gövdesi sırada.
+Backend yazma kapıları hazırdı; React menü ve tablo bağlandı. Profil form içerikleri Adım 36’da.
 
 - [x] Sidebar `USERS`: User Management, My Profile, Edit Profile, Change Password — 27 Eki
 - [x] Rotalar `AppLayout` içinde: `/users`, `/profile`, `/profile/edit`, `/profile/password`, `/users/:id` — 27 Eki
-- [x] Stub: `MyProfilePage`, `EditProfilePage`, `ChangePasswordPage`, `UserDetailPage` — 27 Eki
 - [x] `UsersPage` tablo: `GET /api/users`, sayfa boyutu, View + `users.delete` ile Delete; satırda Edit yok — 27 Eki
 - [x] `PERMISSIONS.usersDelete`; aksiyonlar Light Blue tarzı mavi/kırmızı buton — 27 Eki
-- [ ] My Profile içeriği (`/profile`)
-- [ ] Salt okunur View içeriği (`/users/:id`)
-- [ ] Edit Profile formu → `PUT /api/users/profile`
-- [ ] Change Password formu → `PUT /api/users/password`
-- [ ] Liste araması (API’de search yok)
+
+### Adım 36 — Profil sayfaları + Add User + iletişim varsayılanı (29 Ekim)
+
+Self-only yazma kilidi duruyor (Admin de başkasını güncellemez). Light Blue tablodaki Edit → id’li form yolunu almadık. Add User ayrı sayfa (`/users/new`), modal değil. Register herkese açık kalır.
+
+- [x] `PermissionContext` + `userId` / `useUserId`; AppLayout `/me` ile doldurur — 29 Eki
+- [x] `UserProfilePanel` — My Profile (`/profile`) ve View (`/users/:id`) ortak salt okunur; Activities yer tutucu — 29 Eki
+- [x] `EditProfilePage` — `PUT /api/users/profile`; Save / Reset / Cancel; `isContactPublic` checkbox — 29 Eki
+- [x] `ChangePasswordPage` — `PUT /api/users/password`; mevcut + yeni + tekrar — 29 Eki
+- [x] `IsContactPublic` Create/default `true`; migration `ContactPublicDefaultTrue` + mevcut satırlar `UPDATE` — 29 Eki
+- [x] `users.create` PermissionCodes + AuthSeeder (Admin); `POST /api/users` `HasPermission`; CreateUser’a Player `UserRole` — 29 Eki
+- [x] `UserCreatePage` `/users/new` (Character Create kapısı); Users header’da Add User primary (Page size yanında) — 29 Eki
+- [ ] Liste araması (`search` query; API + UI)
+- [ ] Admin’in başkasını güncellemesi — şimdilik kapalı (bilinçli)
 
 ### Güvenlik & Git
 
@@ -394,7 +402,8 @@ Backend yazma kapıları hazırdı; React menü ve tablo bağlandı. My Profile 
 - [x] Login/Register Light Blue kartı (Adım 33)
 - [x] User profil API + iletişim gizliliği + parola (Adım 34)
 - [x] Users menü + User Management tablosu (Adım 35 — tablo)
-- [ ] My Profile / View / Edit Profile / Change Password sayfa içerikleri
+- [x] Profil sayfaları + Add User + contact default true (Adım 36)
+- [ ] Users list search
 - [ ] Liste yükleme 3–4 sn gecikmesi (inceleme)
 - [ ] Battle Arena backend (formül CHECKPOINT bölüm 2’de kilitli)
 - [ ] (İleride) Docker / Kubernetes / CI
@@ -645,6 +654,13 @@ Backend yazma kapıları hazırdı; React menü ve tablo bağlandı. My Profile 
 
 - Adım 35: Users menü + `/users` tablosu (View / Delete); profil sayfaları stub; Edit satırda yok
 
+### 29 Ekim 2026
+
+- Adım 36: `UserProfilePanel`, Edit Profile, Change Password; `useUserId`; `IsContactPublic` default true + migration
+- `users.create` + `/users/new` Add User; CreateUser Player rolü; Users kartı + EN metinler
+- Karar: Admin başkasını update etmez (şimdilik); Add User sayfa (modal değil); UI string’leri EN hedefi
+- Kurallar: isimlendirme nabız; hooks anlatımı User dilimi bitince
+
 ---
 
 
@@ -692,7 +708,8 @@ Backend yazma kapıları hazırdı; React menü ve tablo bağlandı. My Profile 
 - [x] Users API controller
 - [x] PasswordHash (+ CreateUser password)
 - [x] Profil alanları + `IsContactPublic` + self-only `PUT profile` / `PUT password` (Adım 34)
-- [x] React: Users menü + User Management tablosu (Adım 35); My Profile / Edit / parola içerikleri sırada
+- [x] React: Users menü + tablo (Adım 35) + profil/parola sayfaları + Add User (Adım 36)
+- [ ] Users list search
 
 ---
 
@@ -756,6 +773,8 @@ Backend yazma kapıları hazırdı; React menü ve tablo bağlandı. My Profile 
 | **28 Ağu Refresh tablo** | `auth - refresh token table - RefreshToken entity EF AddRefreshTokens` |
 | **22 Eki Auth UI** | `login and register pages` |
 | **26 Eki User profil** | `users - profil ve parola yalnız token'daki kullanıcıya yazılır` |
+| **27 Eki Users FE tablo** | `react - users menü ve User Management tablosu` |
+| **29 Eki Profil + Add User** | `react - user profile pages, add user, contact public default` |
 
 
 ---
@@ -778,8 +797,8 @@ D:\ReactBattleArena\
 │       ├── LoginPage / RegisterPage
 │       ├── shell\                 ← Sidebar (USERS menü), Header
 │       ├── CharactersPage / CharacterCard / Create / Detail / Edit
-│       ├── UsersPage (+ module scss) / UserDetailPage (stub)
-│       ├── MyProfilePage / EditProfilePage / ChangePasswordPage (stub)
+│       ├── UsersPage / UserCreatePage / UserProfilePanel
+│       ├── MyProfilePage / EditProfilePage / ChangePasswordPage / UserDetailPage
 │       └── index.css              ← kabuk dışı token’lar
 └── ReactBattleArena\
     ├── Domain\

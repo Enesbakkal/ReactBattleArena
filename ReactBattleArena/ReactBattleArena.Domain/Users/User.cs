@@ -54,7 +54,7 @@ public sealed class User
             Phone = null,
             AvatarUrl = null,
             IsDisabled = false,
-            IsContactPublic = false,
+            IsContactPublic = true,
             PasswordHash = passwordHash,
             Points = 0,
             CreatedAtUtc = utcNow

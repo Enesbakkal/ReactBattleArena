@@ -1,5 +1,7 @@
 ﻿using MediatR;
+using Microsoft.EntityFrameworkCore;
 using ReactBattleArena.Application.Abstractions;
+using ReactBattleArena.Domain.Authorization;
 using ReactBattleArena.Domain.Users;
 
 namespace ReactBattleArena.Application.Users.Commands;
@@ -27,6 +29,11 @@ public sealed class CreateUserCommandHandler : IRequestHandler<CreateUserCommand
             DateTime.UtcNow);
 
         _db.Users.Add(entity);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        var playerRole = await _db.Roles.SingleAsync(
+            r => r.Name == Roles.Player, cancellationToken);
+        _db.UserRoles.Add(UserRole.Create(entity.Id, playerRole.Id));
         await _db.SaveChangesAsync(cancellationToken);
 
         return entity.Id;

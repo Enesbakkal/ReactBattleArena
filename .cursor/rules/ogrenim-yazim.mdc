@@ -34,6 +34,12 @@ dediğim şey" diye devam et.
 EF migration dosyalarının `*.Designer.cs` ve snapshot kısımları otomatik üretilir;
 onlardan alıntı yapma, sadece `Up`/`Down` içinden gerekli satırı göster.
 
+## 2b. İsimlendirme nabız (29 Ekim 2026 — kullanıcı isteği)
+
+Öğrenim notu veya dilim özeti yazarken ara sıra sor: bu isim projenin geri kalanıyla hâlâ uyuyor mu?
+Context/hook/DTO adı sorumluluğunu yansıtıyor mu? Uymuyorsa notta “borç” diye bir cümle bırak; sessizce yanlış isimle devam etme.
+Hooks’un tam anlatımı User dilimi bitince V2/chat’te ayrı bölüm olur (`react-ogrenme.mdc`).
+
 ## 2a. Benzetme adlandırma kuralı (16 Eylül 2026 — kullanıcı isteği)
 
 Bir şeye takma ad verme. Tercih sırası:
