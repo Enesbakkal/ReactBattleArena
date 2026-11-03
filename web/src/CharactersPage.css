@@ -23,8 +23,9 @@
   flex-wrap: wrap;
 }
 
-.characters-page__actions a,
-.characters-page__actions button {
+/* > = yalnız doğrudan çocuk; ListSearchBar içindeki Search kırmızıya boyanmasın */
+.characters-page__actions > a,
+.characters-page__actions > button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -38,20 +39,20 @@
   cursor: pointer;
 }
 
-.characters-page__actions a {
+.characters-page__actions > a {
   background: #4179cf;
 }
 
-.characters-page__actions a:hover {
+.characters-page__actions > a:hover {
   background: #3568b0;
   color: #f4f4f5;
 }
 
-.characters-page__actions button {
+.characters-page__actions > button {
   background: #d04f4f;
 }
 
-.characters-page__actions button:hover {
+.characters-page__actions > button:hover {
   background: #b84545;
   color: #f4f4f5;
 }

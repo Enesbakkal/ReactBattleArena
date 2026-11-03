@@ -21,9 +21,20 @@ public sealed class GetUsersQueryHandler
         var page = Math.Max(1, request.Page);
         var pageSize = Math.Clamp(request.PageSize, 1, 200);
 
-        var query = _db.Users
+        IQueryable<Domain.Users.User> query = _db.Users
             .AsNoTracking()
             .OrderByDescending(u => u.CreatedAtUtc);
+
+        var term = request.Search?.Trim();
+        if (!string.IsNullOrEmpty(term))
+        {
+            query = query.Where(u =>
+                u.UserName.Contains(term) ||
+                (u.DisplayName != null && u.DisplayName.Contains(term)) ||
+                (u.FirstName != null && u.FirstName.Contains(term)) ||
+                (u.LastName != null && u.LastName.Contains(term)) ||
+                (u.Email != null && u.Email.Contains(term)));
+        }
 
         var total = await query.CountAsync(cancellationToken);
 

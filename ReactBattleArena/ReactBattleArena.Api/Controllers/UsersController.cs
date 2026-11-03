@@ -28,6 +28,7 @@ public sealed class UsersController : ControllerBase
     public async Task<ActionResult<PagedUserRowsResult>> GetPaged(
     [FromQuery] int page = 1,
     [FromQuery] int pageSize = 20,
+    [FromQuery] string? search = null,
     CancellationToken cancellationToken = default)
     {
         var idValue = User.FindFirstValue(ClaimTypes.NameIdentifier)
@@ -37,7 +38,7 @@ public sealed class UsersController : ControllerBase
             return Unauthorized();
 
         var result = await _mediator.Send(
-            new GetUsersQuery(page, pageSize, tokenUserId),
+            new GetUsersQuery(page, pageSize, tokenUserId, search),
             cancellationToken);
         return Ok(result);
     }

@@ -21,6 +21,10 @@ function CharacterEditPage() {
   const [baseAttack, setBaseAttack] = useState(10)
   const [baseDefense, setBaseDefense] = useState(10)
   const [baseSpeed, setBaseSpeed] = useState(10)
+  const [baseHealth, setBaseHealth] = useState(10)
+  const [baseTechnique, setBaseTechnique] = useState(10)
+  const [baseAccuracy, setBaseAccuracy] = useState(10)
+  const [baseForesight, setBaseForesight] = useState(10)
   const [imageUrl, setImageUrl] = useState('')
 
   const [loading, setLoading] = useState(true)
@@ -74,6 +78,10 @@ function CharacterEditPage() {
         setBaseAttack(data.baseAttack)
         setBaseDefense(data.baseDefense)
         setBaseSpeed(data.baseSpeed)
+        setBaseHealth(data.baseHealth)
+        setBaseTechnique(data.baseTechnique)
+        setBaseAccuracy(data.baseAccuracy)
+        setBaseForesight(data.baseForesight)
         setImageUrl(data.imageUrl ?? '')
       } catch {
         setLoadError('API’ye ulaşılamadı')
@@ -125,6 +133,10 @@ function CharacterEditPage() {
           baseAttack,
           baseDefense,
           baseSpeed,
+          baseHealth,
+          baseTechnique,
+          baseAccuracy,
+          baseForesight,
           imageUrl: imageUrl || null,
         },
       })
@@ -245,6 +257,46 @@ function CharacterEditPage() {
                 type="number"
                 value={baseSpeed}
                 onChange={(e) => setBaseSpeed(Number(e.target.value))}
+              />
+            </label>
+          </div>
+          <div>
+            <label>
+              Health
+              <input
+                type="number"
+                value={baseHealth}
+                onChange={(e) => setBaseHealth(Number(e.target.value))}
+              />
+            </label>
+          </div>
+          <div>
+            <label>
+              Technique
+              <input
+                type="number"
+                value={baseTechnique}
+                onChange={(e) => setBaseTechnique(Number(e.target.value))}
+              />
+            </label>
+          </div>
+          <div>
+            <label>
+              Accuracy
+              <input
+                type="number"
+                value={baseAccuracy}
+                onChange={(e) => setBaseAccuracy(Number(e.target.value))}
+              />
+            </label>
+          </div>
+          <div>
+            <label>
+              Foresight
+              <input
+                type="number"
+                value={baseForesight}
+                onChange={(e) => setBaseForesight(Number(e.target.value))}
               />
             </label>
           </div>

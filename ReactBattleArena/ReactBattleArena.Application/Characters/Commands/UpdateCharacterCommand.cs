@@ -11,5 +11,9 @@ public sealed record UpdateCharacterCommand(
     int BaseAttack,
     int BaseDefense,
     int BaseSpeed,
+    int BaseHealth,
+    int BaseTechnique,
+    int BaseAccuracy,
+    int BaseForesight,
     string? ImageUrl) : IRequest<bool>;
 //IRequest<bool> → bulundu ve güncellendiyse true, yoksa false.

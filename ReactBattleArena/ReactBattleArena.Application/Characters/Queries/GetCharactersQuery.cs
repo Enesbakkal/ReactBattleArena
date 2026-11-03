@@ -2,7 +2,7 @@
 
 namespace ReactBattleArena.Application.Characters.Queries;
 
-public sealed record GetCharactersQuery(int Page, int PageSize)
+public sealed record GetCharactersQuery(int Page, int PageSize, string? Search)
     : IRequest<PagedCharacterRowsResult>;
 
 public sealed record CharacterRowDto(

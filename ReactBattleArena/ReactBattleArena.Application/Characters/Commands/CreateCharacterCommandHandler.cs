@@ -26,6 +26,10 @@ public sealed class CreateCharacterCommandHandler : IRequestHandler<CreateCharac
             request.BaseAttack,
             request.BaseDefense,
             request.BaseSpeed,
+            request.BaseHealth,
+            request.BaseTechnique,
+            request.BaseAccuracy,
+            request.BaseForesight,
             request.ImageUrl,
             DateTime.UtcNow);
 

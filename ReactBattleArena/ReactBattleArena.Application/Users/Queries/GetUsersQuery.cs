@@ -2,7 +2,7 @@
 
 namespace ReactBattleArena.Application.Users.Queries;
 
-public sealed record GetUsersQuery(int Page, int PageSize, Guid CallerId)
+public sealed record GetUsersQuery(int Page, int PageSize, Guid CallerId, string? Search)
     : IRequest<PagedUserRowsResult>;
 
 public sealed record UserRowDto(

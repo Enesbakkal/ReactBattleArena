@@ -129,14 +129,34 @@ namespace ReactBattleArena.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<int>("BaseAccuracy")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<int>("BaseAttack")
                         .HasColumnType("int");
 
                     b.Property<int>("BaseDefense")
                         .HasColumnType("int");
 
+                    b.Property<int>("BaseForesight")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("BaseHealth")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<int>("BaseSpeed")
                         .HasColumnType("int");
+
+                    b.Property<int>("BaseTechnique")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
 
                     b.Property<string>("Biography")
                         .HasMaxLength(2000)

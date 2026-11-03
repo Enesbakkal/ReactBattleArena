@@ -1,6 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using Microsoft.Extensions.Configuration;
 using ReactBattleArena.Domain.Characters;
+using System.Runtime.ConstrainedExecution;
 
 namespace ReactBattleArena.Infrastructure.Persistence;
 
@@ -19,5 +22,11 @@ public sealed class CharacterConfiguration : IEntityTypeConfiguration<Character>
 
         builder.HasIndex(x => x.Universe);
         builder.HasIndex(x => new { x.Universe, x.Name });
+        // EF convention: entity’deki int property’ler satır yazmadan kolona map olur. Configuration yalnız özel kurallar içindir: MaxLength, IsRequired string’de, index.
+
+        builder.Property(x => x.BaseHealth).IsRequired().HasDefaultValue(0);
+        builder.Property(x => x.BaseTechnique).IsRequired().HasDefaultValue(0);
+        builder.Property(x => x.BaseAccuracy).IsRequired().HasDefaultValue(0);
+        builder.Property(x => x.BaseForesight).IsRequired().HasDefaultValue(0);
     }
 }

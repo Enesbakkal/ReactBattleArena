@@ -10,6 +10,10 @@ public sealed record CreateCharacterCommand(
     int BaseAttack,
     int BaseDefense,
     int BaseSpeed,
+    int BaseHealth,
+    int BaseTechnique,
+    int BaseAccuracy,
+    int BaseForesight,
     string? ImageUrl) : IRequest<Guid>;
 //IRequest<Guid>
 //“Bu istek işlenince Guid döner” (yeni karakterin Id'si)

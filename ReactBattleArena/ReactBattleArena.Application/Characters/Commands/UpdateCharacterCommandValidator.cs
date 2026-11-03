@@ -14,6 +14,10 @@ public sealed class UpdateCharacterCommandValidator : AbstractValidator<UpdateCh
         RuleFor(x => x.BaseAttack).InclusiveBetween(0, 9999);
         RuleFor(x => x.BaseDefense).InclusiveBetween(0, 9999);
         RuleFor(x => x.BaseSpeed).InclusiveBetween(0, 9999);
+        RuleFor(x => x.BaseHealth).InclusiveBetween(0, 9999);
+        RuleFor(x => x.BaseTechnique).InclusiveBetween(0, 9999);
+        RuleFor(x => x.BaseAccuracy).InclusiveBetween(0, 9999);
+        RuleFor(x => x.BaseForesight).InclusiveBetween(0, 9999);
         RuleFor(x => x.ImageUrl).MaximumLength(500);
     }
 }

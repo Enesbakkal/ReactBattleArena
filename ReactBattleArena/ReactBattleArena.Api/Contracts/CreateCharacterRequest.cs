@@ -9,6 +9,10 @@ public sealed class CreateCharacterRequest
     public int BaseAttack { get; set; }
     public int BaseDefense { get; set; }
     public int BaseSpeed { get; set; }
+    public int BaseHealth { get; set; }
+    public int BaseTechnique { get; set; }
+    public int BaseAccuracy { get; set; }
+    public int BaseForesight { get; set; }
     public string? ImageUrl { get; set; }
 }
 //Controller command'ı doğrudan almak yerine, dışarıya bir request DTO açıyoruz.

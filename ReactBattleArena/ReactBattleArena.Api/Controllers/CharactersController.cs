@@ -26,9 +26,10 @@ public sealed class CharactersController : ControllerBase
     public async Task<ActionResult<PagedCharacterRowsResult>> GetPaged(
     [FromQuery] int page = 1,
     [FromQuery] int pageSize = 20,
+    [FromQuery] string? search = null,
     CancellationToken cancellationToken = default)
     {
-        var result = await _mediator.Send(new GetCharactersQuery(page, pageSize), cancellationToken);
+        var result = await _mediator.Send(new GetCharactersQuery(page, pageSize, search), cancellationToken);
         return Ok(result);
     }
 
@@ -62,6 +63,10 @@ public sealed class CharactersController : ControllerBase
                 body.BaseAttack,
                 body.BaseDefense,
                 body.BaseSpeed,
+                body.BaseHealth,
+                body.BaseTechnique,
+                body.BaseAccuracy,
+                body.BaseForesight,
                 body.ImageUrl),
             cancellationToken);
 
@@ -88,6 +93,10 @@ public sealed class CharactersController : ControllerBase
                 body.BaseAttack,
                 body.BaseDefense,
                 body.BaseSpeed,
+                body.BaseHealth,
+                body.BaseTechnique,
+                body.BaseAccuracy,
+                body.BaseForesight,
                 body.ImageUrl),
             cancellationToken);
 

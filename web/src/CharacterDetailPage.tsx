@@ -15,9 +15,15 @@ interface CharacterDetail {
   baseAttack: number
   baseDefense: number
   baseSpeed: number
+  baseHealth: number
+  baseTechnique: number
+  baseAccuracy: number
+  baseForesight: number
   imageUrl?: string | null
   createdAtUtc: string
 }
+
+// Edit’te her alan için setBaseHealth(data.baseHealth) vardı çünkü her input ayrı state. Detail’de tüm cevap tek objede. Yeni kolonlar JSON’da geldiği anda character içinde olur; ekstra set… gerekmez. Tipi ve JSX’i güncellemek yeterli.
 
 function CharacterDetailPage() {
   const { id } = useParams<{ id: string }>() // CharacterEditPage URL'deki id değerini useParams ile alır.
@@ -177,7 +183,9 @@ function CharacterDetailPage() {
           <p>Rarity {character.rarity}</p>
           <p>
             AT {character.baseAttack} · DEF {character.baseDefense} · SPD{' '}
-            {character.baseSpeed}
+            {character.baseSpeed} · HP {character.baseHealth} · TECH{' '}
+            {character.baseTechnique} · ACC {character.baseAccuracy} · FORE{' '}
+            {character.baseForesight}
           </p>
           {character.biography && <p>{character.biography}</p>}
           <p className="characters-hint">

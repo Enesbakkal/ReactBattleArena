@@ -6,6 +6,7 @@ import './CharactersPage.css'
 import { apiFetch } from './api'
 import {hasPermission, PERMISSIONS } from './permissions'
 import { usePermissions } from './PermissionContext'
+import ListSearchBar from './ListSearchBar'
 
 interface CharacterRow {
   id: string
@@ -21,6 +22,8 @@ function CharactersPage() {
   // const [permissions, setPermissions] = useState<string[]>([])   bu satırı sildik çünkü permission ve me ile authorization app layoutden yapmaya karar verdik 
   const [error, setError] = useState('')
   // const navigate = useNavigate()
+  const [searchDraft, setSearchDraft] = useState('')
+  const [appliedSearch, setAppliedSearch] = useState('')
  
  
   // const token = localStorage.getItem('token')  (bu sayfada artık lazım değil)  cünkü ortak apı uth metodları yazdık
@@ -61,7 +64,14 @@ function CharactersPage() {
 
   async function load() {
     try{
-      const response = await apiFetch('/api/characters?page=1&pageSize=20')
+      const params = new URLSearchParams({
+        page: '1',
+        pageSize: '20',
+      })
+      const term = appliedSearch.trim()
+      if (term) params.set('search', term)
+
+      const response = await apiFetch(`/api/characters?${params.toString()}`)
 
       if(!response.ok) {
         setError('Karakterler Alınmadı')
@@ -85,16 +95,24 @@ function CharactersPage() {
 
   useEffect(() => {// sayfa ilk çizilince load çalışsın diye var
     load()
-  }, [])
-  //Sayfa ilk çizildiğinde items boş dizidir. Grid boş görünür. Çünkü veri henüz gelmemiştir. 
-  // useEffect bağımlılık dizisi [] olduğu için bu mount’ta bir kez load çalışır. 
-  // load GetPaged’e gider, cevap gelince setItems olur, map CharacterCard çizer. 
-
+  }, [appliedSearch])
+  // Mount’ta appliedSearch '' ile başlar; effect bir kez load çalıştırır → ilk liste gelir.
+  // Eskiden bağımlılık [] idi: yalnız ilk çizimde bir kez load.
+  // Şimdi [appliedSearch]: dizi değişince React effect’i yeniden çalıştırır.
+  // Search’e basınca setAppliedSearch olur → appliedSearch yeni değer alır → load tekrar
+  // çağrılır → GET’te ?search=... gider → setItems ile grid yenilenir.
+  // searchDraft bu dizide YOK: kutuya yazmak tek başına load tetiklemez.
   return (
     <div className="characters-page">
       <div className="characters-page__header">
         <h1>Karakterler</h1>
         <div className="characters-page__actions">
+          <ListSearchBar
+            value={searchDraft}
+            onChange={setSearchDraft}
+            onSubmit={() => setAppliedSearch(searchDraft.trim())}
+            placeholder="Search name or universe…"
+          />
           {hasPermission(permissions, PERMISSIONS.charactersCreate) && (
             <Link to="/characters/new">Karakter ekle</Link>
           )}

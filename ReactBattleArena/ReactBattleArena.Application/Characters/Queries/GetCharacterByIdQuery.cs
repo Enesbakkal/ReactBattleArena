@@ -10,6 +10,10 @@ public sealed record CharacterDetailDto(
     int Rarity,
     int BaseAttack,
     int BaseDefense,
+    int BaseHealth,
+    int BaseTechnique,
+    int BaseAccuracy,
+    int BaseForesight,
     int BaseSpeed,
     string? ImageUrl,
     DateTime CreatedAtUtc);

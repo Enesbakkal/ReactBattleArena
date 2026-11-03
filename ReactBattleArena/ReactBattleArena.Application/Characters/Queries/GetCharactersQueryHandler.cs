@@ -21,9 +21,17 @@ public sealed class GetCharactersQueryHandler
         var page = Math.Max(1, request.Page);
         var pageSize = Math.Clamp(request.PageSize, 1, 200);
 
-        var query = _db.Characters
+        IQueryable<Domain.Characters.Character> query = _db.Characters
             .AsNoTracking()
             .OrderByDescending(c => c.CreatedAtUtc);
+
+        var term = request.Search?.Trim();
+        if (!string.IsNullOrEmpty(term))
+        {
+            query = query.Where(c =>
+                c.Name.Contains(term) ||
+                c.Universe.Contains(term));
+        }
 
         var total = await query.CountAsync(cancellationToken);
 

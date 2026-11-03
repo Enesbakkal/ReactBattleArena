@@ -4,6 +4,7 @@ import { apiFetch } from './api'
 import { hasPermission, PERMISSIONS } from './permissions'
 import { usePermissions } from './PermissionContext'
 import s from './UsersPage.module.scss'
+import ListSearchBar from './ListSearchBar'
 
 type UserRow = {
   id: string
@@ -24,30 +25,40 @@ function UsersPage() {
   const [items, setItems] = useState<UserRow[]>([])
   const [error, setError] = useState('')
   const [pageSize, setPageSize] = useState(20)
+  const [searchDraft, setSearchDraft] = useState('')
+  const [appliedSearch, setAppliedSearch] = useState('')
 
-  async function load() {
-    try {
-      const response = await apiFetch(
-        `/api/users?page=1&pageSize=${pageSize}`,
-      )
+async function load() {
+  try {
+    const params = new URLSearchParams({
+      page: '1',
+      pageSize: String(pageSize),
+    })
+    const term = appliedSearch.trim()
+    if (term) params.set('search', term)
 
-      if (!response.ok) {
-        setError('Could not load users')
-        return
-      }
+    const response = await apiFetch(`/api/users?${params.toString()}`)
 
-      const data = await response.json()
-      setItems(data.items)
-      setError('')
-    } catch {
-      setError('Could not reach API')
+    if (!response.ok) {
+      setError('Could not load users')
+      return
     }
-  }
 
-  useEffect(() => {
-    load()
-  }, [pageSize])
-  //useEffect bağımlılığında pageSize var. Select değişince liste yeniden çekilir. Karakterlerde bağımlılık [] idi çünkü sayfa boyutu sabitti.
+    const data = await response.json()
+    setItems(data.items)
+    setError('')
+  } catch {
+    setError('Could not reach API')
+  }
+}
+useEffect(() => {
+  load()
+}, [pageSize, appliedSearch])
+  // Eskiden yalnız [pageSize]: select değişince liste yenilenirdi; Characters’ta [] idi.
+  // Şimdi appliedSearch de var: Search submit olunca aynı load yolu çalışır.
+  // pageSize veya appliedSearch’ten BİRİ değişince effect yeniden koşar.
+  // İkisi birden deps’te olduğu için “sayfa boyutu 50 + arama Dummy” birlikte tutarlı kalır.
+  // searchDraft yine deps’te değil → yazarken GET yok.
 
   async function handleDelete(id: string) {
     if (!window.confirm('Delete this user?')) return
@@ -70,6 +81,12 @@ function UsersPage() {
         <div className={s.header}>
           <h1>Users</h1>
           <div className={s.headerRight}>
+            <ListSearchBar
+              value={searchDraft}
+              onChange={setSearchDraft}
+              onSubmit={() => setAppliedSearch(searchDraft.trim())}
+              placeholder="Search users…"
+            />
             {hasPermission(permissions, PERMISSIONS.usersCreate) && (
               <Link className={s.btnAdd} to="/users/new">
                 Add User

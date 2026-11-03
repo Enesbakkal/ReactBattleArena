@@ -379,8 +379,26 @@ Self-only yazma kilidi duruyor (Admin de başkasını güncellemez). Light Blue 
 - [x] `IsContactPublic` Create/default `true`; migration `ContactPublicDefaultTrue` + mevcut satırlar `UPDATE` — 29 Eki
 - [x] `users.create` PermissionCodes + AuthSeeder (Admin); `POST /api/users` `HasPermission`; CreateUser’a Player `UserRole` — 29 Eki
 - [x] `UserCreatePage` `/users/new` (Character Create kapısı); Users header’da Add User primary (Page size yanında) — 29 Eki
-- [ ] Liste araması (`search` query; API + UI)
+- [x] Liste araması (`search` query; API + UI) — Adım 38’de (3 Kas)
 - [ ] Admin’in başkasını güncellemesi — şimdilik kapalı (bilinçli)
+
+### Adım 37 — Karakter dövüş istatistikleri (3 Kasım)
+
+Katalog karakterine savaş için dört tam sayı eklendi (0–9999). Kart grid hâlâ ad/evren/rarity; Create/Edit/Detail form ve satırda görünür.
+
+- [x] Domain `Character`: `BaseHealth`, `BaseTechnique`, `BaseAccuracy`, `BaseForesight`; Create/Update + configuration default 0 — 3 Kas
+- [x] Create/Update command, validator, DTO, controller request; migration `AddCharacterCombatStats` — 3 Kas
+- [x] React Create/Edit state + body + input; Edit `load` setter; Detail tip + AT/DEF/SPD/HP/TECH/ACC/FORE satırı — 3 Kas
+
+### Adım 38 — Liste search (Characters + Users, 3 Kasım)
+
+Ayrı search endpoint yok; `Sayfa-Modeli` gibi aynı GET’e `search` query. FTS yok — EF `Contains`. Tetik 1A (Search/Enter); ortak `ListSearchBar`. Client-side “her harfte filtre” (Light Dynamic demo) değil: sunucu + paging.
+
+- [x] `GetCharactersQuery` / handler / controller: `search` → Name + Universe; filtre Count’tan önce — 3 Kas
+- [x] `GetUsersQuery` / handler / controller: `search` → UserName, DisplayName, FirstName, LastName, Email; `CallerId` gizlilik aynı — 3 Kas
+- [x] `ListSearchBar` + module SCSS (koyu input, mavi buton `#4179cf`); Characters actions `>` ile Search’i kırmızıya boyamama — 3 Kas
+- [x] `CharactersPage` / `UsersPage`: `searchDraft` + `appliedSearch`; `URLSearchParams`; Add yanında bar — 3 Kas
+- [ ] Öğrenim (Dilim 7): iki-state anlatımı (`searchDraft` vs `appliedSearch`) notlara yazılacak
 
 ### Güvenlik & Git
 
@@ -403,7 +421,9 @@ Self-only yazma kilidi duruyor (Admin de başkasını güncellemez). Light Blue 
 - [x] User profil API + iletişim gizliliği + parola (Adım 34)
 - [x] Users menü + User Management tablosu (Adım 35 — tablo)
 - [x] Profil sayfaları + Add User + contact default true (Adım 36)
-- [ ] Users list search
+- [x] Karakter dövüş istatistikleri (Adım 37)
+- [x] Characters + Users list search (Adım 38)
+- [ ] UI string’leri toplu EN (sidebar Karakterler vb.)
 - [ ] Liste yükleme 3–4 sn gecikmesi (inceleme)
 - [ ] Battle Arena backend (formül CHECKPOINT bölüm 2’de kilitli)
 - [ ] (İleride) Docker / Kubernetes / CI
@@ -661,6 +681,12 @@ Self-only yazma kilidi duruyor (Admin de başkasını güncellemez). Light Blue 
 - Karar: Admin başkasını update etmez (şimdilik); Add User sayfa (modal değil); UI string’leri EN hedefi
 - Kurallar: isimlendirme nabız; hooks anlatımı User dilimi bitince
 
+### 3 Kasım 2026
+
+- Adım 37: Character `BaseHealth` / `BaseTechnique` / `BaseAccuracy` / `BaseForesight` + migration; Create/Edit/Detail FE
+- Adım 38: Characters + Users `?search=`; `ListSearchBar` 1A (`searchDraft` / `appliedSearch`); Light-benzeri koyu input, mavi Search
+- Karar: FTS yok; server-side Contains; Light Dynamic anlık filtre client-demo — bizim model Submit/Enter
+
 ---
 
 
@@ -694,6 +720,8 @@ Self-only yazma kilidi duruyor (Admin de başkasını güncellemez). Light Blue 
 - [x] Entity + full CRUD (Create/Read/Update/Delete)
 - [x] Validator + API controller + Scalar
 - [x] React: liste, kart grid, create/detail/edit/delete (Adım 18, 20, 22–25)
+- [x] Dövüş istatistikleri + Create/Edit/Detail FE (Adım 37)
+- [x] Liste `search` query + `ListSearchBar` (Adım 38)
 
 ---
 
@@ -709,7 +737,7 @@ Self-only yazma kilidi duruyor (Admin de başkasını güncellemez). Light Blue 
 - [x] PasswordHash (+ CreateUser password)
 - [x] Profil alanları + `IsContactPublic` + self-only `PUT profile` / `PUT password` (Adım 34)
 - [x] React: Users menü + tablo (Adım 35) + profil/parola sayfaları + Add User (Adım 36)
-- [ ] Users list search
+- [x] Users list search (Adım 38)
 
 ---
 

@@ -29,6 +29,10 @@ public sealed class GetCharacterByIdQueryHandler
                 c.Rarity,
                 c.BaseAttack,
                 c.BaseDefense,
+                c.BaseHealth,
+                c.BaseTechnique,
+                c.BaseAccuracy,
+                c.BaseForesight,
                 c.BaseSpeed,
                 c.ImageUrl,
                 c.CreatedAtUtc))

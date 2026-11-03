@@ -18,6 +18,10 @@ public sealed class Character
     public int BaseAttack { get; private set; }
     public int BaseDefense { get; private set; }
     public int BaseSpeed { get; private set; }
+    public int BaseHealth { get; private set; }
+    public int BaseTechnique { get; private set; }
+    public int BaseAccuracy { get; private set; }
+    public int BaseForesight { get; private set; }
     public string? ImageUrl { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
 
@@ -29,6 +33,10 @@ public sealed class Character
         int baseAttack,
         int baseDefense,
         int baseSpeed,
+        int baseHealth,
+        int baseTechnique,
+        int baseAccuracy,
+        int baseForesight,
         string? imageUrl,
         DateTime utcNow)
     {
@@ -42,6 +50,10 @@ public sealed class Character
             BaseAttack = baseAttack,
             BaseDefense = baseDefense,
             BaseSpeed = baseSpeed,
+            BaseHealth = baseHealth,
+            BaseTechnique = baseTechnique,
+            BaseAccuracy = baseAccuracy,
+            BaseForesight = baseForesight,
             ImageUrl = imageUrl,
             CreatedAtUtc = utcNow
         };
@@ -55,6 +67,10 @@ public sealed class Character
         int baseAttack,
         int baseDefense,
         int baseSpeed,
+        int baseHealth,
+        int baseTechnique,
+        int baseAccuracy,
+        int baseForesight,
         string? imageUrl)
     {
         Name = name;
@@ -64,6 +80,10 @@ public sealed class Character
         BaseAttack = baseAttack;
         BaseDefense = baseDefense;
         BaseSpeed = baseSpeed;
+        BaseHealth = baseHealth;
+        BaseTechnique = baseTechnique;
+        BaseAccuracy = baseAccuracy;
+        BaseForesight = baseForesight;
         ImageUrl = imageUrl;
     }
 }

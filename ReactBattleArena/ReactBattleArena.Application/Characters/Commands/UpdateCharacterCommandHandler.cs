@@ -29,6 +29,10 @@ public sealed class UpdateCharacterCommandHandler : IRequestHandler<UpdateCharac
             request.BaseAttack,
             request.BaseDefense,
             request.BaseSpeed,
+            request.BaseHealth,
+            request.BaseTechnique,
+            request.BaseAccuracy,
+            request.BaseForesight,
             request.ImageUrl);
 
         await _db.SaveChangesAsync(cancellationToken);
