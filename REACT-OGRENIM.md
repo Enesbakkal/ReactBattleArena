@@ -1772,5 +1772,113 @@ Sıradaki: login’de rastgele refresh üret, hash’i satıra yaz, hamını JSO
 
 ---
 
+## Dilim 4 — GetMyTeams DTO’ları, handler, `out` (5 Kasım 2026)
+
+Kaynak: `Application/Teams/Queries/GetMyTeamsQuery.cs`, `GetMyTeamsQueryHandler.cs`. Chat anlatımı buraya alındı (yazım: `Sayfa-Modeli.md` kuralları).
+
+### DTO’lar
+
+```7:16:ReactBattleArena/ReactBattleArena.Application/Teams/Queries/GetMyTeamsQuery.cs
+public sealed record TeamSlotDto(
+    int SlotIndex,
+    Guid? CharacterId,
+    string? CharacterName,
+    string? ImageUrl);
+
+public sealed record TeamRowDto(
+    Guid Id,
+    string Name,
+    DateTime CreatedAtUtc,
+    IReadOnlyList<TeamSlotDto> Slots);
+```
+
+`TeamSlotDto` bir takımın beş karakterini bir arada tutmaz. O kayıt tek bir yeri anlatır: kaçıncı yer olduğu (`SlotIndex`), orada karakter var mı, varsa kimliği, adı ve görsel adresi. Beş yer ihtiyacı `TeamSlotDto`’nun içinde çoğaltılmaz; `TeamRowDto` içindeki `Slots` listesinde beş ayrı `TeamSlotDto` durur. Yer boşsa `CharacterId`, `CharacterName` ve `ImageUrl` `null` kalır, ama `SlotIndex` yine 0 ile 4 arasındadır. Böylece arayüz “veritabanında satır yok” diye kutuyu silmez; boş yeri de çizer.
+
+`TeamRowDto` bir takımın liste satırıdır. Takımın kimliği, adı, oluşturulma zamanı ve o takıma ait yer listesi buradadır. `GetMyTeamsQuery` işlenince dönen şey tek bir `TeamRowDto` değil, `IReadOnlyList<TeamRowDto>` olur; çünkü bir kullanıcının birden fazla takımı olabilir ve her takım kendi `Slots` dizisini taşır. ASP.NET tarafında bunu liste ekranına özel bir ViewModel gibi düşünebilirsin: entity’yi olduğu gibi JSON’a basmak yerine ekranın ihtiyaç duyduğu alanları taşırsın.
+
+`GetMyTeamsQuery` cevabı taşımaz; soruyu taşır. İçindeki `OwnerUserId`, “hangi sahibin takımlarını getir” demektir. `IRequest<IReadOnlyList<TeamRowDto>>` sözleşmesi MediatR’a şunu söyler: bu mesaj işlenince takım satırlarından oluşan bir liste dönecek.
+
+### Handler
+
+```18:59:ReactBattleArena/ReactBattleArena.Application/Teams/Queries/GetMyTeamsQueryHandler.cs
+    public async Task<IReadOnlyList<TeamRowDto>> Handle(
+        GetMyTeamsQuery request,
+        CancellationToken cancellationToken)
+    {
+        var teams = await _db.Teams
+            .AsNoTracking()
+            .Where(t => t.OwnerUserId == request.OwnerUserId)
+            .OrderByDescending(t => t.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        var teamIds = teams.Select(t => t.Id).ToList();
+
+        var members = await _db.TeamMembers
+            .AsNoTracking()
+            .Where(m => teamIds.Contains(m.TeamId))
+            .Join(
+                _db.Characters.AsNoTracking(),
+                m => m.CharacterId,
+                c => c.Id,
+                (m, c) => new { m.TeamId, m.SlotIndex, m.CharacterId, c.Name, c.ImageUrl })
+            .ToListAsync(cancellationToken);
+
+        return teams.Select(t =>
+        {
+            var bySlot = members
+                .Where(m => m.TeamId == t.Id)
+                .ToDictionary(m => m.SlotIndex);
+
+            var slots = Enumerable.Range(0, Team.SlotCount)
+                .Select(i =>
+                {
+                    if (bySlot.TryGetValue(i, out var m))
+                    {
+                        return new TeamSlotDto(i, m.CharacterId, m.Name, m.ImageUrl);
+                    }
+
+                    return new TeamSlotDto(i, null, null, null);
+                })
+                .ToList();
+
+            return new TeamRowDto(t.Id, t.Name, t.CreatedAtUtc, slots);
+        }).ToList();
+    }
+```
+
+İlk blok yalnızca isteği atan kullanıcının takımlarını okur. `OwnerUserId` filtresi sayfa modelindeki “Takımlarım yalnız onun satırları” kuralının SQL karşılığıdır; başka kullanıcının takımı bu listede görünmez. `AsNoTracking` bu sorgunun salt okuma olduğunu söyler; EF değişikliği izlemez, liste için bu yeterlidir. Sıra yeniden eskiye `CreatedAtUtc` ile gider.
+
+İkinci blok üyelik satırlarını karakter kataloğuyla birleştirir. Önce takım kimlikleri çıkarılır, sonra `TeamMembers` içinde bu kimliklere ait satırlar seçilir. `Join` ile `Characters` tablosuna bağlanmanın nedeni ad ve görselin üyelik tablosunda değil, karakter kaydında durmasıdır. Üyelik “şu takımın şu yerinde şu karakter var” der; isim katalogdan gelir. Bu HTTP tarafında `GET /api/teams` cevabını hazırlayan adımdır; controller MediatR ile bu handler’ı çağırır, handler bitince JSON’a dönen DTO listesi oluşur.
+
+Son blok her takım için sabit beş yer üretir. `Enumerable.Range(0, Team.SlotCount)` 0, 1, 2, 3, 4 üretir. O takıma ait üyeler `SlotIndex` anahtarıyla sözlüğe konur. Yer doluysa `TeamSlotDto` karakter bilgisiyle dolar; yer için `TeamMembers` satırı yoksa aynı indekste `null` alanlı bir `TeamSlotDto` yazılır. Veritabanında boş yer diye satır tutulmaz; boşluk burada tamamlanır. Böylece React tarafı “kaç üye geldiyse o kadar kutu” değil, her zaman beş yer çizebilir. Her takım için bir `TeamRowDto` kurulur ve hepsi liste olarak döner.
+
+### `out` ve `TryGetUserId`
+
+```csharp
+private bool TryGetUserId(out Guid userId)
+{
+    var idValue = User.FindFirstValue(ClaimTypes.NameIdentifier)
+        ?? User.FindFirstValue("sub");
+    return Guid.TryParse(idValue, out userId);
+}
+```
+
+Burada `userId` metoda dışarıdan doldurulmuş bir girdi gibi gelmez. `out` parametre, metodun çağırana geri yazacağı bir sonuç kutusudur. Metot önce JWT içindeki kullanıcı kimliği claim’ini string olarak okur (`ClaimTypes.NameIdentifier`, yoksa `sub`). Sonra `Guid.TryParse` aynı `out` kutusuna parse edilmiş değeri yazmaya çalışır. Parse başarılıysa metot `true` döner ve `userId` geçerlidir; başarısızsa `false` döner ve o Guid’e güvenilmez. Yani dönüş değeri “oldu mu?” sorusunun cevabıdır; asıl kimlik `out` ile taşınır. Bunu ASP.NET’te `int.TryParse(Request.Query["page"], out var page)` kalıbıyla aynı aileden sayabilirsin: biri başarı bayrağı, biri parse edilen değer.
+
+Çağrı tarafı şöyle görünür:
+
+```csharp
+if (!TryGetUserId(out var userId))
+    return Unauthorized();
+
+var result = await _mediator.Send(new GetMyTeamsQuery(userId), cancellationToken);
+```
+
+`out var userId` demek, çağrı yerinde yeni bir `Guid` değişkeni aç ve `TryGetUserId` o değişkeni doldursun demektir. Parametre bir yerden “okunup metoda verilmez”; metot yazar, sen sonra `userId` ile `GetMyTeamsQuery` kurarsın. Claim yoksa veya Guid değilse `Unauthorized` dönülür. Owner kimliğini istemci gövdesinden almak yerine token’dan okumanın nedeni budur: takım listesi “benim takımlarım”dır, URL’ye yazılan rastgele bir kullanıcı id’si değildir. Users listesindeki `tokenUserId` okumasıyla aynı güvenlik fikridir.
+
+Handler içindeki `bySlot.TryGetValue(i, out var m)` de aynı `out` ailesidir. Anahtar varsa üye bilgisi `m` kutusuna yazılır ve koşul doğru sayılır; yoksa boş slot DTO’su üretilir.
+
+---
+
 
 

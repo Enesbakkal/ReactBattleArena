@@ -1,8 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using ReactBattleArena.Domain.Authentication;
 using ReactBattleArena.Domain.Authorization;
 using ReactBattleArena.Domain.Characters;
+using ReactBattleArena.Domain.Teams;
 using ReactBattleArena.Domain.Users;
-using ReactBattleArena.Domain.Authentication;
 namespace ReactBattleArena.Application.Abstractions;
 
 public interface IApplicationDbContext
@@ -14,6 +15,8 @@ public interface IApplicationDbContext
     DbSet<UserRole> UserRoles { get; }
     DbSet<RolePermission> RolePermissions { get; }
     DbSet<RefreshToken> RefreshTokens { get; }
+    DbSet<Team> Teams { get; }
+    DbSet<TeamMember> TeamMembers { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 

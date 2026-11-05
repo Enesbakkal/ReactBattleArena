@@ -3,6 +3,7 @@ using ReactBattleArena.Application.Abstractions;
 using ReactBattleArena.Domain.Authentication;
 using ReactBattleArena.Domain.Authorization;
 using ReactBattleArena.Domain.Characters;
+using ReactBattleArena.Domain.Teams;
 using ReactBattleArena.Domain.Users;
 
 namespace ReactBattleArena.Infrastructure.Persistence;
@@ -22,6 +23,8 @@ public sealed class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Team> Teams => Set<Team>();
+    public DbSet<TeamMember> TeamMembers => Set<TeamMember>();
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

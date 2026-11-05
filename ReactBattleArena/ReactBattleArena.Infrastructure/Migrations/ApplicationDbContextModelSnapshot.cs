@@ -191,6 +191,51 @@ namespace ReactBattleArena.Infrastructure.Migrations
                     b.ToTable("Characters", (string)null);
                 });
 
+            modelBuilder.Entity("ReactBattleArena.Domain.Teams.Team", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerUserId");
+
+                    b.ToTable("Teams", (string)null);
+                });
+
+            modelBuilder.Entity("ReactBattleArena.Domain.Teams.TeamMember", b =>
+                {
+                    b.Property<Guid>("TeamId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("SlotIndex")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("CharacterId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("TeamId", "SlotIndex");
+
+                    b.HasIndex("CharacterId");
+
+                    b.HasIndex("TeamId", "CharacterId")
+                        .IsUnique();
+
+                    b.ToTable("TeamMembers", (string)null);
+                });
+
             modelBuilder.Entity("ReactBattleArena.Domain.Users.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -292,6 +337,30 @@ namespace ReactBattleArena.Infrastructure.Migrations
                     b.HasOne("ReactBattleArena.Domain.Users.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ReactBattleArena.Domain.Teams.Team", b =>
+                {
+                    b.HasOne("ReactBattleArena.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ReactBattleArena.Domain.Teams.TeamMember", b =>
+                {
+                    b.HasOne("ReactBattleArena.Domain.Characters.Character", null)
+                        .WithMany()
+                        .HasForeignKey("CharacterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ReactBattleArena.Domain.Teams.Team", null)
+                        .WithMany()
+                        .HasForeignKey("TeamId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
