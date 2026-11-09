@@ -22,6 +22,8 @@
     </PackageReference>
     <PackageReference Include="Microsoft.OpenApi" Version="2.9.0" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.16.10" />
+    <!-- Same pin as Infrastructure: override vulnerable transitive Pkcs 9.0.4 -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
   </ItemGroup>
 
   <ItemGroup>
