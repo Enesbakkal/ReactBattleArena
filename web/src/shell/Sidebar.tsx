@@ -21,6 +21,14 @@ function Sidebar({ open }: SidebarProps) {
             Karakterler
           </NavLink>
         </li>
+        <li>
+          <NavLink
+            to="/teams"
+            className={({ isActive }) => (isActive ? `${s.link} ${s.active}` : s.link)}
+          >
+            My Teams
+          </NavLink>
+        </li>
       </ul>
       <h5 className={s.navTitle}>USERS</h5>
       <ul className={s.nav}>

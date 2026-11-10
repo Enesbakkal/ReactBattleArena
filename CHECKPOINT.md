@@ -1,6 +1,6 @@
 # Geliştirme Checkpoint
 
-Son güncelleme: 3 Kasım 2026 — Adım 37: Character dövüş istatistikleri (BE+FE). Adım 38: Characters + Users list `search` (`ListSearchBar`, 1A draft/applied). Self-only yazma aynı. Sıradaki: UI string’leri toplu EN; isteğe Battle. Dövüş kilidi bölüm 2. Cookie danışmanda.
+Son güncelleme: 10 Kasım 2026 — Adım 39–40: Teams (domain/API/FE, 5 slot, üyelik, güç satırı). Dilim 4 kapandı. Sıradaki: Dilim 5 Arena (CHECKPOINT bölüm 2). UI string’leri EN artığı duruyor. Cookie danışmanda.
 
 ## Yeni chat’e geçerken oku
 
@@ -276,9 +276,11 @@ Detay: `PROJE_MANTIGI.md`
 - [x] **Adım 36 (29 Eki)** — `UserProfilePanel`; Edit Profile; Change Password; `useUserId`; contact default true; `users.create` + `/users/new`
 - [x] **Adım 37 (3 Kas)** — `BaseHealth` / `BaseTechnique` / `BaseAccuracy` / `BaseForesight`; migration; Create/Edit/Detail FE; kart grid’de güç yok
 - [x] **Adım 38 (3 Kas)** — Characters + Users `?search=`; `ListSearchBar` (Search/Enter); `searchDraft` / `appliedSearch`
+- [x] **Adım 39 (5–9 Kas)** — `Team` / `TeamMember`; CRUD + Add/Remove member; sahip = JWT; Pkcs 10.0.13
+- [x] **Adım 40 (10 Kas)** — My Teams + Team Edit; katalog search; slot/katalogda AT…FORE
 - [x] Kart: kolon sabit, yükseklik resmin en-boy oranı. İş butonu info, geri linki default (`characters-page__back`), Sil danger. Bootstrap `btn` / `form-control` yok
 - [ ] Sil soluk kırmızı (`$red-dark`) — istenmişti, `CharactersPage.css` hâlâ canlı danger
-- [ ] Battle Arena backend — formül 19 Eki kilitli (bölüm 2); entity/handler yok
+- [ ] Dilim 5 Arena / Battle backend+FE — formül 19 Eki kilitli (bölüm 2); entity/handler yok
 - [ ] Dashboard ekranı — sayfa modelinde; dövüş tablosundan sonra; giriş varsayılanı hâlâ `/characters`
 
 ## Karar notları
@@ -286,7 +288,9 @@ Detay: `PROJE_MANTIGI.md`
 - **User yazma / gizlilik (25–26 Eki; varsayılan 29 Eki):** Başkasının profili veya parolası yazılmaz (Admin dahil) — şimdilik bilinçli kilit. Menüde Edit/Password; tabloda Edit yok. `IsContactPublic` **default true**. Add User: izinli sayfa `/users/new`, modal değil; Register ayrı. Detay: Adım 34–36.
 - **İsimlendirme nabız (29 Eki):** Dilim sonunda Context/DTO adları gözden geçirilir. Örnek borç: `PermissionContext` içinde `userId` — ileride `MeContext` adayı. Hooks’un doyurucu anlatımı User dilimi bitince.
 - **Liste search (3 Kas, Adım 38):** Ayrı endpoint/FTS yok. Server-side `Contains`; Submit/Enter (1A) profesyonel — Light Dynamic anlık filtre bellekteki demo dizi içindir. İki state: `searchDraft` = kutudaki yazı; `appliedSearch` = son Search ile API’ye giden terim (Dilim 7 öğrenim notunda geniş anlatılacak).
-- **UI dili (29 Eki):** Tüm kullanıcıya görünen metinler İngilizce olacak (sidebar, sayfa başlıkları, butonlar, hata mesajları, login/register). Şu an karışık (`Karakterler` TR, Users menüsü EN). i18n kütüphanesi şart değil; önce tek dil EN. Bu turda toplu çeviri yok — User dilimi bitince veya ayrı dilimde.
+- **Teams (5–10 Kas, Adım 39–40 / Dilim 4):** Permission kodu yok; `[Authorize]` + `OwnerUserId`. Liste: ad `onBlur` → PUT, satır → `/teams/:id`. Edit: slot seç + katalog Add/Remove; sürükle-bırak yok. Güçler `TeamSlotDto` / `CharacterRowDto` ile slot ve katalogda. Modül hataları `AddTeamMemberResult` (global hata enum’u yok).
+- **UI dili (29 Eki):** Tüm kullanıcıya görünen metinler İngilizce olacak (sidebar, sayfa başlıkları, butonlar, hata mesajları, login/register). Şu an karışık (`Karakterler` TR, Users/Teams menüsü EN). i18n kütüphanesi şart değil; önce tek dil EN. Toplu çeviri ayrı dilimde.
+
 - **My Profile görsel (29 Eki):** Kapak yüksekliği ve avatar boyutu CSS’te sabit; resmi olmayan profil “boş” görünür. `avatarUrl` / kapak gelince doluluk artar, grid kolon genişliği aynı kalır. Activities yer tutucu (API yok).
 - **Dövüş kilidi (19 Eki):** 5 yer, rakip `POST` içinde, iki vuruş, isabet karşılaştırma (kura yok), beraberlik 25 puan, WebSocket sonra. Detay bölüm 2.
 - **Dashboard (19 Eki):** Light Blue yerleşim, gerçek SQL + seed harita verisi; e-ticaretten önce ekran, dövüş tablosundan sonra implement.
@@ -335,12 +339,10 @@ Detay: `PROJE_MANTIGI.md`
 ```
 ReactBattleArena — CHECKPOINT.md, PROJE_MANTIGI.md, PROJE_EKLEMELERI.md ve
 CursorMarkdowns/Sayfa-Modeli.md oku. Cursor yönlendirme; kod VS Code’da.
-Adım 36–38: profil self-only; Add User; Character combat stats; list search
-(ListSearchBar, searchDraft/appliedSearch). Admin başkasını update şimdilik yok.
-Sıradaki: UI string’leri toplu EN (veya Battle). Dövüş kilidi CHECKPOINT bölüm 2.
-Yetki JWT’de değil. Refresh ≠ permission.
+Adım 36–40: profil self-only; combat stats; list search; Teams (API+FE, 5 slot).
+Dilim 4 kapandı. Sıradaki: Dilim 5 Arena (CHECKPOINT bölüm 2). Admin başkasını
+update şimdilik yok. Yetki JWT’de değil. Refresh ≠ permission.
 ```
-
 ## Not düzeltme thread’i açılış cümlesi (kopyala)
 
 ```

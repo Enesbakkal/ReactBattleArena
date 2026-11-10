@@ -34,7 +34,21 @@ public sealed class GetMyTeamsQueryHandler
                 _db.Characters.AsNoTracking(),
                 m => m.CharacterId,
                 c => c.Id,
-                (m, c) => new { m.TeamId, m.SlotIndex, m.CharacterId, c.Name, c.ImageUrl })
+                (m, c) => new // join seçimi
+                {
+                    m.TeamId,
+                    m.SlotIndex,
+                    m.CharacterId,
+                    c.Name,
+                    c.ImageUrl,
+                    c.BaseAttack,
+                    c.BaseDefense,
+                    c.BaseSpeed,
+                    c.BaseHealth,
+                    c.BaseTechnique,
+                    c.BaseAccuracy,
+                    c.BaseForesight
+                })
             .ToListAsync(cancellationToken);
 
         return teams.Select(t =>
@@ -48,10 +62,21 @@ public sealed class GetMyTeamsQueryHandler
                 {
                     if (bySlot.TryGetValue(i, out var m))
                     {
-                        return new TeamSlotDto(i, m.CharacterId, m.Name, m.ImageUrl);
+                        return new TeamSlotDto(
+                            i,
+                            m.CharacterId,
+                            m.Name,
+                            m.ImageUrl,
+                            m.BaseAttack,
+                            m.BaseDefense,
+                            m.BaseSpeed,
+                            m.BaseHealth,
+                            m.BaseTechnique,
+                            m.BaseAccuracy,
+                            m.BaseForesight);
                     }
-
-                    return new TeamSlotDto(i, null, null, null);
+                    return new TeamSlotDto(
+                        i, null, null, null, null, null, null, null, null, null, null);
                 })
                 .ToList();
 

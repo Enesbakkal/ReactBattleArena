@@ -400,6 +400,22 @@ Ayrı search endpoint yok; `Sayfa-Modeli` gibi aynı GET’e `search` query. FTS
 - [x] `CharactersPage` / `UsersPage`: `searchDraft` + `appliedSearch`; `URLSearchParams`; Add yanında bar — 3 Kas
 - [ ] Öğrenim (Dilim 7): iki-state anlatımı (`searchDraft` vs `appliedSearch`) notlara yazılacak
 
+### Adım 39 — Teams domain + API (5–9 Kasım)
+
+Dilim 4 backend. Sahiplik JWT `OwnerUserId`; ayrı `teams.*` permission yok. Sabit 5 slot (`Team.SlotCount`).
+
+- [x] Domain `Team` / `TeamMember`; `TeamConfiguration` + `TeamMemberConfiguration`; DbSet; migration `AddTeams` + `FixTeamsTable` (Name 100, Owner FK) — 5 Kas
+- [x] Create / GetMine / GetById / Rename / Delete; controller `[Authorize]` + `TryGetUserId` — 5–9 Kas
+- [x] AddMember / RemoveMember; `AddTeamMemberResult` enum → 204/400/404; Cascade üyelik — 9 Kas
+- [x] `System.Security.Cryptography.Pkcs` 10.0.13 pin (NU1902/1903) — 9 Kas
+
+### Adım 40 — Teams FE + slot/katalog güçleri (10 Kasım)
+
+Sayfa modeli: liste satırında ad blur-rename, satır tıklanınca edit; edit üstte 5 slot, altta katalog search (Create Character yok).
+
+- [x] Sidebar My Teams; `/teams` `TeamsPage` (Add / rename blur / Delete / 5 slot); `/teams/:id` `TeamEditPage` (slot seç + Add/Remove + `ListSearchBar`) — 10 Kas
+- [x] `CharacterRowDto` + `TeamSlotDto` güç alanları; liste/edit’te `formatPowers` (AT…FORE) — 10 Kas
+
 ### Güvenlik & Git
 
 - [x] `Microsoft.OpenApi` güvenlik güncellemesi
@@ -423,9 +439,11 @@ Ayrı search endpoint yok; `Sayfa-Modeli` gibi aynı GET’e `search` query. FTS
 - [x] Profil sayfaları + Add User + contact default true (Adım 36)
 - [x] Karakter dövüş istatistikleri (Adım 37)
 - [x] Characters + Users list search (Adım 38)
+- [x] Teams domain + API (Adım 39)
+- [x] Teams FE + güç gösterimi (Adım 40)
+- [ ] Dilim 5 — Arena / Battle (formül CHECKPOINT bölüm 2)
 - [ ] UI string’leri toplu EN (sidebar Karakterler vb.)
 - [ ] Liste yükleme 3–4 sn gecikmesi (inceleme)
-- [ ] Battle Arena backend (formül CHECKPOINT bölüm 2’de kilitli)
 - [ ] (İleride) Docker / Kubernetes / CI
 
 
@@ -687,6 +705,16 @@ Ayrı search endpoint yok; `Sayfa-Modeli` gibi aynı GET’e `search` query. FTS
 - Adım 38: Characters + Users `?search=`; `ListSearchBar` 1A (`searchDraft` / `appliedSearch`); Light-benzeri koyu input, mavi Search
 - Karar: FTS yok; server-side Contains; Light Dynamic anlık filtre client-demo — bizim model Submit/Enter
 
+### 5–9 Kasım 2026
+
+- Adım 39: `Team` / `TeamMember`; migrations; Teams API (CRUD + üyelik); Pkcs 10.0.13
+- Karar: takım yetkisi permission kodu değil, JWT sahip filtresi
+
+### 10 Kasım 2026
+
+- Adım 40: `TeamsPage` / `TeamEditPage`; sidebar My Teams; slot + katalogda AT…FORE
+- Dilim 4 kapandı; sıradaki Dilim 5 Arena
+
 ---
 
 
@@ -760,9 +788,11 @@ Ayrı search endpoint yok; `Sayfa-Modeli` gibi aynı GET’e `search` query. FTS
 
 
 
-## Faz 5 — Battle Arena (ileride)
+## Faz 5 — Battle Arena
 
-- [ ] Takım, eşleşme, savaş, puan
+- [x] Takım modülü domain + API + FE (Adım 39–40 / Dilim 4)
+- [ ] Arena: eşleşme, `POST /api/battles`, oynatma, puan (Dilim 5)
+- [ ] Savaş geçmişi + highlights
 
 ---
 

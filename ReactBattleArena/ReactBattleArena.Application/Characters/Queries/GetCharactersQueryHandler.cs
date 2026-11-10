@@ -46,6 +46,10 @@ public sealed class GetCharactersQueryHandler
                 c.BaseAttack,
                 c.BaseDefense,
                 c.BaseSpeed,
+                c.BaseHealth,
+                c.BaseTechnique,
+                c.BaseAccuracy,
+                c.BaseForesight,
                 c.ImageUrl,
                 c.CreatedAtUtc))
             .ToListAsync(cancellationToken);

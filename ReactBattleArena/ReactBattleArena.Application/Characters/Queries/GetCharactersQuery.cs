@@ -13,6 +13,10 @@ public sealed record CharacterRowDto(
     int BaseAttack,
     int BaseDefense,
     int BaseSpeed,
+    int BaseHealth,
+    int BaseTechnique,
+    int BaseAccuracy,
+    int BaseForesight,
     string? ImageUrl,
     DateTime CreatedAtUtc);
 

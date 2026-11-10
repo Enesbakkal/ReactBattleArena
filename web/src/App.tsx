@@ -12,6 +12,8 @@ import MyProfilePage from './MyProfilePage'
 import EditProfilePage from './EditProfilePage'
 import ChangePasswordPage from './ChangePasswordPage'
 import UserDetailPage from './UserDetailPage'
+import TeamsPage from './TeamsPage'
+import TeamEditPage from './TeamEditPage'
 
 function App() {
   return (
@@ -24,6 +26,8 @@ function App() {
         <Route path="/characters/new" element={<CharacterCreatePage />} />
         <Route path="/characters/:id/edit" element={<CharacterEditPage />} />
         <Route path="/characters/:id" element={<CharacterDetailPage />} />
+        <Route path="/teams" element={<TeamsPage />} />
+        <Route path="/teams/:id" element={<TeamEditPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/users/new" element={<UserCreatePage />} />
         <Route path="/users/:id" element={<UserDetailPage />} />
