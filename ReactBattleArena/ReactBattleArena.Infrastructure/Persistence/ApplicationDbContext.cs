@@ -5,6 +5,7 @@ using ReactBattleArena.Domain.Authorization;
 using ReactBattleArena.Domain.Characters;
 using ReactBattleArena.Domain.Teams;
 using ReactBattleArena.Domain.Users;
+using ReactBattleArena.Domain.Battles;
 
 namespace ReactBattleArena.Infrastructure.Persistence;
 
@@ -25,6 +26,9 @@ public sealed class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Team> Teams => Set<Team>();
     public DbSet<TeamMember> TeamMembers => Set<TeamMember>();
+    public DbSet<Battle> Battles => Set<Battle>();
+    public DbSet<BattleFighter> BattleFighters => Set<BattleFighter>();
+    public DbSet<BattleEvent> BattleEvents => Set<BattleEvent>();
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

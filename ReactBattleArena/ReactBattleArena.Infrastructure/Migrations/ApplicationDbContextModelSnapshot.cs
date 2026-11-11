@@ -123,6 +123,160 @@ namespace ReactBattleArena.Infrastructure.Migrations
                     b.ToTable("UserRoles", (string)null);
                 });
 
+            modelBuilder.Entity("ReactBattleArena.Domain.Battles.Battle", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("FinishedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("InitiatorTeamId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("InitiatorUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsHighlighted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsSystemOpponent")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid?>("OpponentTeamId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("OpponentUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Outcome")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TurnCount")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAtUtc");
+
+                    b.HasIndex("InitiatorTeamId");
+
+                    b.HasIndex("InitiatorUserId");
+
+                    b.HasIndex("IsHighlighted");
+
+                    b.HasIndex("OpponentTeamId");
+
+                    b.HasIndex("OpponentUserId");
+
+                    b.ToTable("Battles", (string)null);
+                });
+
+            modelBuilder.Entity("ReactBattleArena.Domain.Battles.BattleEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AttackerSide")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AttackerSlot")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("BattleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Damage")
+                        .HasColumnType("int");
+
+                    b.Property<int>("HitResult")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StrikeKind")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TargetRemainingHealth")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TargetSide")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TargetSlot")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TurnNumber")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BattleId", "TurnNumber", "Sequence");
+
+                    b.ToTable("BattleEvents", (string)null);
+                });
+
+            modelBuilder.Entity("ReactBattleArena.Domain.Battles.BattleFighter", b =>
+                {
+                    b.Property<Guid>("BattleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Side")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SlotIndex")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BaseAccuracy")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BaseAttack")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BaseDefense")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BaseForesight")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BaseHealth")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BaseSpeed")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BaseTechnique")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("CharacterId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("Rarity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Universe")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("BattleId", "Side", "SlotIndex");
+
+                    b.HasIndex("CharacterId");
+
+                    b.ToTable("BattleFighters", (string)null);
+                });
+
             modelBuilder.Entity("ReactBattleArena.Domain.Characters.Character", b =>
                 {
                     b.Property<Guid>("Id")
@@ -339,6 +493,54 @@ namespace ReactBattleArena.Infrastructure.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("ReactBattleArena.Domain.Battles.Battle", b =>
+                {
+                    b.HasOne("ReactBattleArena.Domain.Teams.Team", null)
+                        .WithMany()
+                        .HasForeignKey("InitiatorTeamId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ReactBattleArena.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("InitiatorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ReactBattleArena.Domain.Teams.Team", null)
+                        .WithMany()
+                        .HasForeignKey("OpponentTeamId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ReactBattleArena.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("OpponentUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("ReactBattleArena.Domain.Battles.BattleEvent", b =>
+                {
+                    b.HasOne("ReactBattleArena.Domain.Battles.Battle", null)
+                        .WithMany()
+                        .HasForeignKey("BattleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ReactBattleArena.Domain.Battles.BattleFighter", b =>
+                {
+                    b.HasOne("ReactBattleArena.Domain.Battles.Battle", null)
+                        .WithMany()
+                        .HasForeignKey("BattleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ReactBattleArena.Domain.Characters.Character", null)
+                        .WithMany()
+                        .HasForeignKey("CharacterId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("ReactBattleArena.Domain.Teams.Team", b =>

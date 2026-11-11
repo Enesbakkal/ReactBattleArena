@@ -4,6 +4,7 @@ using ReactBattleArena.Domain.Authorization;
 using ReactBattleArena.Domain.Characters;
 using ReactBattleArena.Domain.Teams;
 using ReactBattleArena.Domain.Users;
+using ReactBattleArena.Domain.Battles;
 namespace ReactBattleArena.Application.Abstractions;
 
 public interface IApplicationDbContext
@@ -17,6 +18,9 @@ public interface IApplicationDbContext
     DbSet<RefreshToken> RefreshTokens { get; }
     DbSet<Team> Teams { get; }
     DbSet<TeamMember> TeamMembers { get; }
+    DbSet<Battle> Battles { get; }
+    DbSet<BattleFighter> BattleFighters { get; }
+    DbSet<BattleEvent> BattleEvents { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 
